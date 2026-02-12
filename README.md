@@ -6,8 +6,17 @@ Which cooldown has been used is guessed based on the small number of buffs that 
 
 STILL A WORK IN PROGRESS. Most notably, support to automatically identify talents that change cooldown length, buff duration or number of charges.
 
-OmniCD-like tracking when cooldown can be accurately guessed
+### Fallback mode when cooldown is ambiguous
+The default mode: when a big cooldown is used, keep the icon around (without knowing what it is) and attach a timer that counts up. Requires the player to know the cooldown of the ability (e.g., when the Barkskin timer hits 60, the ability is off cooldown).
+
+To reduce clutter, the timer is removed when the longest possible cooldown across all abilities that could be present on that player is reached.
+![](fallback_behavior.png)
+
+
+### OmniCD-like tracking when cooldown can be accurately guessed
+In some cases, the ability used can be guessed. For example, if the group has no external defensives and a spec has only one ability X that is classified as a BIG_DEFENSIVE, then any time a big defensive buff is shown it must be ability X.
 ![](cooldowns_tracked.png)
 
-Group-wide detection of abilities and inference on which can be accurately guessed
+### Group-wide solving which abilities can always be uniquely identified
+Use `/pdh` to get a panel showing all of the BIG_DEFENSIVEs in the group and which characters are valid targets. Greyed out icons are abilities that cannot *always* be accurately inferred.
 ![](group_solutions_UI.png)
