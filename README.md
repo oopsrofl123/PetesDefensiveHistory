@@ -8,3 +8,6 @@ STILL A WORK IN PROGRESS. Most notably, support to automatically identify talent
 
 OmniCD-like tracking when cooldown can be accurately guessed
 ![](cooldowns_tracked.png)
+
+Group-wide detection of abilities and inference on which can be accurately guessed
+![](group_solutions_UI.png)
