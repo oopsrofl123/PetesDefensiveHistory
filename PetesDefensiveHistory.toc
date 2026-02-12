@@ -1,0 +1,17 @@
+## Interface: 120001
+## Title: PetesDefensiveHistory
+## Notes: Midnight tracker for big defensives. Shows persistent timer icons next to party frames allowing the player to judge whether a cooldown is available.
+## Author: Pete, clearly
+## Version: 1.0
+
+LibPrettyPrint\LibPrettyPrint.xml
+LibButtonGlowcustom\LibButtonGlowcustom.lua
+LibSpecialization\LibSpecialization.lua
+Globals.lua
+Utils.lua
+Options.lua
+SpecDefensiveDb.lua
+SpecHandler.lua
+SpecHandlerUI.lua
+HistoryGrid.lua
+PetesDefensiveHistory.lua

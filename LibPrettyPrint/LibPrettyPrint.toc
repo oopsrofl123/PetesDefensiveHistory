@@ -1,0 +1,38 @@
+## Interface: 110207
+## Version: 2026.1.4
+## Title: |TInterface/Addons/LibPrettyPrint/Assets/LibPrettyPrint-Logo1:18:18|t Lib: Lib|cff12E600PrettyPrint|r
+## Notes: LibPrettyPrint is a lightweight utility library for readable, |nsafe table inspection and debugging in World of Warcraft.|n|cff1784d1This addon is provided 'as is' without any warranties.All rights|nreserved. Redistribution or modification is not permitted.|r
+
+## Author: Tony Lagnada (kapresoft)
+## DefaultState: enabled
+## LoadOnDemand: 1
+# IconTexture: Interface/AddOns/LibPrettyPrint/Assets/LibPrettyPrint-Logo1
+
+## Category-enUS: Libraries
+## Category-deDE: Bibliotheken
+## Category-esES: Bibliotecas
+## Category-esMX: Bibliotecas
+## Category-frFR: Bibliothèques
+## Category-itIT: Librerie
+## Category-koKR: 라이브러리
+## Category-ptBR: Bibliotecas
+## Category-ruRU: Библиотеки
+## Category-zhCN: 库
+## Category-zhTW: 程式庫
+
+## X-Github-Repo: https://github.com/kapresoft/wow-addon-LibPrettyPrint
+## X-Github-Issues: https://github.com/kapresoft/wow-addon-LibPrettyPrint/issues
+## X-CurseForge: https://www.curseforge.com/wow/addons/libprettyprint
+## X-Curse-Project-ID: 1424095
+## X-Github-Project-Author: Tony Lagnada
+## X-Github-Project-Hash: 0d7ce238f5d95c215b3ca3028a74bac58b4e73e8
+## X-Github-Project-Last-Changed-Date: 2026-01-28T01:48:36Z
+## X-Github-Project-Version: 2026.1.4
+
+## X-WoWI-ID: -1
+
+## X-PayPal-Donation-ID: AX58YP3GSGXVU
+## X-PayPal-Donation-URL: https://www.paypal.com/donate/?hosted_button_id=AX58YP3GSGXVU
+
+LibPrettyPrint.xml
+

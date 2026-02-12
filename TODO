@@ -1,0 +1,196 @@
+NEEDS TESTING
+===========================================================================
+- better handling of spec querying
+	- libspecialization updates during m+ runs. need to figure out why
+- [needs testing:] support tracking externals when it's unambiguous
+    - three levels of ambiguity, maybe an option for behavior:
+        1. (most important) is there only one person in the group that can cast the
+           external? this is usually true unless multiple paladins
+        2. is the external identifiable ON ALL GROUP MEMBERS? ironbark (12s duration)
+           might be identifiable on most group members, but the resto druid who can
+           cast ironbark also has barkskin (12s), which means the tracker will fail
+           when the druid barks themselves.
+        3. is the external distinguishable from OTHER EXTERNALS? ironbark and sac
+           are a good example. both are 12s durations (though sac could be less),
+           meaning a group with a prot pal and a resto druid could only 
+           determine which was cast in two scenarios:
+            a. the target was the prot paladin (then the spell was ironbark, sac
+               can't be self-cast).
+            b. the sac timed out early due to the 20% health tripwire AND the
+               short duration doesn't match any other cds of the sac's target.
+            (a) is actually common, so the tracker may still have some value. if the
+            druid specs 16s ironbark, then it's likely fully identifiable
+
+
+FEATURES
+===========================================================================
+- updating/clearing old data
+    - when party members join/leave group or change positions
+    - could be easier to just clear for now, but could be annoying if,
+      e.g., you're looking at CDs when a key ends and a group member drops
+      party and deletes all of your info.
+    - update (likely clear, since there is a memory leak by design) between keys.
+	    - is there a different event when changing zones vs. starting a mythic+ key?
+    - add reset button to the /pdh solution window
+- check tier bonuses to make sure they don't alter duration/charges/CDR/etc.
+- get data to make better estimates on duration solve tolerance
+    - both the "match" epsilon and the minimum difference
+- how to handle sac in "solved" interface? (since its duration is _less than or
+    equal to_ 12s, meaning it clashes with almost every defensive buff
+    - solved interface should perhaps be the most conservative solution, meaning
+      exact duration matches, no advanced inference (CD tracking, variable duration, etc)
+- better handle VDH fiery brand using aurasUpdated
+    - turns out almost everything about fiery brand is bugged so can't work on this
+- support for detecting death?
+    - UNIT_DIED exists, but surprisingly is secret. could we guess someone died
+      if a ton of auras were removed in one batch and a UNIT_DIED fired sometime
+      recently? PLAYER_TARGET_DIED fired in a follower dungeon when the NPC tank died
+- better handle CDR
+    - can compute upper bounds (or averages) on the amount of CDR gained. e.g., throwing
+      avenger's shield on CD at 5 targets = 5s CDR per 12s (though procs reduce this
+      and so does divine toll).:
+- better inference using cooldown tracking
+    - e.g.: prot paladin has AD=8s and GoAK=8s so they can't be distinguished.
+      if AD and GoAK are used in sequence, we don't know which was used first, but
+      the only way to have 2 8s buffs is if they were both used. so now can infer
+      AD is on cd and one charge of GoAK is used. so if we see another 8s buff on
+      the paladin, we know it was charge 2 of GoAK and now both charges are on CD
+      for some time. AD will probably come off CD during this period, meaning that
+      the next CD is likely AD.
+        - gets a little murkier since GoAK is also a CDR spell
+- better handling/inference for abilities with charges
+    - tanks are very charge heavy, so will be important
+- updateRow
+    - e.g., when specText or cpfMapping change, update the associated
+      text widgets rather than forcing the functions that update those
+      values to do it.
+- talent informed database
+    - requires extracting talent selections from talent string. apparently
+      WA has code to do this.
+- continue filling out spec ability database
+- consider a different event than OnUpdate for cooldown timers since this
+  fires every frame.
+- options panel
+    - text sizes
+    - text outlines
+    - font probably
+    - direction
+    - "omnicd mode" - moving the center debuff out of the frame
+    - max history size
+    - icon size
+    - icon padding
+    - add reset button to panel, have /pdh open options panel rather than reset
+
+
+
+BUGS
+===========================================================================
+
+
+
+LIMITATIONS
+===========================================================================
+- other players MUST be using some addon that has LibSpec embedded. The
+  usual one is big/littlewigs (I guess). Could also say that everyone needs
+  to run PetesDefensiveHistory.. :)
+- defensives are identified by appearing in blizzard's center big buff
+  frame. since blizzard shows only a single buff, rules were created to
+  decide which buff to show if several are activated. e.g., for tanks with
+  multiple def buffs (prot pal: ardent defender, goak) or when an external
+  is applied to someone whose own buff is already running (e.g., applying
+  ironbark to a hunter that already popped survival of the fittest).
+
+  if two buffs are applied at the same instant, only one can appear as the
+  icon, so one of the two will not be tracked.
+    - i don't know what this logic is. most of the time it seems to show
+      the latest applied buff.
+
+
+
+TALENT CHECKING
+===========================================================================
+just some notes on using LibSpecialization to check specific talents
+
+The series of functions below seems to be what produces the talent string:
+- activeConfigID = C_ClassTalents_GetActiveConfigID()
+- talentString = C_Traits_GenerateImportString(activeConfigID)
+
+example code on how to traverse the talent tree
+https://warcraft.wiki.gg/wiki/Dragonflight_Talent_System
+
+
+some code about the serialization process
+https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_PlayerSpells/ClassTalents/Blizzard_ClassTalentImportExport.lua
+
+
+just libspec on github. looks like the addon uses chat messages to
+communicate with group members. perhaps it sends them the code as a
+string and asks them to run it? seems insecure.
+https://github.com/BigWigsMods/LibSpecialization/blob/master/LibSpecialization/LibSpecialization.lua
+
+
+weakauras had a decoder library:
+https://github.com/WeakAuras/WeakAuras2/blob/cabde3e6c9419516889cd0305b358c749f90f2ca/WeakAuras/LibSpecializationWrapper.lua#L154
+
+
+
+
+DONE
+===========================================================================
+- now tracks frame sorting, properly mapping, e.g., player -> CompactPartyFrameMemberX
+- don't place buff into the history until it finishes
+	- possible with aura instance ID tracking
+	- possible to handle the overlapping defensives where the buff icon
+	  is changed before the last defensive completes
+- track durations by UNIT_AURA removed list and auraInstanceID
+- as new features have been added, updating the current data structures is
+  too cumbersome to handle newer features.
+	- new add/remove functions for history
+	- new swap/clear/etc functions to fully abstract internal data architecture
+	- better facilitate setup/teardown/update/reset
+	- clarify data hierachy. individual cooldown frames need to know, e.g.,
+	  to what player they refer. EITHER:
+		1. copy all of this data into each frame and abstract away the cumbersome
+		   duplication
+		2. figure out how to link to a globally visible data structure.
+		   this is cleaner, but depends on how wow scopes callback execution
+- better guessing for:
+    - duration_variable (should record whether this is < or > the stated duration)
+        - in some cases fully unambiguous solutions remain. e.g.: DK AMS (<=7s) and
+          IBF (=8s). if these are the only available spells for the group, then any
+          duration <= 7s is definitely AMS and any 8s duration is definitely IBF.
+        - in others, it becomes a best match. e.g.: paladin sac (<=12s) and just
+          about every defensive. since the sac *CAN* end before 12s if the paladin
+          drops below 20%, there's a chance it happens to wear off at exactly the
+          duration of another defensive causing a misidentification. since the
+          likelihood of this is low, the timer is still almost always useful.
+            - because of these cases, it could be useful to keep an internal table
+              of last-use of cooldowns. if an unambiguous sac happened (e.g.,
+              a DK in a group with just a prot paladin and no other externals had
+              a defensive that lasted 12s, then it was a sac) then we now know sac
+              is unavailable for 60s, meaning that ambiguities caused by sac can
+              be ignored for that 60s window.
+- support tracking externals when it's unambiguous
+    - until this support is implemented, should hide externals when they can be
+      identified as it clutters the real cooldowns.
+    - requires redirecting the icon from the target's party frame to
+      the (inferred) caster's history.
+- solving group inferences based on the full catalog of possible defensives
+	- will be different per player. e.g., resto druids with 12s bark and
+	  12s ironbark will never be solvable but every other group member
+	  could be.
+	- solution pane showing the current group members, each of their
+	  possible cooldowns and which ones are identifiable
+- infer ability based on duration
+	- prune duplicate abilities in history when possible
+- for unidentified abilities: remove the tracker text once the longest
+  possible cooldown time for that player has been reached (i.e., max CD
+  across all externals in the group and that player's own cds).
+- handle when libspec never returns a spec
+    - [UPDATE]: just requires all players have an addon (pref this one) with
+      LibSpec embedded
+- auras possibly being assigned to the wrong anchor?
+	- case where arcane mage had blur in history?
+    - [PROBABLY FIXED] older code assumed auraInstanceIDs were unique across
+      characters when they might not be.
+- use different textures when it makes sense (e.g., gift of the golden valkyr)

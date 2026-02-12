@@ -1,0 +1,12 @@
+<!--suppress ALL -->
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+
+	<Include file="ThirdParty\ThirdParty.xml"></Include>
+
+	<Script file="Libs\Namespace.lua"/>
+	<Script file="Libs\pprint.lua"/>
+	<Script file="Libs\Formatter.lua"/>
+	<Script file="Libs\Printer.lua"/>
+	<Script file="Libs\LibPrettyPrint.lua"/>
+</Ui>
