@@ -47,6 +47,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_LTE,  -- ends when shield broken
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		},
 		{
@@ -57,6 +60,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -70,6 +76,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_LTE,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		},
 		{
@@ -80,6 +89,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -98,6 +110,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,      -- talent 2 charges
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -112,6 +127,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_GTE, -- talent: spreading in multi-target and +0.25s duration on immo ticks
 			charges=1,               -- talent: +1 charge
 			cdr=false,
+            importantFlag=false,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -125,6 +143,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,      -- talent 2 charges
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -143,6 +164,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -156,6 +180,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -170,6 +197,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -183,6 +213,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		},
 		{
@@ -193,6 +226,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=false,
+            bigFlag=true,
+            externalFlag=true,
 			external=EXTERNAL_ANY
 		}
 	},
@@ -225,6 +261,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=2,                 -- talent: 2 charges
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		},
 	},
@@ -238,6 +277,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=2,                 -- talent: 2 charges
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		},
     },
@@ -251,6 +293,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=2,                 -- talent: 2 charges
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		},
 	},
@@ -272,6 +317,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -286,6 +334,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -302,6 +353,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,      -- only frost has talent +1 charge
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -316,7 +370,7 @@ SpecDefensiveDb = {
 		-- fort brew: 120s cd > 90s cd with talent
 		--{
 		--	name="Fortifying Brew",
-		--	id=115203,
+		--	-- this ID might be diff for brew id=115203,
 		--	cooldown=360   -- talent: 360 > 240 base is really 6min for brew
 		--	duration=15,
 		--	duration_variable=DURATION_FIXED,
@@ -372,6 +426,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_LTE,   -- cancels if caster falls < 20% health
 			charges=1,
 			cdr=false,
+            importantFlag=false,
+            bigFlag=true,
+            externalFlag=true,
 			external=EXTERNAL_NOT_SELF
 		}
 		-- Divine Protection is not tracked
@@ -428,6 +485,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_LTE,   -- cancels if caster falls < 20% health
 			charges=1,
 			cdr=false,
+            importantFlag=false,
+            bigFlag=true,
+            externalFlag=true,
 			external=EXTERNAL_NOT_SELF
 		}
 	},
@@ -452,6 +512,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_LTE,   -- cancels if caster falls < 20% health
 			charges=1,
 			cdr=false,
+            importantFlag=false,
+            bigFlag=true,
+            externalFlag=true,
 			external=EXTERNAL_NOT_SELF
 		}
 	},
@@ -484,6 +547,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=false,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -497,6 +563,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=false,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -510,6 +579,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=false,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -528,6 +600,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -541,6 +616,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -554,6 +632,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -572,6 +653,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -585,6 +669,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -598,6 +685,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=1,
 			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
 		}
 	},
@@ -623,6 +713,9 @@ SpecDefensiveDb = {
 			duration_variable=DURATION_FIXED,
 			charges=2,
 			cdr=true,       -- talent 1: 20 rage=1s, talent 2: shield slam=6s
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
 			external=NOT_EXTERNAL
         },
 	},

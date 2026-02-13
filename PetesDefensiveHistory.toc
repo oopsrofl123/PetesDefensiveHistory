@@ -14,4 +14,5 @@ SpecDefensiveDb.lua
 SpecHandler.lua
 SpecHandlerUI.lua
 HistoryGrid.lua
+DumpAbilityFlags.lua
 PetesDefensiveHistory.lua

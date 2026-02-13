@@ -1,17 +1,57 @@
-printer = LibPrettyPrint:Printer({
-  prefix = "DefensiveHistory",
+-- get the addon namespace
+local _, ns = ...
+
+ns.printer = LibPrettyPrint:Printer({
+  prefix = "PetesDefensiveHistory",
     formatter = { multiline_tables = true }
 })
 
 
+-- ring buffer for a fixed size FIFO queue
+function ns:fixedFIFO(size)
+    local q = {} -- the object returned to the user
+    local head = size
+    local tail = 1
+    local n = 0 -- number of items in queue
+    local t = {} -- the internal array
 
-function specIdToString(specId)
-    if specId then
-        id, specName, _, _, _, _, className = GetSpecializationInfoByID(specId)
-        return specName .. " " .. className -- .. "(" .. specId .. ")"
-    else
-        return tostring(nil)
+    function q:push(v)
+        -- size limit reached, get rid of oldest item
+        if n >= size then
+            self:pop() 
+        end
+        head = head % size + 1
+        t[head] = v
+        n = n + 1
     end
+
+    function q:pop()
+        if n == 0 then
+            return nil
+        end
+        local v = t[tail]
+        t[tail] = nil -- apparently allows garbage collection
+        tail = tail % size + 1
+        n = n - 1
+        return v
+    end
+
+    function q:print()
+        printer(t)
+    end
+
+    return q
+end
+
+
+
+function tablecontains(t, value)
+    for k, v in pairs(t) do
+        if v == value then
+            return true
+        end
+    end
+    return false
 end
 
 
@@ -23,6 +63,17 @@ function shallowcopy(t)
         newt[k] = v
     end
     return newt
+end
+
+
+
+function specIdToString(specId)
+    if specId then
+        id, specName, _, _, _, _, className = GetSpecializationInfoByID(specId)
+        return specName .. " " .. className
+    else
+        return tostring(nil)
+    end
 end
 
 
@@ -96,4 +147,13 @@ end
 -- Show y if x is shown
 function showIfShown(x, y)
     if x:IsShown() then y:Show() else y:Hide() end
+end
+
+
+function maskSecret(value)
+    if issecretvalue(value) then
+        return nil
+    else
+        return value
+    end
 end

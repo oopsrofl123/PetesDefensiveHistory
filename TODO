@@ -24,7 +24,16 @@ NEEDS TESTING
 
 FEATURES
 ===========================================================================
-- updating/clearing old data
+- addon namespace global cleanup
+- use blizzard's filters for more info (HELPFUL|BIG_DEFENSIVE, HELPFUL|EXTERNAL, HELPFUL|IMPORTANT)
+- option to disable all inference (@Aryella WoWUIDev)
+- stop using blizzard's CenterDefensiveBuff (just hide it) so that multiple active buffs and
+  non-defensive buffs can be supported
+- add spell caster inference with UNIT_SPELLCAST_SUCCEEDED
+    - HALF 1: track casts
+    - HALF 2: use the info
+
+- updating/clearing tracker data
     - when party members join/leave group or change positions
     - could be easier to just clear for now, but could be annoying if,
       e.g., you're looking at CDs when a key ends and a group member drops
@@ -80,6 +89,12 @@ FEATURES
     - icon size
     - icon padding
     - add reset button to panel, have /pdh open options panel rather than reset
+    - spell categories to track
+        - important
+        - big defensive
+        - external
+        - special (RAID_IN_COMBAT + at least one of the above, blessing of freedom
+          might be the only one of these)
 
 
 

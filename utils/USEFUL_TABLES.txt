@@ -1,0 +1,1 @@
+map spellIDs to classes	https://wago.tools/db2/SpellClassOptions

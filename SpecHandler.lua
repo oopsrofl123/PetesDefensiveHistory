@@ -56,17 +56,42 @@ function identifyAbility(slot, buff)
         buff.cooldown = math.max(buff.cooldown, ability.cooldown)
         local isPossible = true 
 
-        -- How much time has passed since we last saw this ability? Was it
+        -- 1. Do Blizzard's aura flags match?
+        if buff.isImportant ~= ability.importantFlag then
+            isPossible = false
+        end
+        if buff.isBigDefensive ~= ability.bigFlag then
+            isPossible = false
+        end
+        if buff.isExternal ~= ability.externalFlag then
+            isPossible = false
+        end
+        if not isPossible then
+            printDebug("target=" .. slot .. ": excluding ability " .. ability.name ..
+                " due to mismatching flags (" ..
+                tostring(ability.importantFlag) .. ", " ..
+                tostring(ability.bigFlag) .. ", " ..
+                tostring(ability.externalFlag) .. ") vs. (" ..
+                tostring(buff.isImportant) .. ", " ..
+                tostring(buff.isBigDefensive) .. ", " ..
+                tostring(buff.isExternal) .. ")")
+        end
+
+        -- 2. How much time has passed since we last saw this ability? Was it
         -- long enough that it could be off cooldown? This heuristic only
         -- works for abilities that don't have dynamic cooldown reduction.
         -- ALSO: need to know who cast this ability. For self-cast only
         -- spells slot=caster but externals may not be.
-        if not ability.cdr then
+        if isPossible and not ability.cdr then
             -- XXX: make things easier for now. possible to infer for >1 sometimes
             if #pdhPossibleCasters[ability.name] == 1 then
                 local caster = pdhPossibleCasters[ability.name][1]
-
                 local time_since = GetTime() - (pdhCDTracker[caster][ability.name] or 0)
+                printDebug("target=" .. slot .. ", caster=" .. caster ..
+                    ", ability=" ..  ability.name ..
+                    ": last seen " .. time_since ..
+                    "s ago, cooldown (=" ..  ability.cooldown .. "s) + duration (=" ..
+                    ability.duration .. "s) = " .. ability.cooldown+ability.duration .. "s")
 
                 -- buff.cooldown + buff.duration - since this function operates when the
                 -- buff expires, for fixed length buffs, the ability must have been off
@@ -74,37 +99,28 @@ function identifyAbility(slot, buff)
                 -- DURATION_TOLERANCE accounts for times when the event fires slightly
                 -- before the buff really falls off.
                 if time_since < ability.cooldown + ability.duration - DURATION_TOLERANCE then
-                    printDebug("target=" .. slot .. ", caster=" .. caster ..
-                        ": excluding ability " ..  ability.name ..
-                        ", since it was last seen " .. time_since ..
-                        "s ago, but cooldown (=" ..  ability.cooldown .. "s) + duration (=" ..
-                        ability.duration .. "s) = " .. ability.cooldown+ability.duration .. "s")
+                    printDebug("fails cooldown test")
                     isPossible = false
-                else
-                    -- delete me later
-                    printDebug("target=" .. slot .. ", caster=" .. caster ..
-                        ": accepting ability " ..  ability.name ..
-                        ", since it was last seen " .. time_since ..
-                        "s ago and cooldown (=" ..  ability.cooldown .. "s) + duration (=" ..
-                        ability.duration .. "s) = " .. ability.cooldown+ability.duration .. "s")
                 end
             end
         end
 
+        -- 3. Was the buff's duration consistent with how the ability works?
         diff = math.abs(buff.duration - ability.duration)
         if ability.duration_variable == DURATION_FIXED then
             if diff > DURATION_TOLERANCE then
                 isPossible = false
             end
         elseif ability.duration_variable == DURATION_LTE then
-            if diff < DURATION_TOLERANCE or buff.duration <= ability then
-                isPossible = true
+            if not (diff <= DURATION_TOLERANCE or buff.duration <= ability.duration) then
+                isPossible = false
             end
         elseif ability.duration_variable == DURATION_GTE then
-            if diff < DURATION_TOLERANCE or buff.duration >= ability then
-                isPossible = true
+            if not (diff <= DURATION_TOLERANCE or buff.duration >= ability.duration) then
+                isPossible = false
             end
         end
+
 
         if isPossible then
             table.insert(possibleSolutions, { diff=diff, ability=ability })

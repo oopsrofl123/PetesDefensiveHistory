@@ -1,10 +1,27 @@
+-- Return a tuple of flags for this auraInstanceId:
+--   (isImportant, isBigDefensive, isExternalDefensive)
+function getFilterFlagsForAuraInstanceId(slot, auraInstanceId)
+    return
+        tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|IMPORTANT"), auraInstanceId),
+        tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|BIG_DEFENSIVE"), auraInstanceId),
+        tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|EXTERNAL_DEFENSIVE"), auraInstanceId),
+        tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|RAID_IN_COMBAT"), auraInstanceId)
+end
+
+
+
 -- Add this aura instance to the tracked list of actives on this player.
 --
 -- IMPORTANT! Save the icon's texture at the instant the aura is applied
 -- in case another buff overwrites it later.
 function trackActiveDefensive(slot, auraInstanceID, defensiveIcon)
+    isImportant, isBigDefensive, isExternal = getFilterFlagsForAuraInstanceId(slot, auraInstanceID)
+
     printDebug('auraInstanceID=' .. auraInstanceID ..
-        ' added to ' .. slot ..
+        ' (important=' .. tostring(isImportant) ..
+        ', bigdef=' .. tostring(isBigDefensive) ..
+        ', external=' .. tostring(isExternal) ..
+        ') added to ' .. slot ..
         ': currently tracking ' .. #activeDefensives[slot] ..
         ' other active defensives')
 
@@ -14,6 +31,9 @@ function trackActiveDefensive(slot, auraInstanceID, defensiveIcon)
         secretTexture = defensiveIcon:GetTexture(),
         startTime = GetTime(),
         endTime = GetTime() + INFINITY,
+        isImportant = isImportant,
+        isBigDefensive = isBigDefensive,
+        isExternal = isExternal,
         numUpdates = 0                 -- how many times has this aura been in the aurasUpdated list?
     }
 
@@ -24,12 +44,62 @@ end
 
 
 
+
+
+-- XXX: DELETEME: TESTING RANDOM STUFF
+        local f = CreateFrame("Frame", nil, UIParent)
+        f:SetPoint("CENTER")
+        f:SetSize(ICON_SIZE, ICON_SIZE)
+
+        f.icon = f:CreateTexture(nil, "ARTWORK")
+        f.icon:SetAllPoints()
+        f.icon:SetTexture(DEFAULT_ICON)
+        f:Show()
+-- XXX: DELETEME: TESTING RANDOM STUFF
+
+
+
+
+
 --------------------------------------------------------------------------------------
--- This frame handles all of the logic that tracks and identifies defensive abilities.
+-- This frame is responsible for tracking when party members cast abilities.
 --------------------------------------------------------------------------------------
-local handler = CreateFrame("Frame")
-handler:RegisterEvent("UNIT_AURA")
-handler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
+local castHandler = CreateFrame("Frame", "PetesDefensiveHistoryCastHandler")
+castHandler:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+castHandler:SetScript("OnEvent", function(self, event, unitTarget, castGUID, spellID, castBarID)
+    -- unitTarget is actually the caster of the spell, confusingly
+    if not allSlots[unitTarget] then return end
+
+    -- mask secrets to avoid errors. sets nil if secret
+    spellId = maskSecret(spellId)
+    castGUID = maskSecret(castGUID)
+    castBarID = maskSecret(castBarID)
+
+    printDebug("UNIT_SPELLCAST_SUCCEEDED(" .. unitTarget .. ", " ..
+        tostring(castGUID) .. ", " .. tostring(spellID) ..
+        ", " .. tostring(castBarID) .. ")")
+        
+    -- loathe to use spellId since it's secret for all party members except the
+    -- person who cast it. don't want to get into debugging behavior that changes
+    -- between group members.. there is already enough of that in the different
+    -- times that the same event is handled on different clients.
+    castHistory[unitTarget]:push({ time=GetTime(), spellId=spellId })
+
+    -- Wild spam, should use multiple debug levels but too lazy
+    if DEBUG_MESSAGES and unitTarget == "player" then
+        castHistory[unitTarget]:print()
+    end
+end)
+
+
+
+--------------------------------------------------------------------------------------
+-- This frame is responsible for handling events about auras being applied, updated
+-- or removed.
+--------------------------------------------------------------------------------------
+local auraHandler = CreateFrame("Frame", "PetesDefensiveHistoryAuraHandler")
+auraHandler:RegisterEvent("UNIT_AURA")
+auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Ensure unitTarget is a recognized slot. This event is called for nameplates among other things.
     if not allSlots[unitTarget] then return end
 
@@ -44,7 +114,7 @@ handler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     active = activeDefensives[unitTarget]
 
     -- Way too verbose even for testing and also not very useful since
-    -- aura instance IDs aren't printed.
+    -- aura instance IDs aren't printed unless we unpack the tables.
     --printDebug('UNIT_AURA: unitTarget=' .. unitTarget ..
         --' #aurasAdded=' .. #aurasAdded ..
         --', #aurasUpdated=' .. #aurasUpdated ..
@@ -52,6 +122,18 @@ handler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
 
     -- aurasAdded is a list of data structures
     for _, v in pairs(aurasAdded) do
+if unitTarget == "player" then
+    print(v.auraInstanceID)
+--printer(v)
+
+imp, big, ext, ric = getFilterFlagsForAuraInstanceId(unitTarget, v.auraInstanceID)
+    -- 389539 sentinel
+    --if v.spellId == 389539 then
+    if imp then
+print(imp, big, ext, ric, 'important')
+        f.icon:SetTexture(v.icon)
+    end
+end
         local this_cdb = slotToPartyFrame(unitTarget).CenterDefensiveBuff
         if this_cdb.auraInstanceID == v.auraInstanceID then
             local x = trackActiveDefensive(unitTarget, v.auraInstanceID, this_cdb.icon)
@@ -89,7 +171,6 @@ end)
 
 
 
-
 --------------------------------------------------------------------------------------
 -- Just handle initialization and group roster updates.
 --------------------------------------------------------------------------------------
@@ -103,6 +184,9 @@ loader:SetScript("OnEvent", function(self, event)
         -- Can't initialize in addon load code due to the need to anchor to party frames
         allocHistoryGrid()
 		allocPdhGroupSolutionUI()
+        for slot, _ in pairs(allSlots) do
+            castHistory[slot] = fixedFIFO(MAX_CAST_HISTORY)
+        end
     end
 
     -- GROUP_ROSTER_UPDATE or PLAYER_ENTERING_WORLD
@@ -117,9 +201,8 @@ end)
 
 
 
+-- Open the solution UI
 SLASH_PDH1 = "/pdh"
 -- Open the config panel
 -- SlashCmdList.PDH = function() Settings.OpenToCategory(optionsCategory:GetID()) end
-
--- Open the solution UI
 SlashCmdList.PDH = function() groupSolutionUIFrame:Show() end
