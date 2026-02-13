@@ -314,6 +314,19 @@ function ns:updatePdhGroupSolution()
 end
 
 
+
+function ns:getCastableAbilities(slot)
+    castable = {}
+    for _, ability in pairs(ns.pdhGroupCDs[slot].abilities) do
+        if ns:tablecontains(ns.pdhPossibleCasters[ability.name], slot) then
+            castable[ability.name] = ability
+        end
+    end
+    return castable
+end
+
+
+
 -- This function could run before the data structures are initialized.
 LibSpecialization.RegisterGroup(internalPdhGroupSpecs, function(specId, role, position, playerName, talents)
     local slot = ns:nameToSlot(playerName)
@@ -335,5 +348,9 @@ LibSpecialization.RegisterGroup(internalPdhGroupSpecs, function(specId, role, po
                 ns:showPdhGroupSolutionRow(ns.groupSolutionUI[slot])
             end
         end
+
+        -- Static cooldown row
+        local x = ns:getCastableAbilities(slot)
+        ns:updateStaticRows(slot, x) -- ns:getCastableAbilities(slot))
     end
 end)

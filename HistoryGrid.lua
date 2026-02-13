@@ -56,24 +56,24 @@ local function updateAnchors(slot)
 
 			ns.historyRows[slot]:SetPoint("RIGHT", ns:slotToPartyFrame(slot), "LEFT", -2, 0)
 
-            cdb:ClearAllPoints()
-            cdb:SetPoint("RIGHT", partyframe, "LEFT", 3, 0)
+            --cdb:ClearAllPoints()
+            --cdb:SetPoint("RIGHT", partyframe, "LEFT", 3, 0)
 
             -- Add a glow to the CenterDefensiveBuff to distinguish from the history tracker
-            LibButtonGlow.ShowOverlayGlow(cdb)
+            --LibButtonGlow.ShowOverlayGlow(cdb)
 
             -- need to access these in callback
-            cdb.historyRow = ns.historyRows[slot]
+            --cdb.historyRow = ns.historyRows[slot]
 
             -- For history reanchoring: when the defensive buff shows up, attach history
             -- to the buff's left. When the buff goes away, attach history to the
             -- party frame's left edge.
-            cdb:SetScript("OnShow", function(frame)
-                frame.historyRow:SetPoint("RIGHT", frame, "LEFT", -5, 0)
-            end)
-            cdb:SetScript("OnHide", function(frame)
-                frame.historyRow:SetPoint("RIGHT", ns:slotToPartyFrame(frame.historyRow.slot), "LEFT", -2, 0)
-            end)
+            --cdb:SetScript("OnShow", function(frame)
+                --frame.historyRow:SetPoint("RIGHT", frame, "LEFT", -5, 0)
+            --end)
+            --cdb:SetScript("OnHide", function(frame)
+                --frame.historyRow:SetPoint("RIGHT", ns:slotToPartyFrame(frame.historyRow.slot), "LEFT", -2, 0)
+            --end)
         end
     end
 end
@@ -318,27 +318,6 @@ end
 
 
 
--- XXX: dead code
--- Given that a historyItem is uniquely identifiable based on duration/target,
--- change the display configuration.
---
--- XXX: TODO: still don't know proper signature for this
---function setHistoryItemSolved()
-    -- Important: the inferred CD works if and only if there is only a single
-    -- big defensive. In that case, all entries in the history are treated the
-    -- same, using a cooldown swipe instead of a count-up timer.
-    --if f.singlecd then
-        --f.timer:Hide()
-        --f.swipeTexture:Show()
-    --else
-        --f.timer:Show()
-        --f.swipeTexture:Hide()
-    --end
---end
-
-
-
-
 -- Unlike allocRow, do not create any new frames, just set all elements to an
 -- empty initial state. Assumes the row has been fully allocated already.
 --
@@ -385,7 +364,7 @@ local function allocRow(slot)
 
     -- Position next to Blizzard frames
     row:SetSize(ns.MAX_HISTORY*ns.ICON_SIZE + (ns.MAX_HISTORY-1)*ns.ICON_SPACING, ns.ICON_SIZE)
-    row:SetPoint("RIGHT", ns:slotToPartyFrame(slot), "LEFT", -2, 0)
+    row:SetPoint("BOTTOMRIGHT", ns:slotToPartyFrame(slot), "BOTTOMLEFT", -2, 0)
 
     -- Debug mode transparent background
     row.bg = row:CreateTexture(nil, "BACKGROUND")
@@ -413,6 +392,47 @@ local function allocRow(slot)
     end
 
     return ns:clearRow(row)
+end
+
+
+
+function ns:updateStaticRows(slot, abilities)
+    local row = ns.staticRows[slot]
+    if not row.items then
+        row.items = {}
+    end
+
+row:Show()
+    ns:printDebug("updateStaticRows(" .. slot .. ")")
+
+    -- Add a new frame for each tracked cooldown
+    for _, ability in pairs(abilities) do
+        if not row.items[ability.name] then
+            local newItem = allocHistoryItem(row, slot, ability.name)
+            row.items[ability.name] = newItem
+            if ability.iconId then
+                newItem.icon:SetTexture(ability.iconId)
+            end
+            newItem:Show()
+        end
+    end
+
+    -- If there are any abilities tracked that are no longer trackable (e.g.,
+    -- the player changed spec, group changed, new external interferes, etc.)
+    for name, historyItem in pairs(row.items) do
+        if not abilities[name] then
+            -- XXX: TODO: WARNING! this leaks frames! need a frame pool at some point
+            -- since frames cannot be deallocated.
+            row.items[name] = nil
+        end
+    end
+
+    -- Adjust layout based on the icons surviving the previous purge
+    local i = 0
+    for name, historyItem in pairs(row.items) do
+        historyItem:SetPoint("RIGHT", row, "RIGHT", -ns.ICON_SIZE*i, 0)
+        i = i + 1
+    end
 end
 
 
@@ -445,6 +465,15 @@ function ns:allocHistoryGrid()
     -- unhidden.
     for slot, _ in pairs(ns.allSlots) do
         ns.historyRows[slot] = allocRow(slot)
+        newRow = CreateFrame("Frame", addonName .. "StaticRow" .. slot, UIParent)
+        newRow:SetSize(200, ns.ICON_SIZE)
+        newRow.bg = newRow:CreateTexture(nil, "BACKGROUND")
+        
+        newRow.bg:SetAllPoints()
+        newRow.bg:SetColorTexture(0,0,0,0.4)
+        newRow:SetPoint("TOPRIGHT", ns:slotToPartyFrame(slot), "TOPLEFT")
+        newRow:Show()
+        ns.staticRows[slot] = newRow
     end
 
     ns.pdhInitialized = true

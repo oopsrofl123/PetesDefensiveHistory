@@ -1,6 +1,8 @@
 -- get addon namespace
 local addonName, ns = ...
 
+local LibButtonGlow = LibStub("LibButtonGlowcustom")
+
 
 local function isAuraHarmful(slot, auraInstanceId)
     -- could also filter for HARMFUL
@@ -156,11 +158,18 @@ end
             end
 
             local buff = trackActiveBuff(unitTarget, v.auraInstanceID, this_cdb.icon, debuffs)
--- XXX: DELETEME: guessing this will throw errors later
-print(buff.secretTexture)
             -- attempt instant identification
             if ns:identifyAbility(unitTarget, buff, false) then
-                ns:addBuffToHistory(unitTarget, buff)
+                -- instantly IDable abilities go to the static tracker
+                -- XXX: TODO: this might not be correct. it might be possible that a
+                -- spell is instantly IDed using external data like the cooldown tracker.
+                -- need to flag the spells that are static
+                local cd = ns.staticRows[buff.caster].items[buff.auraName]
+                CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
+                cd.swipeTexture:Show()
+print('showing glow, cd=')
+print(cd)
+                LibButtonGlow.ShowOverlayGlow(cd)
             end
         end
     end
@@ -183,10 +192,17 @@ print(buff.secretTexture)
             buff.endTime = GetTime()
             buff.duration = buff.endTime - buff.startTime
 
-            -- XXX: TODO: could do some post-buff sanity checking using duration
-            -- for now assume that an instant identify is 100% accurate.
             if not ns:isAbilityIdentified(buff) then
                 ns:addBuffToHistory(unitTarget, buff)
+            else
+                -- if the buff was identified previously, then it is a static icon
+                -- turn off the glow
+                local cd = ns.staticRows[buff.caster].items[buff.auraName]
+print("hiding glow, cd=")
+print(cd)
+ns.printer(buff)
+ns.printer(ns.staticRows[buff.caster].items)
+                LibButtonGlow.HideOverlayGlow(cd)
             end
 
             -- allow garbage collection

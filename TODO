@@ -24,10 +24,11 @@ NEEDS TESTING
 
 FEATURES
 ===========================================================================
-- handle instant identification
-    * for buffs that are unique without duration info
-    * align these buffs next to frames omniCD style
-    * these never enter the history tray
+- for instant tracking: flag spells as static icons when they're identified
+  by the 0-knowledge system and use that flag to decide where to send the cooldown
+  icon.
+- on death: at least clear active cooldown glows for all static icons
+    - i guess a UNIT_AURA that removes all auras doesn't fire on death?
 - identifyAbility() - save the conflicting spells/casters for UI elements
 - would be nice to firm up two object classes: Buff and HistoryItem, where Buff represents
   the aura itself and HistoryItem only handles tracking and display duties.
@@ -67,15 +68,6 @@ FEATURES
     - can compute upper bounds (or averages) on the amount of CDR gained. e.g., throwing
       avenger's shield on CD at 5 targets = 5s CDR per 12s (though procs reduce this
       and so does divine toll).:
-- better inference using cooldown tracking
-    - e.g.: prot paladin has AD=8s and GoAK=8s so they can't be distinguished.
-      if AD and GoAK are used in sequence, we don't know which was used first, but
-      the only way to have 2 8s buffs is if they were both used. so now can infer
-      AD is on cd and one charge of GoAK is used. so if we see another 8s buff on
-      the paladin, we know it was charge 2 of GoAK and now both charges are on CD
-      for some time. AD will probably come off CD during this period, meaning that
-      the next CD is likely AD.
-        - gets a little murkier since GoAK is also a CDR spell
 - better handling/inference for abilities with charges
     - tanks are very charge heavy, so will be important
 - updateRow
@@ -109,6 +101,8 @@ FEATURES
 
 BUGS
 ===========================================================================
+- gift of the golden valkyr doesn't track if occurs during goak
+    - because this is recorded as an update to the previous goak
 
 
 
@@ -161,6 +155,20 @@ https://github.com/WeakAuras/WeakAuras2/blob/cabde3e6c9419516889cd0305b358c749f9
 
 DONE
 ===========================================================================
+- handle instant identification
+    * for buffs that are unique without duration info
+    * align these buffs next to frames omniCD style
+    * these never enter the history tray
+- add instant tracking
+- better inference using cooldown tracking
+    - e.g.: prot paladin has AD=8s and GoAK=8s so they can't be distinguished.
+      if AD and GoAK are used in sequence, we don't know which was used first, but
+      the only way to have 2 8s buffs is if they were both used. so now can infer
+      AD is on cd and one charge of GoAK is used. so if we see another 8s buff on
+      the paladin, we know it was charge 2 of GoAK and now both charges are on CD
+      for some time. AD will probably come off CD during this period, meaning that
+      the next CD is likely AD.
+        - gets a little murkier since GoAK is also a CDR spell
 - separate the bookkeeping of updatePdhGroupSolution() from the inference logic
 - make a unified inference function. it should be able to work on empty cooldown
   tracking/cast tracking/etc. tables to simulate a "no-knowledge" state for the
