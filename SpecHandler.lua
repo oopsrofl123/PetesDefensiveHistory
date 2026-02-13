@@ -1,24 +1,27 @@
+local _, ns = ...
+
+
 -- Get class specs for each group member so that the defensives that show up on big center debuff are known.
 local LibSpecialization = LibStub("LibSpecialization")
 
 local internalPdhGroupSpecs = {}    -- For internal use by LibSpecialization
 
 -- This dict is the set of all possible spells that can target each slot
-pdhGroupCDs = {}
+ns.pdhGroupCDs = {}
 -- For each unique (caster, ability), this dict tracks the last time that
 -- ability was identified
-pdhCDTracker = {}
-for slot, _ in pairs(allSlots) do
-    pdhGroupCDs[slot] = {
+ns.pdhCDTracker = {}
+for slot, _ in pairs(ns.allSlots) do
+    ns.pdhGroupCDs[slot] = {
         specId = nil,
         abilities = nil    -- nil for an undetected/unset spec. {} for a spec with no abilities
     }
-    pdhCDTracker[slot] = {}
+    ns.pdhCDTracker[slot] = {}
 end
 
 -- For each ability, what players can possibly cast the ability? This
 -- allows redirecting externals to their casters rather than their targets.
-pdhPossibleCasters = {}
+ns.pdhPossibleCasters = {}
 
 
 
@@ -28,27 +31,37 @@ pdhPossibleCasters = {}
 --
 -- The tolerance defines the maximum difference between the nominal buff
 -- duration and the measured buff duration that counts as match.
-DURATION_TOLERANCE = 0.15
+ns.DURATION_TOLERANCE = 0.15
 
 -- How much better the best possible solution must be than the second
 -- best possible solution.
-CONFIDENT_DIFFERENCE = 0.5
+ns.CONFIDENT_DIFFERENCE = 0.5
 
 
--- If the duration of this buff matches (with a small delta) the duration
--- of a solved ability, then this buff is that ability.
+-- Use various rules about who can cast what ability on whom to narrow down
+-- the possible abilities that could be "buff".
 --
 -- IMPORTANT! buff.cooldown must ALWAYS be set. If the ability can't be
 -- uniquely identified, then the worst the timer could be is the longest
 -- cooldown among the group's externals and that player's own abilities.
-function identifyAbility(slot, buff)
+function ns:identifyAbility(slot, buff, useDuration, cdTracker)
+    ns:printDebug("STARTING inference for slot=" .. slot)
+
+    if useDuration == nil then
+        useDuration = true
+    end
+    -- allow the caller to override the tracked state of CDs to simulate an
+    -- unknown state. useful for determining which abilities are ALWAYS
+    -- uniquely identifiable. if the caller doesn't override, use the real
+    -- tracker.
+    cdTracker = cdTracker or ns.pdhCDTracker
     buff.cooldown = -1
 
     -- first determine which abilities are possible matches by ensuring
     -- that the duration of the buff is consistent with what is known
     -- about how the buff acts.
-    possibleSolutions = {}
-    for _, ability in pairs(pdhGroupCDs[slot].abilities) do
+    local possibleSolutions = {}
+    for _, ability in pairs(ns.pdhGroupCDs[slot].abilities) do
         -- it's tempting to only use possible abilities, but the heuristics
         -- below can exclude abilities incorrectly due to the duration
         -- tolerances. so to be sure we have SOME fallback, take the max
@@ -67,7 +80,7 @@ function identifyAbility(slot, buff)
             isPossible = false
         end
         if not isPossible then
-            printDebug("target=" .. slot .. ": excluding ability " .. ability.name ..
+            ns:printDebug("target=" .. slot .. ": excluding ability " .. ability.name ..
                 " due to mismatching flags (" ..
                 tostring(ability.importantFlag) .. ", " ..
                 tostring(ability.bigFlag) .. ", " ..
@@ -84,10 +97,10 @@ function identifyAbility(slot, buff)
         -- spells slot=caster but externals may not be.
         if isPossible and not ability.cdr then
             -- XXX: make things easier for now. possible to infer for >1 sometimes
-            if #pdhPossibleCasters[ability.name] == 1 then
-                local caster = pdhPossibleCasters[ability.name][1]
-                local time_since = GetTime() - (pdhCDTracker[caster][ability.name] or 0)
-                printDebug("target=" .. slot .. ", caster=" .. caster ..
+            if #ns.pdhPossibleCasters[ability.name] == 1 then
+                local caster = ns.pdhPossibleCasters[ability.name][1]
+                local time_since = GetTime() - (cdTracker[caster][ability.name] or 0)
+                ns:printDebug("target=" .. slot .. ", caster=" .. caster ..
                     ", ability=" ..  ability.name ..
                     ": last seen " .. time_since ..
                     "s ago, cooldown (=" ..  ability.cooldown .. "s) + duration (=" ..
@@ -98,30 +111,62 @@ function identifyAbility(slot, buff)
                 -- coldown CD+DUR seconds ago, not just CD seconds ago.
                 -- DURATION_TOLERANCE accounts for times when the event fires slightly
                 -- before the buff really falls off.
-                if time_since < ability.cooldown + ability.duration - DURATION_TOLERANCE then
-                    printDebug("fails cooldown test")
+                if time_since < ability.cooldown + ability.duration - ns.DURATION_TOLERANCE then
+                    ns:printDebug("fails cooldown test")
                     isPossible = false
                 end
             end
         end
 
         -- 3. Was the buff's duration consistent with how the ability works?
-        diff = math.abs(buff.duration - ability.duration)
-        if ability.duration_variable == DURATION_FIXED then
-            if diff > DURATION_TOLERANCE then
-                isPossible = false
+        local diff = 0  -- Using diff=0 means the duration matched, equivalent to ignoring duration
+        if useDuration then
+            local isPossibleBefore = isPossible
+            diff = math.abs(buff.duration - ability.duration)
+            if ability.duration_variable == ns.DURATION_FIXED then
+                if diff > ns.DURATION_TOLERANCE then
+                    isPossible = false
+                end
+            elseif ability.duration_variable == ns.DURATION_LTE then
+                if not (diff <= ns.DURATION_TOLERANCE or buff.duration <= ability.duration) then
+                    isPossible = false
+                end
+            elseif ability.duration_variable == ns.DURATION_GTE then
+                if not (diff <= ns.DURATION_TOLERANCE or buff.duration >= ability.duration) then
+                    isPossible = false
+                end
             end
-        elseif ability.duration_variable == DURATION_LTE then
-            if not (diff <= DURATION_TOLERANCE or buff.duration <= ability.duration) then
-                isPossible = false
-            end
-        elseif ability.duration_variable == DURATION_GTE then
-            if not (diff <= DURATION_TOLERANCE or buff.duration >= ability.duration) then
-                isPossible = false
+
+            if isPossibleBefore ~= isPossible then
+                ns:printDebug("excluding ability " .. ability.name ..
+                    ": duration not within tolerance (diff=" .. diff .. ")")
             end
         end
 
+        -- 4. Does the ability trigger a concurrent debuff?
+        do
+            local isPossibleBefore = isPossible
+            if ability.concurrentDebuff then
+                if #buff.concurrentDebuffs == 0 then
+                    -- not sure if this can cause false negatives. in a tiny bit of testing,
+                    -- the concurrentDebuff does always come in the same UNIT_AURA event.
+                    isPossible = false
+                end
+            else
+                if #buff.concurrentDebuffs > 0 then
+                    -- This can cause false negatives. Just because an ability doesn't *have*
+                    -- to come with a debuff doesn't exclude the possibility that another unrelated
+                    -- debuff happened at the same moment.
+                    isPossible = false
+                end
+            end
+            if isPossibleBefore ~= isPossible then
+                ns:printDebug("excluding ability " .. ability.name ..
+                    ": must have a concurrent debuff, but " .. #buff.concurrentDebuffs .. " witnessed")
+            end
+        end
 
+        -- All rules have passed, this ability is a possible match
         if isPossible then
             table.insert(possibleSolutions, { diff=diff, ability=ability })
         end
@@ -130,14 +175,14 @@ function identifyAbility(slot, buff)
     table.sort(possibleSolutions, function(a, b) return a.diff <= b.diff end)
 
     -- consider the two (or more) best possible matches
-    local best = possibleSolutions[1] or { diff=INFINITY, ability={ name='INFINITY' } }
-    local second = possibleSolutions[2] or { diff=INFINITY, ability={ name='INFINITY' } }
+    local best = possibleSolutions[1] or { diff=ns.INFINITY, ability={ name='INFINITY' } }
+    local second = possibleSolutions[2] or { diff=ns.INFINITY, ability={ name='INFINITY' } }
 
     -- absent any other information, assume the target is also the caster
     local caster = slot
 
     -- accept this as a confident match
-    if second.diff - best.diff >= CONFIDENT_DIFFERENCE then
+    if second.diff - best.diff >= ns.CONFIDENT_DIFFERENCE then
         best = best.ability -- convenience
         -- XXX: TODO: handle variable duration
         buff.auraName = best.name
@@ -148,29 +193,26 @@ function identifyAbility(slot, buff)
         -- track the cooldown of this ability if the caster can be uniquely determined
         -- if only one character in the group could cast this, then that was the caster.
         -- might be different from slot if this was an external.
-        if #pdhPossibleCasters[best.name] == 1 then
-            caster = pdhPossibleCasters[best.name][1]
-            -- XXX: TODO: this is another approximation that could be handled better: for
-            -- variable duration buffs, subtracting duration from the current time
-            -- might not be when the button was actually pressed.
-            pdhCDTracker[pdhPossibleCasters[best.name][1]][best.name] = GetTime() - best.duration
+        if #ns.pdhPossibleCasters[best.name] == 1 then
+            buff.caster = ns.pdhPossibleCasters[best.name][1]
+            cdTracker[ns.pdhPossibleCasters[best.name][1]][best.name] = GetTime() - buff.duration
         end
     else
-        printDebug('could not confidently distinguish between ' ..
+        ns:printDebug('could not confidently distinguish between ' ..
             best.ability.name .. ' (best), diff=' .. best.diff ..
             ' and ' .. second.ability.name .. ' (second best), diff=' ..
             second.diff)
     end
 
-    if isAbilityIdentified(buff) then
-        printDebug("time=" .. GetTime() .. ": " .. caster .. " cast ability " ..
+    if ns:isAbilityIdentified(buff) then
+        ns:printDebug("time=" .. GetTime() .. ": " .. buff.caster .. " cast ability " ..
             buff.auraName .. " at time " ..
-            pdhCDTracker[caster][buff.auraName])
+            cdTracker[buff.caster][buff.auraName])
     else
-        printDebug("couldn't identify ability")
+        ns:printDebug("couldn't identify ability")
     end
 
-    return caster
+    return ns:isAbilityIdentified(buff)
 end
 
 
@@ -182,30 +224,33 @@ end
 --
 -- Is called every time LibSpec identifies a spec, so must loop over the
 -- whole group each time.
-local function updatePdhGroupSolution()
-    externals = {}   -- key=caster, value=ability info
+--
+-- XXX: TODO: the logic here shouldn't be completely separate (and poorly duplicated)
+-- from the identifyAbility() function. the bookkeeping part should be, though.
+function ns:updatePdhGroupSolution()
+    local externals = {}   -- key=caster, value=ability info
 
-    pdhPossibleCasters = {}  -- rebuild from scratch every time
+    ns.pdhPossibleCasters = {}  -- rebuild from scratch every time
 
     -- find all externals (i.e., spells where target might not equal caster) and
     -- build the table of non-externals for each player.
-    for slot, _ in pairs(allSlots) do
-        specId = pdhGroupCDs[slot].specId
-        pdhGroupCDs[slot].abilities = {}
+    for slot, _ in pairs(ns.allSlots) do
+        specId = ns.pdhGroupCDs[slot].specId
+        ns.pdhGroupCDs[slot].abilities = {}
         if specId then
-            abilities = SpecDefensiveDb[specId]
-            for _, t in pairs(abilities) do
+            abilities = ns.SpecDefensiveDb[specId]
+            for _, ability in pairs(abilities) do
                 -- Record the fact that this slot can cast this ability
-                if pdhPossibleCasters[t.name] then
-                    table.insert(pdhPossibleCasters[t.name], slot)
+                if ns.pdhPossibleCasters[ability.name] then
+                    table.insert(ns.pdhPossibleCasters[ability.name], slot)
                 else
-                    pdhPossibleCasters[t.name] = { slot }
+                    ns.pdhPossibleCasters[ability.name] = { slot }
                 end
 
-                if t.external == NOT_EXTERNAL then
-                    table.insert(pdhGroupCDs[slot].abilities, shallowcopy(t))
+                if ability.external == ns.NOT_EXTERNAL then
+                    table.insert(ns.pdhGroupCDs[slot].abilities, ns:shallowcopy(ability))
                 else
-                    externals[slot] = t
+                    externals[slot] = ability
                 end
             end
         end
@@ -216,35 +261,54 @@ local function updatePdhGroupSolution()
     --   1. the target's own (cast on self) abilities
     --   2. another caster's external, assuming there are no rules preventing this
     --      (e.g., blessing of sac can't be cast on self).
-    for slot, _ in pairs(allSlots) do
+    for slot, _ in pairs(ns.allSlots) do
         for caster, ability in pairs(externals) do
             -- the only rule I know of is no self casting
-            if caster ~= slot or ability.external ~= EXTERNAL_NOT_SELF then
-                printDebug("adding external " .. ability.name .. " to valid list for " .. slot)
-                table.insert(pdhGroupCDs[slot].abilities, shallowcopy(ability))
+            if not (caster == slot and ability.external == ns.EXTERNAL_NOT_SELF) then
+                ns:printDebug("adding external " .. ability.name .. " to valid list for " .. slot)
+                table.insert(ns.pdhGroupCDs[slot].abilities, ns:shallowcopy(ability))
             end
         end
     end
 
     -- Solve for unique abilities (i.e., figure out which ones can be guessed
     -- based on who they're cast on and how long they last.
-    for slot, _ in pairs(allSlots) do
-        abilities = pdhGroupCDs[slot].abilities
+    for slot, _ in pairs(ns.allSlots) do
+        abilities = ns.pdhGroupCDs[slot].abilities
         for _, ability in pairs(abilities) do
-            ability.solved = true
-            ability.conflicts = {}
+            -- make a "perfect" buff. this data is normally observed by UNIT_AURA and
+            -- some of it (like duration) do not match the ideal values.
+            -- for abilities with isBuff=false, the buff payload needs to match the
+            -- buff the ability applied. E.g., cheat death on prot paladin triggers
+            -- GoAK, but we want to track the cheat death cooldown as a separate ability
+            local buff = {
+                startTime = GetTime(),
+                endTime = GetTime() + ability.duration,   -- perfect duration
+                duration = ability.duration,
+                isImportant = ability.importantFlag,
+                isBigDefensive = ability.bigFlag,
+                isExternal = ability.externalFlag,
+                numUpdates = 0,
+                concurrentDebuffs = {}
+            }
 
-            -- loop through other abilities for this player
-            for _, ability2 in pairs(abilities) do
-                if ability.name ~= ability2.name then
-                    -- simple check: does 'ability' have a unique duration among *other* abilities?
-                    -- if true, then we can guess that ability by how long it lasted.
-                    if ability.duration == ability2.duration then
-                        table.insert(ability.conflicts, ability2.name)
-                        ability.solved = false
-                    end
-                end
+            -- if the ability is supposed to come with a concurrent debuff, give it a
+            -- dummy auraInstanceId=1.
+            if ability.concurrentDebuff then
+                table.insert(buff.concurrentDebuffs, 1)
             end
+
+
+            -- make a fake cooldown state where no cooldowns have been seen
+            blankCDs = {}
+            for slot, _ in pairs(ns.allSlots) do
+                blankCDs[slot] = {}
+            end
+            -- XXX: TODO: make empty fake spell cast histories if those end up being used.
+            ns:identifyAbility(slot, buff, false, blankCDs)
+            ability.solved = ns:isAbilityIdentified(buff)
+            -- would be nice if identifyAbility would return the conflicting spell/caster combos
+            ability.conflicts = {}
         end
     end
 end
@@ -252,23 +316,23 @@ end
 
 -- This function could run before the data structures are initialized.
 LibSpecialization.RegisterGroup(internalPdhGroupSpecs, function(specId, role, position, playerName, talents)
-    local slot = nameToSlot(playerName)
-    printDebug(string.format("%s (%s): spec ID=%d, a %s %s.\nTalent string=[%s]",
+    local slot = ns:nameToSlot(playerName)
+    ns:printDebug(string.format("%s (%s): spec ID=%d, a %s %s.\nTalent string=[%s]",
         playerName, slot, specId, position, role, talents))
-    pdhGroupCDs[slot].specId = specId
+    ns.pdhGroupCDs[slot].specId = specId
 
     -- Solving
-    updatePdhGroupSolution()
+    ns:updatePdhGroupSolution()
 
     -- UI elements. N.B. this often happens before frames are allocated
-    if pdhInitialized then
-        local row = historyRows[slot]
+    if ns.pdhInitialized then
+        local row = ns.historyRows[slot]
         if row then
-            specstring = specIdToString(specId)
+            local specstring = ns:specIdToString(specId)
             row.specText:SetText(specstring)
-            groupSolutionUI[slot].specLabel:SetText(specstring)
-            for slot, _ in pairs(allSlots) do
-                showPdhGroupSolutionRow(groupSolutionUI[slot])
+            ns.groupSolutionUI[slot].specLabel:SetText(specstring)
+            for slot, _ in pairs(ns.allSlots) do
+                ns:showPdhGroupSolutionRow(ns.groupSolutionUI[slot])
             end
         end
     end

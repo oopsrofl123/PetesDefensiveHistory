@@ -24,15 +24,19 @@ NEEDS TESTING
 
 FEATURES
 ===========================================================================
-- addon namespace global cleanup
-- use blizzard's filters for more info (HELPFUL|BIG_DEFENSIVE, HELPFUL|EXTERNAL, HELPFUL|IMPORTANT)
+- handle instant identification
+    * for buffs that are unique without duration info
+    * align these buffs next to frames omniCD style
+    * these never enter the history tray
+- identifyAbility() - save the conflicting spells/casters for UI elements
+- would be nice to firm up two object classes: Buff and HistoryItem, where Buff represents
+  the aura itself and HistoryItem only handles tracking and display duties.
 - option to disable all inference (@Aryella WoWUIDev)
 - stop using blizzard's CenterDefensiveBuff (just hide it) so that multiple active buffs and
   non-defensive buffs can be supported
 - add spell caster inference with UNIT_SPELLCAST_SUCCEEDED
     - HALF 1: track casts
     - HALF 2: use the info
-
 - updating/clearing tracker data
     - when party members join/leave group or change positions
     - could be easier to just clear for now, but could be annoying if,
@@ -44,10 +48,15 @@ FEATURES
 - check tier bonuses to make sure they don't alter duration/charges/CDR/etc.
 - get data to make better estimates on duration solve tolerance
     - both the "match" epsilon and the minimum difference
+- the blessing of freedom problem: it's an external castable on anyone but it isn't flagged
+  as external, so any group with a paladin puts an 8s duration (1,0,0) flagged ability
+  on everyone.
 - how to handle sac in "solved" interface? (since its duration is _less than or
     equal to_ 12s, meaning it clashes with almost every defensive buff
     - solved interface should perhaps be the most conservative solution, meaning
       exact duration matches, no advanced inference (CD tracking, variable duration, etc)
+    - turns out there's an external flag on sac, so this is less of a problem
+    - need to figure out ironbark+sac in the same group
 - better handle VDH fiery brand using aurasUpdated
     - turns out almost everything about fiery brand is bugged so can't work on this
 - support for detecting death?
@@ -152,6 +161,12 @@ https://github.com/WeakAuras/WeakAuras2/blob/cabde3e6c9419516889cd0305b358c749f9
 
 DONE
 ===========================================================================
+- separate the bookkeeping of updatePdhGroupSolution() from the inference logic
+- make a unified inference function. it should be able to work on empty cooldown
+  tracking/cast tracking/etc. tables to simulate a "no-knowledge" state for the
+  solutions UI
+- addon namespace global cleanup
+- use blizzard's filters for more info (HELPFUL|BIG_DEFENSIVE, HELPFUL|EXTERNAL, HELPFUL|IMPORTANT)
 - now tracks frame sorting, properly mapping, e.g., player -> CompactPartyFrameMemberX
 - don't place buff into the history until it finishes
 	- possible with aura instance ID tracking

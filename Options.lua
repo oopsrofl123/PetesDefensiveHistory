@@ -1,10 +1,13 @@
-PDHOptionsDb = PDHOptionsDb or {
+-- get addon namespace
+local addonName, ns = ...
+
+ns.PDHOptionsDb = ns.PDHOptionsDb or {
 	debugVisuals = false,
 	debugLogging = false,
 }
 
 
-optionsCategory = Settings.RegisterVerticalLayoutCategory("PetesDefensiveHistory")
+ns.optionsCategory = Settings.RegisterVerticalLayoutCategory(addonName)
 
 -- Debug visuals checkbox
 local debugVisuals = Settings.RegisterProxySetting(
@@ -17,11 +20,12 @@ local debugVisuals = Settings.RegisterProxySetting(
     "debugVisuals"
 )
 
-Settings.CreateCheckbox(optionsCategory, debugVisuals, "Add debugging widgets to the tracker icons")
+Settings.CreateCheckbox(ns.optionsCategory, debugVisuals,
+    "Add debugging widgets to the tracker icons")
 
 -- Debug logging checkbox
 local debugLogging = Settings.RegisterProxySetting(
-    optionsCategory,
+    ns.optionsCategory,
     "pdh.debugLogging",
     Settings.VarType.Boolean,
     "Debugging messages",
@@ -30,9 +34,10 @@ local debugLogging = Settings.RegisterProxySetting(
     "debugLogging"
 )
 
-Settings.CreateCheckbox(optionsCategory, debugLogging, "Print debug log messages to the chat console. Prints A LOT of text.")
+Settings.CreateCheckbox(ns.optionsCategory, debugLogging,
+    "Print debug log messages to the chat console. Prints A LOT of text.")
 
-Settings.RegisterAddOnCategory(optionsCategory)
+Settings.RegisterAddOnCategory(ns.optionsCategory)
 
 
 
@@ -41,7 +46,7 @@ Settings.RegisterAddOnCategory(optionsCategory)
 -- the vertical layout. So just create a second page with nothing but a reset button.
 -------------------------------------------------------------------------------------
 
-local frame = CreateFrame("Frame", "PetesDefensiveHistoryReset")
+local frame = CreateFrame("Frame", addonName .. "Reset")
 frame:SetSize(500, 400)
 
 -- Add a button
@@ -51,5 +56,5 @@ btn:SetPoint("TOPLEFT", 16, -16)
 btn:SetText("Reset")
 btn:SetScript("OnClick", function() pdhReset() end)
 
-local resetCategory = Settings.RegisterCanvasLayoutSubcategory(optionsCategory, frame, "Reset")
+local resetCategory = Settings.RegisterCanvasLayoutSubcategory(ns.optionsCategory, frame, "Reset")
 Settings.RegisterAddOnCategory(resetCategory)

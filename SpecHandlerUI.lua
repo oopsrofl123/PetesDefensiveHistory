@@ -1,3 +1,9 @@
+-- get addon namespace
+local addonName, ns = ...
+
+-- more of this file should be local and exported through a reasonable set of functions
+
+-- eventually make this all settable (via options), but this is not important enough right now
 local UI_ICON_SIZE = 48
 local UI_ICON_PADDING = 16
 local UI_TITLE_PADDING = 15
@@ -16,15 +22,15 @@ local UI_HEIGHT = 10 + UI_TITLE_PADDING + 20 + UI_CLOSE_BUTTON_HEIGHT + 20 + UI_
 
 
 
-function showPdhGroupSolutionRow(row)
-    index = slotToIndex(row.slot)
+function ns:showPdhGroupSolutionRow(row)
+    local index = ns:slotToIndex(row.slot)
 
     row:SetSize(UI_WIDTH, UI_ROW_HEIGHT)
-    row:SetPoint("TOP", groupSolutionUIFrame.uiTitle, "TOP", 0, -UI_ROW_HEIGHT * (index - 1) - UI_TITLE_PADDING)
+    row:SetPoint("TOP", ns.groupSolutionUIFrame.uiTitle, "TOP", 0, -UI_ROW_HEIGHT * (index - 1) - UI_TITLE_PADDING)
 
     -- Anchor the row from right to left so that the grid of icons is aligned
     for i=UI_MAX_ABILITIES_PER_SLOT,1,-1 do
-        icon = row.abilityIcons[i]
+        local icon = row.abilityIcons[i]
         icon:SetSize(UI_ICON_SIZE, UI_ICON_SIZE)
         if i == UI_MAX_ABILITIES_PER_SLOT then
             icon:SetPoint("RIGHT", row, "RIGHT", -UI_ICON_PADDING, 0)
@@ -34,22 +40,21 @@ function showPdhGroupSolutionRow(row)
         icon:SetTexture("Interface\\Icons\\Spell_Nature_HealingTouch")
         icon:Show()
 
-
-        cooldownLabel = row.abilityCooldownLabel[i]
+        local cooldownLabel = row.abilityCooldownLabel[i]
         cooldownLabel:SetPoint("CENTER", icon, "CENTER")
-        durationLabel = row.abilityDurationLabel[i]
+        local durationLabel = row.abilityDurationLabel[i]
         durationLabel:SetPoint("TOP", icon, "BOTTOM", 0, -3)
-
-        conflictsLabel = row.abilityConflictsLabel[i]
+        local conflictsLabel = row.abilityConflictsLabel[i]
         conflictsLabel:SetPoint("TOP", durationLabel, 'BOTTOM', 0, -3)
     end
+
     -- Fill in icons from left to right..obviously
     for i=1,UI_MAX_ABILITIES_PER_SLOT do
-        icon = row.abilityIcons[i]
-        ability = pdhGroupCDs[row.slot].abilities[i]
-        conflictsLabel = row.abilityConflictsLabel[i]
-        cooldownLabel = row.abilityCooldownLabel[i]
-        durationLabel = row.abilityDurationLabel[i]
+        local icon = row.abilityIcons[i]
+        local ability = ns.pdhGroupCDs[row.slot].abilities[i]
+        local conflictsLabel = row.abilityConflictsLabel[i]
+        local cooldownLabel = row.abilityCooldownLabel[i]
+        local durationLabel = row.abilityDurationLabel[i]
         if ability then
             if ability.iconId then
                 -- Override the standard spell icon
@@ -59,7 +64,9 @@ function showPdhGroupSolutionRow(row)
             end
             cooldownLabel:SetText(ability.cooldown .. "s")
             durationLabel:SetText(ability.duration .. "s")
-            if not ability.solved then icon:SetDesaturated(true) end
+            if not ability.solved then
+                icon:SetDesaturated(true)
+            end
             if #ability.conflicts > 0 then
                 conflictsLabel:SetText(table.concat(ability.conflicts, ' '))
                 conflictsLabel:SetTextColor(1,0,0)
@@ -79,9 +86,9 @@ function showPdhGroupSolutionRow(row)
     row.nameLabel:Show()
 
     row.specLabel:SetPoint("BOTTOMRIGHT", row.abilityIcons[1], "BOTTOMLEFT", -UI_ICON_PADDING, 5)
-    if historyRows[row.slot] then
-        if pdhGroupCDs[row.slot].specId then
-            row.specLabel:SetText(specIdToString(pdhGroupCDs[row.slot].specId))
+    if ns.historyRows[row.slot] then
+        if ns.pdhGroupCDs[row.slot].specId then
+            row.specLabel:SetText(ns:specIdToString(ns.pdhGroupCDs[row.slot].specId))
             _, class = UnitClass(row.slot)
             classColor = RAID_CLASS_COLORS[class]
             row.specLabel:SetTextColor(classColor.r, classColor.g, classColor.b)
@@ -89,10 +96,11 @@ function showPdhGroupSolutionRow(row)
     end
     row.specLabel:Show()
 
+
+    -- Determine the role of the party member and set the appropriate icon
     row.roleIcon:SetSize(20, 20)
     row.roleIcon:SetPoint("LEFT", row, "LEFT", 5+10, 0)  -- inset size matters
     row.roleIcon:Show()
-    -- Determine the role of the party member and set the appropriate icon
     local role = UnitGroupRolesAssigned(row.slot)
     if role == "TANK" then
         row.roleIcon:SetTexCoord(0, 0.296875, 0.34375, 0.640625)
@@ -101,7 +109,7 @@ function showPdhGroupSolutionRow(row)
     elseif role == "DAMAGER" then
         row.roleIcon:SetTexCoord(0.3125, 0.609375, 0.34375, 0.640625)
     else
-        printDebug("unrecognized role " .. role .. " for slot " .. row.slot)
+        ns:printDebug("unrecognized role " .. role .. " for slot " .. row.slot)
     end
 
 end
@@ -110,7 +118,7 @@ end
 
 local function allocPdhGroupSolutionRow(slot, index)
     -- Create the row frame
-    local row = CreateFrame("Frame", nil, groupSolutionUIFrame)
+    local row = CreateFrame("Frame", nil, ns.groupSolutionUIFrame)
 
     row.slot = slot
     row.nameLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -135,17 +143,17 @@ local function allocPdhGroupSolutionRow(slot, index)
         row.abilityDurationLabel[i]:SetTextColor(1,1,1)
     end
 
-    groupSolutionUI[slot] = row
+    ns.groupSolutionUI[slot] = row
 
     return row
 end
 
 
 
-function showPdhGroupSolutionUI()
-    groupSolutionUIFrame:SetSize(UI_WIDTH, UI_HEIGHT)
-    groupSolutionUIFrame:SetPoint("CENTER")
-    groupSolutionUIFrame:SetBackdrop({
+function ns:showPdhGroupSolutionUI()
+    ns.groupSolutionUIFrame:SetSize(UI_WIDTH, UI_HEIGHT)
+    ns.groupSolutionUIFrame:SetPoint("CENTER")
+    ns.groupSolutionUIFrame:SetBackdrop({
         bgFile = "Interface\\TutorialFrame\\TutorialFrameBackground",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true,
@@ -155,32 +163,33 @@ function showPdhGroupSolutionUI()
         insets = {left = 3, right = 5, top = 3, bottom = 5}
     })
 
-    groupSolutionUIFrame:SetMovable(true)
-    groupSolutionUIFrame:EnableMouse(true)
-    groupSolutionUIFrame:RegisterForDrag("LeftButton")
-    groupSolutionUIFrame:SetScript("OnDragStart", function(self, button) self:StartMoving() end)
-    groupSolutionUIFrame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
+    ns.groupSolutionUIFrame:SetMovable(true)
+    ns.groupSolutionUIFrame:EnableMouse(true)
+    ns.groupSolutionUIFrame:RegisterForDrag("LeftButton")
+    ns.groupSolutionUIFrame:SetScript("OnDragStart", function(self, button) self:StartMoving() end)
+    ns.groupSolutionUIFrame:SetScript("OnDragStop", function(self) self:StopMovingOrSizing() end)
 
-    groupSolutionUIFrame:Show()
+    ns.groupSolutionUIFrame:Show()
 end
 
 
-function allocPdhGroupSolutionUI()
-    groupSolutionUIFrame = CreateFrame("Frame", "PetesDefensiveHistoryGroupSolutionUI", UIParent, "BackdropTemplate")
-    showPdhGroupSolutionUI()
 
-    groupSolutionUIFrame.uiTitle = groupSolutionUIFrame:CreateFontString(nil, 'OVERLAY', 'GameFontNormalLarge')
-    groupSolutionUIFrame.uiTitle:SetText("PetesDefensiveHistory")
-    groupSolutionUIFrame.uiTitle:SetPoint("TOP", groupSolutionUIFrame, "TOP", 0, -10)
+function ns:allocPdhGroupSolutionUI()
+    ns.groupSolutionUIFrame = CreateFrame("Frame", addonName .. "GroupSolutionUI", UIParent, "BackdropTemplate")
+    ns:showPdhGroupSolutionUI()
 
-    for slot, index in pairs(allSlots) do
+    ns.groupSolutionUIFrame.uiTitle = ns.groupSolutionUIFrame:CreateFontString(nil, 'OVERLAY', 'GameFontNormalLarge')
+    ns.groupSolutionUIFrame.uiTitle:SetText("PetesDefensiveHistory")
+    ns.groupSolutionUIFrame.uiTitle:SetPoint("TOP", ns.groupSolutionUIFrame, "TOP", 0, -10)
+
+    for slot, index in pairs(ns.allSlots) do
         row = allocPdhGroupSolutionRow(slot, index)
-        showPdhGroupSolutionRow(row)
+        ns:showPdhGroupSolutionRow(row)
     end
 
-    closeButton = CreateFrame("Button", nil, groupSolutionUIFrame, 'UIPanelButtonTemplate')
+    local closeButton = CreateFrame("Button", nil, ns.groupSolutionUIFrame, 'UIPanelButtonTemplate')
     closeButton:SetSize(UI_WIDTH/2, UI_CLOSE_BUTTON_HEIGHT)
-    closeButton:SetPoint("BOTTOM", groupSolutionUIFrame, "BOTTOM", 0, 15)
+    closeButton:SetPoint("BOTTOM", ns.groupSolutionUIFrame, "BOTTOM", 0, 15)
     closeButton:SetText("Close")
-    closeButton:SetScript("OnClick", function() groupSolutionUIFrame:Hide() end)
+    closeButton:SetScript("OnClick", function() ns.groupSolutionUIFrame:Hide() end)
 end
