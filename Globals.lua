@@ -1,3 +1,4 @@
+-- get addon namespace
 local _, ns = ...
 
 
