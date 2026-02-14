@@ -11,7 +11,7 @@ local UI_TITLE_PADDING = 15
 -- Very different from the MAX_HISTORY size. This must be large enough to show
 -- all abilities for a character AND all externals across the group that could
 -- be applied to that character.
-local UI_MAX_ABILITIES_PER_SLOT = 6
+local UI_MAX_ABILITIES_PER_SLOT = 9
 
 local UI_ROW_HEIGHT = UI_ICON_SIZE + 36
 
@@ -67,6 +67,8 @@ function ns:showPdhGroupSolutionRow(row)
             if not ability.solved then
                 icon:SetDesaturated(true)
             end
+            -- if ability.conflicts and #ability.conflicts > 0 then
+            -- XXX: TODO: line below bugs on offline players
             if #ability.conflicts > 0 then
                 conflictsLabel:SetText(table.concat(ability.conflicts, ' '))
                 conflictsLabel:SetTextColor(1,0,0)
@@ -174,6 +176,9 @@ end
 
 
 
+-- IMPORTANT: do not make assumptions about whether group ability solution code
+-- has been run when allocating the solution UI. The solutions happen at uncontrollable
+-- times during LibSpec callbacks.
 function ns:allocPdhGroupSolutionUI()
     ns.groupSolutionUIFrame = CreateFrame("Frame", addonName .. "GroupSolutionUI", UIParent, "BackdropTemplate")
     ns:showPdhGroupSolutionUI()
