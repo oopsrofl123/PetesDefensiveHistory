@@ -164,8 +164,8 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             if ns:inferAbility(unitTarget, buff, false) then
                 -- IDable abilities go to the static tracker
                 local cd = ns.staticRows[buff.caster].items[buff.name]
-                CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
-                cd.swipeTexture:Show()
+                --CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
+                cd.swipeTexture:Hide()
                 LibButtonGlow.ShowOverlayGlow(cd)
             end
         end
@@ -189,7 +189,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             buff.endTime = GetTime()
             buff.duration = buff.endTime - buff.startTime
 
-            if ns:inferAbility(unitTarget, buff, true) then
+            if ns:isAbilityInferred(buff) or ns:inferAbility(unitTarget, buff, true) then
                 -- IDable abilities go to the static tracker
                 local cd = ns.staticRows[buff.caster].items[buff.name]
                 CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
