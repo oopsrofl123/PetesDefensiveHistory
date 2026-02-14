@@ -212,6 +212,7 @@ function ns:addBuffToHistory(slot, buff)
     item.icon:SetTexture(buff.secretTexture)
     item.icon:Show()
     item.timer:Show()
+    item:Show()
 end
 
 
