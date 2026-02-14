@@ -40,6 +40,63 @@ ns.SpecDefensiveDb = {
 	---------------------------------------------
 	-- Blood
 	[250] = {
+		{
+			name="Anti-Magic Shell",
+            isBuff=true,
+			id=48707,
+            iconId=136120,
+			cooldown=40, -- talent: 60 > 40
+			duration=7,  -- talent: 5 > 7 (+40%)
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false
+		},
+		{
+			name="Icebound Fortitude",
+            isBuff=true,
+			id=48792,
+            iconId=237525,
+			cooldown=120,
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false
+		},
+		{
+			name="Vampiric Blood",
+            isBuff=true,
+			id=55233,
+            iconId=136168,
+			cooldown=90,
+			duration=10,  -- talent +2: 10 > 12
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=true,   -- talent CDR
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            -- adds Coagulating Blood (id=463730), which is not harmful but is
+            -- not returned by the aura filter HELPFUL
+            concurrentDebuff=true
+		},
+        
 	},
 	-- Frost
 	[251] = {
@@ -73,6 +130,24 @@ ns.SpecDefensiveDb = {
 			cdr=false,
             importantFlag=true,
             bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false
+		},
+		{
+			name="Pillar of Frost",
+            isBuff=true,
+			id=51271,
+            iconId=458718,
+			cooldown=45,
+			duration=12,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
             externalFlag=false,
             raidFlag=false,
             raidInCombatFlag=false,
