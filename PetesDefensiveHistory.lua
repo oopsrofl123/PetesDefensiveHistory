@@ -167,8 +167,6 @@ end
                 local cd = ns.staticRows[buff.caster].items[buff.auraName]
                 CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
                 cd.swipeTexture:Show()
-print('showing glow, cd=')
-print(cd)
                 LibButtonGlow.ShowOverlayGlow(cd)
             end
         end
@@ -198,11 +196,11 @@ print(cd)
                 -- if the buff was identified previously, then it is a static icon
                 -- turn off the glow
                 local cd = ns.staticRows[buff.caster].items[buff.auraName]
-print("hiding glow, cd=")
-print(cd)
-ns.printer(buff)
-ns.printer(ns.staticRows[buff.caster].items)
-                LibButtonGlow.HideOverlayGlow(cd)
+                if cd then
+                    LibButtonGlow.HideOverlayGlow(cd)
+                else
+                    printDebug('slot=' .. unitTarget .. ': identified aura instance=' .. auraInstanceID .. ' removed but was not tracked in staticRows for this caster=' .. buff.caster)
+                end
             end
 
             -- allow garbage collection
