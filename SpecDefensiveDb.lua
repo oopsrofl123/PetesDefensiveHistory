@@ -47,6 +47,7 @@ ns.SpecDefensiveDb = {
 			name="Anti-Magic Shell",
             isBuff=true,
 			id=48707,
+            iconId=136120,
 			cooldown=40, -- talent: 60 > 40
 			duration=7,  -- talent: 5 > 7 (+40%)
 			duration_variable=ns.DURATION_LTE,  -- ends when shield broken
@@ -55,6 +56,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		},
@@ -62,6 +65,7 @@ ns.SpecDefensiveDb = {
 			name="Icebound Fortitude",
             isBuff=true,
 			id=48792,
+            iconId=237525,
 			cooldown=120,
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
@@ -70,6 +74,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -80,6 +86,7 @@ ns.SpecDefensiveDb = {
 			name="Anti-Magic Shell",
             isBuff=true,
 			id=48707,
+            iconId=136120,
 			cooldown=40, -- talent: 60 > 40
 			duration=7,  -- talent: 5 > 7 (+40%)
 			duration_variable=ns.DURATION_LTE,
@@ -88,6 +95,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		},
@@ -95,6 +104,7 @@ ns.SpecDefensiveDb = {
 			name="Icebound Fortitude",
             isBuff=true,
 			id=48792,
+            iconId=237525,
 			cooldown=120,
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
@@ -103,6 +113,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -126,6 +138,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -137,6 +151,7 @@ ns.SpecDefensiveDb = {
 			name="Fiery Brand",
             isBuff=true,
 			id=207771,
+            iconId=1344647,
 			cooldown=60,             -- talent: 60 > 48
 			duration=12,
 			duration_variable=ns.DURATION_GTE, -- talent: spreading in multi-target and +0.25s duration on immo ticks
@@ -145,6 +160,8 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -163,6 +180,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -178,6 +197,7 @@ ns.SpecDefensiveDb = {
 			name="Barkskin",
             isBuff=true,
 			id=22812,
+            iconId=136097,
 			cooldown=60,
 			duration=12,    -- talent: 8 > 12
 			duration_variable=ns.DURATION_FIXED,
@@ -186,6 +206,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -196,6 +218,7 @@ ns.SpecDefensiveDb = {
 			name="Barkskin",
             isBuff=true,
 			id=22812,
+            iconId=136097,
 			cooldown=60,
 			duration=12,    -- talent: 8 > 12
 			duration_variable=ns.DURATION_FIXED,
@@ -204,6 +227,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -215,6 +240,7 @@ ns.SpecDefensiveDb = {
 			name="Barkskin",
             isBuff=true,
 			id=22812,
+            iconId=136097,
 			cooldown=34.2,    -- talent: 45 > 34.2 (-12% per point, 2pts, 10.8s)
 			duration=12,    -- base 8. talent: imp bark: +4, ursoc's endurance +2
 			duration_variable=ns.DURATION_FIXED,
@@ -223,6 +249,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -233,6 +261,7 @@ ns.SpecDefensiveDb = {
 			name="Barkskin",
             isBuff=true,
 			id=22812,
+            iconId=136097,
 			cooldown=60,
 			duration=12,    -- talent: 8 > 12
 			duration_variable=ns.DURATION_FIXED,
@@ -241,6 +270,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		},
@@ -248,6 +279,7 @@ ns.SpecDefensiveDb = {
 			name="Ironbark",
             isBuff=true,
 			id=102342,
+            iconId=572025,
 			cooldown=70,    -- talent: 90 > 70
 			duration=12,    -- talent: 12 > 16 but maybe wont be taken
 			duration_variable=ns.DURATION_FIXED,
@@ -256,6 +288,8 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=true,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.EXTERNAL_ANY,
             concurrentDebuff=false
 		}
@@ -293,6 +327,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		},
@@ -311,6 +347,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		},
@@ -329,6 +367,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		},
@@ -355,6 +395,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -374,6 +416,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -395,6 +439,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -477,6 +523,8 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=true,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.EXTERNAL_NOT_SELF,
             concurrentDebuff=false
 		}
@@ -509,26 +557,29 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		},
-        -- can't do this until move away from the CenterDefensiveBuff frame since it doesn't show there
-        -- also it probably isn't
-		-- {
-			-- name="Divine Shield",
-            -- isBuff=true,
-			-- id=642,
-			-- cooldown=175,  -- talent1: 300 > 210 (-30%), talent2: -15% 210 > 175
-			-- duration=8,
-			-- duration_variable=ns.DURATION_FIXED,
-			-- charges=1,
-			-- cdr=false,
-            -- importantFlag=true,
-            -- bigFlag=false,
-            -- externalFlag=false,
-			-- external=ns.NOT_EXTERNAL,
-            -- concurrentDebuff=true
-		-- },
+		{
+			name="Divine Shield",
+            isBuff=true,
+			id=642,
+            iconId=524354,
+			cooldown=175,  -- talent1: 300 > 210 (-30%), talent2: -15% 210 > 175
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=true
+		},
 		{
 			name="Guardian of Ancient Kings",
             isBuff=true,
@@ -542,6 +593,8 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		},
@@ -560,6 +613,8 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=true
 		},
@@ -576,9 +631,88 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=true,
+            raidFlag=true,
+            raidInCombatFlag=true,
 			external=ns.EXTERNAL_NOT_SELF,
             concurrentDebuff=false
-		}
+		},
+        -- XXX: TODO: BoP isn't flagged as important
+		{
+			name="Blessing of Protection",
+            isBuff=true,
+			id=1022,
+            iconId=135964,
+			--cooldown=195,   -- base: 300, talent1: -60s, talent2: -15% (=45s)
+            -- in game testing shows 205s cd, not the above expected
+			cooldown=205,   -- base: 300, talent1: -60s, talent2: -15% (=45s)
+			duration=10,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=false,
+            bigFlag=false,
+            externalFlag=true,
+            raidFlag=true,
+            raidInCombatFlag=true,
+			external=ns.EXTERNAL_ANY,
+            concurrentDebuff=false -- applies forbearance, but the debuff isn't in the same payload
+		},
+		{
+			name="Blessing of Spellwarding",
+            isBuff=true,
+			id=6940,
+            iconId=135880,
+			--cooldown=195,   -- base: 300, talent1: -60s, talent2: -15% (=45s)
+            -- in game testing shows 205s cd, not the above expected
+			cooldown=205,   -- base: 300, talent1: -60s, talent2: -15% (=45s)
+			duration=10,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=true,
+            raidFlag=true,
+            raidInCombatFlag=false,
+			external=ns.EXTERNAL_ANY,
+            concurrentDebuff=false -- applies forbearance, but the debuff isn't in the same payload
+		},
+		{
+			name="Blessing of Freedom",
+            isBuff=true,
+			id=1044,
+            iconId=135968,
+			cooldown=25,   -- WRONG
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=true,
+            raidInCombatFlag=false,
+			external=ns.EXTERNAL_ANY,
+            concurrentDebuff=false
+		},
+		{
+			name="Avenging Wrath",
+            isBuff=true,
+			id=31884,
+            iconId=135875,
+			cooldown=120,   -- WRONG
+			duration=18,
+			duration_variable=ns.DURATION_GTE,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false
+		},
 	},
 	-- Retribution
 	[70] = {
@@ -607,6 +741,8 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=true,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.EXTERNAL_NOT_SELF,
             concurrentDebuff=false
 		}
@@ -644,6 +780,8 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -662,6 +800,8 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -680,6 +820,8 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -695,6 +837,7 @@ ns.SpecDefensiveDb = {
 			name="Astral Shift",
             isBuff=true,
 			id=108271,
+            iconId=538565,
 			cooldown=90,   -- talent: 120 > 90
 			duration=12,
 			duration_variable=ns.DURATION_FIXED,
@@ -703,6 +846,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -713,6 +858,7 @@ ns.SpecDefensiveDb = {
 			name="Astral Shift",
             isBuff=true,
 			id=108271,
+            iconId=538565,
 			cooldown=90,   -- talent: 120 > 90
 			duration=12,
 			duration_variable=ns.DURATION_FIXED,
@@ -721,6 +867,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -731,6 +879,7 @@ ns.SpecDefensiveDb = {
 			name="Astral Shift",
             isBuff=true,
 			id=108271,
+            iconId=538565,
 			cooldown=90,   -- talent: 120 > 90
 			duration=12,
 			duration_variable=ns.DURATION_FIXED,
@@ -739,6 +888,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -762,6 +913,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -780,6 +933,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -798,6 +953,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
 		}
@@ -828,6 +985,8 @@ ns.SpecDefensiveDb = {
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false
         },
