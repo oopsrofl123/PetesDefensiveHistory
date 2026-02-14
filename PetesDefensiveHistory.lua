@@ -123,12 +123,6 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Ensure unitTarget is a recognized slot. This event is called for nameplates and others
     if not ns.allSlots[unitTarget] then return end
 
---print('all HELPFUL auras on ' .. unitTarget .. ': --------------------')
---ns.printer(C_UnitAuras.GetUnitAuraInstanceIDs(unitTarget, "HELPFUL"))
---print('all HELPFUL\|RAID auras on ' .. unitTarget .. ': --------------------')
---ns.printer(C_UnitAuras.GetUnitAuraInstanceIDs(unitTarget, "HELPFUL|RAID"))
---print('all HELPFUL\|RAID_IN_COMBAT auras on ' .. unitTarget .. ': --------------------')
---ns.printer(C_UnitAuras.GetUnitAuraInstanceIDs(unitTarget, "HELPFUL|RAID_IN_COMBAT"))
     -- empty table to make #(.) work when no auras are added. same for other tables.
     local aurasAdded = updateInfo['addedAuras'] or {}
     local aurasRemoved = updateInfo['removedAuraInstanceIDs'] or {}
