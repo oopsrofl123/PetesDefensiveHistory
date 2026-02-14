@@ -10,7 +10,7 @@ ns.MAX_CAST_HISTORY = 60  -- buffs can last a long time. a minute worth of casts
 ns.ICON_SIZE = 32
 ns.ICON_SPACING = 2
 ns.DEFAULT_ICON = 134400 -- question mark
-ns.DEBUG_VISUALS = true
+ns.DEBUG_VISUALS = false
 ns.DEBUG_MESSAGES = true
 
 -- All recognized slots for history rows and defensives. Integer mappings
