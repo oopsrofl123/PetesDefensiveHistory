@@ -317,11 +317,17 @@ end
 
 function ns:getCastableAbilities(slot)
     castable = {}
-    for _, ability in pairs(ns.pdhGroupCDs[slot].abilities) do
-        if ns:tablecontains(ns.pdhPossibleCasters[ability.name], slot) then
-            castable[ability.name] = ability
+    -- the pdhGroupCDs table stores what abilities can be cast ON slot, not BY slot.
+    -- so have to loop over the whole group to find externals like blessing of sac
+    -- that cannot be self cast.
+    for target, _ in pairs(ns.allSlots) do
+        for _, ability in pairs(ns.pdhGroupCDs[target].abilities) do
+            if ns:tablecontains(ns.pdhPossibleCasters[ability.name], slot) then
+                castable[ability.name] = ability
+            end
         end
     end
+ns.printer(castable)
     return castable
 end
 
