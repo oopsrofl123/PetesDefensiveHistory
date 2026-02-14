@@ -42,55 +42,10 @@ local addonName, ns = ...
 
 
 
--- Used with OmniCD reanchoring to help distinguish an active defensive from the history tracker.
-local LibButtonGlow = LibStub("LibButtonGlowcustom")
-
--- Does a lot of things. Should probably make these separately selectable.
--- In short: move the defensive buff icon from being centered in the party frame
--- to the left of the party frame, like OmniCD would have shown.
--- XXX: UPDATE: after the instant inference static tracking update, this no longer
--- makes as much sense.
--- XXX: THIS WHOLE FUNCTION IS DEAD CODE
-local function updateAnchors(slot)
-    if UnitExists(slot) then
-        local partyframe = ns:slotToPartyFrame(slot)
-        if partyframe then
-            local cdb = partyframe.CenterDefensiveBuff
-
-			ns.historyRows[slot]:SetPoint("RIGHT", ns:slotToPartyFrame(slot), "LEFT", -2, 0)
-
-            cdb:ClearAllPoints()
-            cdb:SetPoint("RIGHT", partyframe, "LEFT", 3, 0)
-
-            -- Add a glow to the CenterDefensiveBuff to distinguish from the history tracker
-            LibButtonGlow.ShowOverlayGlow(cdb)
-
-            -- need to access these in callback
-            cdb.historyRow = ns.historyRows[slot]
-
-            -- For history reanchoring: when the defensive buff shows up, attach history
-            -- to the buff's left. When the buff goes away, attach history to the
-            -- party frame's left edge.
-            cdb:SetScript("OnShow", function(frame)
-                frame.historyRow:SetPoint("RIGHT", frame, "LEFT", -5, 0)
-            end)
-            cdb:SetScript("OnHide", function(frame)
-                frame.historyRow:SetPoint("RIGHT", ns:slotToPartyFrame(frame.historyRow.slot), "LEFT", -2, 0)
-            end)
-        end
-    end
-end
-
-
-
--- This is here because `item` is a historyItem, not the `buff` data structure
--- understood by the inference code. Should probably not do it this way.
-
-
 
 -- If any historyItem in row matches auraName, return its index. Returns
 -- the oldest such index, needs updating to handle abilities with charges.
-function ns:findAuraIndex(row, auraName)
+local function findAuraIndex(row, auraName)
     for i=1,ns.MAX_HISTORY do
         item = row.historyItems[i]
         if item.auraName and item.auraName == auraName then
