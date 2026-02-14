@@ -208,28 +208,31 @@ end
 
 function ns:addBuffToHistory(slot, buff)
     ns:printDebug("aura instance ID " .. buff.auraInstanceID ..
-        " added to tracker " .. slot .. " after " .. buff.duration .. "s")
+        " added to history tray " .. slot .. " after " .. buff.duration .. "s")
 
+    if ns:isAbilityIdentified(buff) then
+        ns:printDebug("ERROR: adding inferred ability to history tray, should go to static tracker")
+    end
     -- don't try to identify again if it was already done (instant ID)
-    if not ns:isAbilityIdentified(buff) then
+    --if not ns:isAbilityIdentified(buff) then
         -- Use information about the target's spec and buff duration to identify the ability.
         -- Works in many cases. Returns nil if the ability can't be identified.
         -- Returns the best guess of the caster, which may not be the same as slot
         -- if this was an external.
-        ns:identifyAbility(slot, buff)
-    end
+        --ns:inferAbility(slot, buff)
+    --end
 
     slot = buff.caster  -- for externals, might be updated by identify
     local row = ns.historyRows[slot]
 
     -- If identified, remove any previous instance of this buff
     -- XXX: TODO: for abilities with charges, do something better
-    if ns:isAbilityIdentified(buff) then
-        local index = ns:findAuraIndex(row, buff.auraName)
-        if index then
-            shiftHistoryRightFrom(row.historyItems, index)
-        end
-    end
+    --if ns:isAbilityIdentified(buff) then
+        --local index = ns:findAuraIndex(row, buff.auraName)
+        --if index then
+            --shiftHistoryRightFrom(row.historyItems, index)
+        --end
+    --end
 
     -- Empty the youngest history slot
     shiftHistoryLeftFrom(row.historyItems)

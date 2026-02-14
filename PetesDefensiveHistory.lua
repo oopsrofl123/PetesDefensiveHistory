@@ -11,12 +11,13 @@ end
 
 
 -- Return a tuple of flags for this auraInstanceId:
---   (isImportant, isBigDefensive, isExternalDefensive, isRaidInCombat)
+--   (isImportant, isBigDefensive, isExternalDefensive, isRaidInCombat, isRaid)
 local function getFilterFlagsForAuraInstanceId(slot, auraInstanceId)
     return
         ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|IMPORTANT"), auraInstanceId),
         ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|BIG_DEFENSIVE"), auraInstanceId),
         ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|EXTERNAL_DEFENSIVE"), auraInstanceId),
+        ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|RAID"), auraInstanceId),
         ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|RAID_IN_COMBAT"), auraInstanceId)
 end
 
@@ -26,54 +27,55 @@ end
 --
 -- IMPORTANT! Save the icon's texture at the instant the aura is applied
 -- in case another buff overwrites it later.
-local function trackActiveBuff(slot, auraInstanceID, defensiveIcon, concurrentDebuffs)
-    local isImportant, isBigDefensive, isExternal, isRaidInCombat =
+local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentDebuffs)
+    local isImportant, isBigDefensive, isExternal, isRaid, isRaidInCombat =
         getFilterFlagsForAuraInstanceId(slot, auraInstanceID)
 
-    ns:printDebug('auraInstanceID=' .. auraInstanceID ..
-        ' (important=' .. tostring(isImportant) ..
-        ', bigdef=' .. tostring(isBigDefensive) ..
-        ', external=' .. tostring(isExternal) ..
-        ') added to ' .. slot ..
-        ': currently tracking ' .. #ns.activeDefensives[slot] ..
-        ' other active defensives')
+    local timeNow = GetTime()
+
+    ns:printDebug(string.format(
+        'auraInstanceID=%d (imp=%d, big=%d, ext=%d, raid=%d, ric=%d) added to %s: currently tracking %d other active defensives',
+        auraInstanceID, isImportant and 1 or 0,
+        isBigDefensive and 1 or 0, isExternal and 1 or 0,
+        isRaid and 1 or 0, isRaidInCombat and 1 or 0,
+        slot, #ns.activeDefensives[slot])
+    )
+
+    ns:printDebug('building list of most recent successful casts for all slots..')
+    closestCasts = {}
+    for slot, castHistory in pairs(ns.castHistory) do
+        closest = ns.INFINITY
+        for _, cast in pairs(castHistory:items()) do
+            if abs(cast.time - timeNow) < closest then
+                closest = cast.time
+            end
+        end
+        closestCasts[slot] = closest
+    end
 
     local defensive = {
         slot = slot,      -- this is the buff's target (which is the unit frame position it was witnessed on, hence slot
         caster = slot,    -- this is the buff's unknown caster. best guess for now: same as the slot
         auraInstanceID = auraInstanceID,
-        secretTexture = defensiveIcon:GetTexture(),
-        startTime = GetTime(),
+        --secretTexture = defensiveIcon:GetTexture(),
+        secretTexture = iconId,
+        startTime = timeNow,
         duration = 0,
-        endTime = GetTime() + ns.INFINITY,
+        endTime = timeNow + ns.INFINITY,
         isImportant = isImportant,
         isBigDefensive = isBigDefensive,
         isExternal = isExternal,
+        isRaid = isRaid,
         isRaidInCombat = isRaidInCombat,
         numUpdates = 0,                 -- how many times has this aura been in the aurasUpdated list?
-        concurrentDebuffs = concurrentDebuffs or {}
+        concurrentDebuffs = concurrentDebuffs or {},
+        closestCasts = closestCasts
     }
 
     ns.activeDefensives[slot][auraInstanceID] = defensive
 
     return defensive
 end
-
-
-
-
-
--- XXX: DELETEME: TESTING RANDOM STUFF
-        local f = CreateFrame("Frame", nil, UIParent)
-        f:SetPoint("CENTER")
-        f:SetSize(ns.ICON_SIZE, ns.ICON_SIZE)
-
-        f.icon = f:CreateTexture(nil, "ARTWORK")
-        f.icon:SetAllPoints()
-        f.icon:SetTexture(ns.DEFAULT_ICON)
-        f:Show()
--- XXX: DELETEME: TESTING RANDOM STUFF
-
 
 
 
@@ -104,6 +106,7 @@ castHandler:SetScript("OnEvent", function(self, event, unitTarget, castGUID, spe
 
     -- Wild spam, should use multiple debug levels but too lazy
     if ns.DEBUG_MESSAGES and unitTarget == "player" then
+        print('player cast history:')
         ns.castHistory[unitTarget]:print()
     end
 end)
@@ -120,6 +123,12 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Ensure unitTarget is a recognized slot. This event is called for nameplates and others
     if not ns.allSlots[unitTarget] then return end
 
+--print('all HELPFUL auras on ' .. unitTarget .. ': --------------------')
+--ns.printer(C_UnitAuras.GetUnitAuraInstanceIDs(unitTarget, "HELPFUL"))
+--print('all HELPFUL\|RAID auras on ' .. unitTarget .. ': --------------------')
+--ns.printer(C_UnitAuras.GetUnitAuraInstanceIDs(unitTarget, "HELPFUL|RAID"))
+--print('all HELPFUL\|RAID_IN_COMBAT auras on ' .. unitTarget .. ': --------------------')
+--ns.printer(C_UnitAuras.GetUnitAuraInstanceIDs(unitTarget, "HELPFUL|RAID_IN_COMBAT"))
     -- empty table to make #(.) work when no auras are added. same for other tables.
     local aurasAdded = updateInfo['addedAuras'] or {}
     local aurasRemoved = updateInfo['removedAuraInstanceIDs'] or {}
@@ -137,18 +146,18 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
 
     -- aurasAdded is a list of data structures unlike the other aura sets
     for _, v in pairs(aurasAdded) do
-        local imp, big, ext, ric = getFilterFlagsForAuraInstanceId(unitTarget, v.auraInstanceID)
+        local imp, big, ext, raid, ric = getFilterFlagsForAuraInstanceId(unitTarget, v.auraInstanceID)
         local harm = isAuraHarmful(unitTarget, v.auraInstanceID)
 
 -- XXX: debugging
-if unitTarget == "player" then
-        print("player aura", v.auraInstanceID, imp, big, ext, ric, harm)
-    if imp then
-        f.icon:SetTexture(v.icon)
-    end
-end
-        local this_cdb = ns:slotToPartyFrame(unitTarget).CenterDefensiveBuff
-        if this_cdb.auraInstanceID == v.auraInstanceID then
+--if unitTarget == "player" then
+        --print("player aura", v.auraInstanceID, imp, big, ext, ric, harm)
+    --if imp then
+        --f.icon:SetTexture(v.icon)
+    --end
+--end
+        -- the abilities we handle are helpfuls that are either important, big or externals
+        if not harm and (imp or big or ext) then
             -- get all of the debuff auras added in this event
             local debuffs = {}
             for _, v in pairs(aurasAdded) do
@@ -157,13 +166,10 @@ end
                 end
             end
 
-            local buff = trackActiveBuff(unitTarget, v.auraInstanceID, this_cdb.icon, debuffs)
+            local buff = trackActiveBuff(unitTarget, v.auraInstanceID, v.icon, debuffs)
             -- attempt instant identification
-            if ns:identifyAbility(unitTarget, buff, false) then
-                -- instantly IDable abilities go to the static tracker
-                -- XXX: TODO: this might not be correct. it might be possible that a
-                -- spell is instantly IDed using external data like the cooldown tracker.
-                -- need to flag the spells that are static
+            if ns:inferAbility(unitTarget, buff, false) then
+                -- IDable abilities go to the static tracker
                 local cd = ns.staticRows[buff.caster].items[buff.auraName]
                 CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
                 cd.swipeTexture:Show()
@@ -190,17 +196,16 @@ end
             buff.endTime = GetTime()
             buff.duration = buff.endTime - buff.startTime
 
-            if not ns:isAbilityIdentified(buff) then
-                ns:addBuffToHistory(unitTarget, buff)
-            else
-                -- if the buff was identified previously, then it is a static icon
-                -- turn off the glow
+            if ns:inferAbility(unitTarget, buff, true) then
+                -- IDable abilities go to the static tracker
                 local cd = ns.staticRows[buff.caster].items[buff.auraName]
-                if cd then
-                    LibButtonGlow.HideOverlayGlow(cd)
-                else
-                    printDebug('slot=' .. unitTarget .. ': identified aura instance=' .. auraInstanceID .. ' removed but was not tracked in staticRows for this caster=' .. buff.caster)
-                end
+                CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
+                cd.swipeTexture:Show()
+                LibButtonGlow.HideOverlayGlow(cd)
+            else
+                -- This was the last chance at IDing. So if it's still non-IDable,
+                -- go to the fallback history tray
+                ns:addBuffToHistory(unitTarget, buff)
             end
 
             -- allow garbage collection

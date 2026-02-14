@@ -24,6 +24,10 @@ NEEDS TESTING
 
 FEATURES
 ===========================================================================
+- ALL raidFlag and raidInCombatFlag values need to be checked! cannot dump them automatically
+- cross-confidence layer consistency check
+- maybe ADDON_LOADED is a better event for allocating stuff (not anchoring)
+- add iconId for all database spells for static tracker
 - for instant tracking: flag spells as static icons when they're identified
   by the 0-knowledge system and use that flag to decide where to send the cooldown
   icon.
@@ -101,8 +105,20 @@ FEATURES
 
 BUGS
 ===========================================================================
+- DOESN'T WORK WHEN SOLO
+    - libspec doesn't fire a second time, so static rows aren't populated
+- handle shared cooldown between BoP and spellwarding
+    - amusingly, which is cast can be differentiated 
 - gift of the golden valkyr doesn't track if occurs during goak
     - because this is recorded as an update to the previous goak
+- solution UI:
+    - when an offline character is in group, somehow abilities get put into
+      pdhGroupCDs that (a) don't make any sense (e.g., ardent defender in a
+      druid+shaman group) and (b) before updatePdhGroupSolution() was ever
+      run. results in ability != nil but ability.solved=nil and ability.conflicts=nil
+    - maybe the offline player's nil specId causes a lua error in updatePdhGroupSolution
+      that ends the function execution before getting to the identifyAbility() block?
+    - [think solved] this isn't related to an offline member, it's when identifyAbility() dies due to a runtime error
 
 
 

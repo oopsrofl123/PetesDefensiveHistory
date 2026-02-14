@@ -35,181 +35,331 @@ ns.DURATION_TOLERANCE = 0.15
 
 -- How much better the best possible solution must be than the second
 -- best possible solution.
-ns.CONFIDENT_DIFFERENCE = 0.5
+ns.DURATION_CONFIDENT_DIFFERENCE = 0.5
 
-
--- Use various rules about who can cast what ability on whom to narrow down
--- the possible abilities that could be "buff".
+-- How close must the buff's start time be to the caster's cast time for us
+-- to confidently claim this spell was cast?
+-- Confusing point: this variable is applied to cast time DIFFERENCES --
+-- i.e., for each potential caster, first compute how far the cast time was
+-- from the buff application.  then compare those differences.  The
+-- further away the second caster was from the best caster, the higher the
+-- likelihood that the best caster really cast the spell.
 --
--- IMPORTANT! buff.cooldown must ALWAYS be set. If the ability can't be
--- uniquely identified, then the worst the timer could be is the longest
--- cooldown among the group's externals and that player's own abilities.
-function ns:identifyAbility(slot, buff, useDuration, cdTracker)
-    ns:printDebug("STARTING inference for slot=" .. slot)
+-- IMPORTANT: A reasonble model is that every group
+-- member will be pressing abilities every GCD, meaning cast times can be modelled
+-- as a uniform on [0, GCD length]. For a slow GCD of 1.5, setting this parameter
+-- to 0.01 would have a false positive rate of 1/150 (0.6%) and for a fast GCD of 1.0 a
+-- FP rate of 1/100 (=1%).
+ns.CASTTIME_CONFIDENT_DIFFERENCE = 0.150
 
-    if useDuration == nil then
-        useDuration = true
+
+
+local function traceLogic(buff, ability, message, ...)
+    ns:printDebug(string.format(
+        "ability=[%s], target=[%s], caster=[%s]: " .. message,
+        ability.name, buff.slot, ability.caster, ...))
+end
+
+
+
+-- Do Blizzard's aura flags match?
+local function logicLayerBuffFlags(buff, ability)
+    if buff.isImportant ~= ability.importantFlag or
+       buff.isBigDefensive ~= ability.bigFlag or
+       buff.isExternal ~= ability.externalFlag or
+       buff.isRaid ~= ability.raidFlag or
+       buff.isRaidInCombat ~= ability.raidInCombatFlag then
+        traceLogic(buff, ability, "excluding due to flag mismatch buff=(%d,%d,%d,%d,%d), ability=(%d,%d,%d,%d,%d)",
+            buff.isImportant and 1 or 0,
+            buff.isBigDefensive and 1 or 0,
+            buff.isExternal and 1 or 0,
+            buff.isRaid and 1 or 0,
+            buff.isRaidInCombat and 1 or 0,
+            ability.importantFlag and 1 or 0,
+            ability.bigFlag and 1 or 0,
+            ability.externalFlag and 1 or 0,
+            ability.isRaidFlag and 1 or 0,
+            ability.isRaidInCombatFlag and 1 or 0)
+        return false
     end
-    -- allow the caller to override the tracked state of CDs to simulate an
-    -- unknown state. useful for determining which abilities are ALWAYS
-    -- uniquely identifiable. if the caller doesn't override, use the real
-    -- tracker.
-    cdTracker = cdTracker or ns.pdhCDTracker
-    buff.cooldown = -1
+    return true
+end
 
-    -- first determine which abilities are possible matches by ensuring
-    -- that the duration of the buff is consistent with what is known
-    -- about how the buff acts.
+
+
+-- How much time has passed since we last saw this ability? Was it
+-- long enough that it could be off cooldown? This heuristic only
+-- works for abilities that don't have dynamic cooldown reduction.
+-- IMPORTANT: there is an ability in the list for each caster of each ability
+-- that can target the person. e.g., if two there are 2 paladins with sac
+-- in the group, then there will be 2 entries of sac in this list.
+-- we want to know if THIS caster has the ability off cooldown.
+local function logicLayerAbilityOffCooldown(buff, ability, cdTracker)
+    if not ability.cdr then
+        local caster = ability.caster
+        local time_since = GetTime() - (cdTracker[caster][ability.name] or 0)
+
+        -- ability.cooldown + buff.duration - sometimes abilities are identified
+        -- when the buff expires. for fixed duration buffs, the ability must have been off
+        -- coldown CD+DUR seconds ago, not just CD seconds ago.
+        if time_since < ability.cooldown + buff.duration - ns.DURATION_TOLERANCE then
+            traceLogic(buff, ability,
+                "excluding (not off cd): last seen %0.3fs ago, cd=%ds, duration=%0.3fs, reject interval < %0.3fs",
+                time_since, ability.cooldown, buff.duration,
+                ability.cooldown + buff.duration - ns.DURATION_TOLERANCE)
+            return false
+        end
+    end
+    return true
+end
+
+
+
+local function getDurationDiff(buff, ability)
+    return math.abs(buff.duration - ability.duration)
+end
+
+
+
+-- Was the buff's duration consistent with how the ability works?
+local function logicLayerDurationMatches(buff, ability, useDuration)
+    if useDuration then
+        -- shorter variables for readability
+        local diff = getDurationDiff(buff, ability)
+        local dv = ability.duration_variable
+        local tol = ns.DURATION_TOLERANCE
+
+        if (dv == ns.DURATION_FIXED and diff > tol) or
+           (dv == ns.DURATION_LTE and diff > tol and buff.duration > ability.duration) or
+           (dv == ns.DURATION_GTE and diff > tol and buff.duration < ability.duration) then
+            traceLogic(buff, ability, "excluding: duration not within tolerance (buff=%0.3f, ability=%03f, duration type=%d, diff=%0.3f)", buff.duration, ability.duration, dv, diff)
+            return false
+        end
+    end
+    return true
+end
+
+
+
+-- Does the ability trigger a concurrent debuff and if so, was there one?
+-- This checks both for (1) if a debuff is required, there must be one and (2) if a
+-- debuff is not required, there must not be one. These could definitely generate
+-- false negatives (especially case 2), so need testing to see how reliable this is.
+-- Maybe should remove case 2.
+--   1. requires debuff: maybe UNIT_AURA can be called separately for the buff and debuff portions
+--   2. does not require debuff: maybe another unrelated debuff was applied in the same event
+local function logicLayerCheckConcurrentDebuffs(buff, ability)
+    if ability.concurrentDebuff then
+        if #buff.concurrentDebuffs == 0 then
+            traceLogic(buff, ability,
+                "excluding: does not create concurrent debuff but %d debuffs observed",
+                #buff.concurrentDebuffs)
+            return false
+        end
+    else
+        if #buff.concurrentDebuffs > 0 then
+            traceLogic(buff, ability,
+                "excluding: requires concurrent debuff but %d debuffs observed",
+                #buff.concurrentDebuffs)
+            return false
+        end
+    end
+    return true
+end
+
+
+
+local function getCastTimeDiff(buff, ability)
+    local closest = buff.closestCasts[ability.caster] or ns.INFINITY
+    local buffApplied = buff.startTime
+    local diff = math.abs(closest - buffApplied)
+    return closest, buffStart, math.abs(closest - buffApplied)
+end
+
+
+
+-- Ensure the person who can cast this ability did cast something around the correct time
+local function logicLayerCasterDidCast(buff, ability)
+    local closest, buffApplied, diff = getCastTimeDiff(buff, ability)
+    if diff > ns.DURATION_TOLERANCE then
+        traceLogic(buff, ability,
+            "excluding: caster's closest cast=%0.3f, buff applied=%0.3f (diff=%0.3f)",
+            closest, buffApplied, diff)
+        return false
+    end
+    return true
+end
+
+
+
+-- logic layers are fundamentally an AND operation: ALL rules must be followed
+-- for an ability to have produced a buff.
+-- based on how each ability works, determine if it could have possibly produced
+-- buff.
+-- which ability is the best match is determined later.
+local function getPossibleSolutions(buff, slot, useDuration, cdTracker)
+    local maxCD = -1
     local possibleSolutions = {}
+
     for _, ability in pairs(ns.pdhGroupCDs[slot].abilities) do
         -- it's tempting to only use possible abilities, but the heuristics
         -- below can exclude abilities incorrectly due to the duration
         -- tolerances. so to be sure we have SOME fallback, take the max
         -- among all cds whether possible or not.
-        buff.cooldown = math.max(buff.cooldown, ability.cooldown)
-        local isPossible = true 
+        maxCD = math.max(maxCD, ability.cooldown)
 
-        -- 1. Do Blizzard's aura flags match?
-        if buff.isImportant ~= ability.importantFlag then
-            isPossible = false
-        end
-        if buff.isBigDefensive ~= ability.bigFlag then
-            isPossible = false
-        end
-        if buff.isExternal ~= ability.externalFlag then
-            isPossible = false
-        end
-        if not isPossible then
-            ns:printDebug("target=" .. slot .. ": excluding ability " .. ability.name ..
-                " due to mismatching flags (" ..
-                tostring(ability.importantFlag) .. ", " ..
-                tostring(ability.bigFlag) .. ", " ..
-                tostring(ability.externalFlag) .. ") vs. (" ..
-                tostring(buff.isImportant) .. ", " ..
-                tostring(buff.isBigDefensive) .. ", " ..
-                tostring(buff.isExternal) .. ")")
-        end
-
-        -- 2. How much time has passed since we last saw this ability? Was it
-        -- long enough that it could be off cooldown? This heuristic only
-        -- works for abilities that don't have dynamic cooldown reduction.
-        -- ALSO: need to know who cast this ability. For self-cast only
-        -- spells slot=caster but externals may not be.
-        if isPossible and not ability.cdr then
-            -- XXX: make things easier for now. possible to infer for >1 sometimes
-            if #ns.pdhPossibleCasters[ability.name] == 1 then
-                local caster = ns.pdhPossibleCasters[ability.name][1]
-                local time_since = GetTime() - (cdTracker[caster][ability.name] or 0)
-                ns:printDebug("target=" .. slot .. ", caster=" .. caster ..
-                    ", ability=" ..  ability.name ..
-                    ": last seen " .. time_since ..
-                    "s ago, cooldown (=" ..  ability.cooldown .. "s) + duration (=" ..
-                    ability.duration .. "s) = " .. ability.cooldown+ability.duration .. "s")
-
-                -- buff.cooldown + buff.duration - since this function operates when the
-                -- buff expires, for fixed length buffs, the ability must have been off
-                -- coldown CD+DUR seconds ago, not just CD seconds ago.
-                -- DURATION_TOLERANCE accounts for times when the event fires slightly
-                -- before the buff really falls off.
-                if time_since < ability.cooldown + ability.duration - ns.DURATION_TOLERANCE then
-                    ns:printDebug("fails cooldown test")
-                    isPossible = false
-                end
-            end
-        end
-
-        -- 3. Was the buff's duration consistent with how the ability works?
-        local diff = 0  -- Using diff=0 means the duration matched, equivalent to ignoring duration
-        if useDuration then
-            local isPossibleBefore = isPossible
-            diff = math.abs(buff.duration - ability.duration)
-            if ability.duration_variable == ns.DURATION_FIXED then
-                if diff > ns.DURATION_TOLERANCE then
-                    isPossible = false
-                end
-            elseif ability.duration_variable == ns.DURATION_LTE then
-                if not (diff <= ns.DURATION_TOLERANCE or buff.duration <= ability.duration) then
-                    isPossible = false
-                end
-            elseif ability.duration_variable == ns.DURATION_GTE then
-                if not (diff <= ns.DURATION_TOLERANCE or buff.duration >= ability.duration) then
-                    isPossible = false
-                end
-            end
-
-            if isPossibleBefore ~= isPossible then
-                ns:printDebug("excluding ability " .. ability.name ..
-                    ": duration not within tolerance (diff=" .. diff .. ")")
-            end
-        end
-
-        -- 4. Does the ability trigger a concurrent debuff?
-        do
-            local isPossibleBefore = isPossible
-            if ability.concurrentDebuff then
-                if #buff.concurrentDebuffs == 0 then
-                    -- not sure if this can cause false negatives. in a tiny bit of testing,
-                    -- the concurrentDebuff does always come in the same UNIT_AURA event.
-                    isPossible = false
-                end
-            else
-                if #buff.concurrentDebuffs > 0 then
-                    -- This can cause false negatives. Just because an ability doesn't *have*
-                    -- to come with a debuff doesn't exclude the possibility that another unrelated
-                    -- debuff happened at the same moment.
-                    isPossible = false
-                end
-            end
-            if isPossibleBefore ~= isPossible then
-                ns:printDebug("excluding ability " .. ability.name ..
-                    ": must have a concurrent debuff, but " .. #buff.concurrentDebuffs .. " witnessed")
-            end
-        end
-
-        -- All rules have passed, this ability is a possible match
-        if isPossible then
-            table.insert(possibleSolutions, { diff=diff, ability=ability })
+        -- important: logical statements in lua short circuit, so additional
+        -- logic layers aren't evaluated if they aren't necessary.
+        if logicLayerBuffFlags(buff, ability) and
+           logicLayerAbilityOffCooldown(buff, ability, cdTracker) and
+           logicLayerDurationMatches(buff, ability, useDuration) and
+           logicLayerCheckConcurrentDebuffs(buff, ability) and
+           logicLayerCasterDidCast(buff, ability) then
+            traceLogic(buff, ability, "is a possible solution")
+            -- All rules have passed, this ability is a possible match
+            local x = ns:shallowcopy(ability)
+            _, _, x.castTimeDiff = getCastTimeDiff(buff, ability)
+            -- if we aren't using duration, set the diff to 0 so no ability is considered
+            -- a better match than others.
+            x.durationDiff = useDuration and getDurationDiff(buff, ability) or 0
+            table.insert(possibleSolutions, x)
         end
     end
 
-    table.sort(possibleSolutions, function(a, b) return a.diff <= b.diff end)
+    return possibleSolutions, maxCD
+end
 
-    -- consider the two (or more) best possible matches
-    local best = possibleSolutions[1] or { diff=ns.INFINITY, ability={ name='INFINITY' } }
-    local second = possibleSolutions[2] or { diff=ns.INFINITY, ability={ name='INFINITY' } }
 
-    -- absent any other information, assume the target is also the caster
-    local caster = slot
 
-    -- accept this as a confident match
-    if second.diff - best.diff >= ns.CONFIDENT_DIFFERENCE then
-        best = best.ability -- convenience
-        -- XXX: TODO: handle variable duration
-        buff.auraName = best.name
-        buff.cooldown = best.cooldown
-        buff.spellId = best.id
-        buff.external = best.external
-        buff.iconId = best.iconId     -- usually nil, we use blizzard's texture. only for overriding
-        -- track the cooldown of this ability if the caster can be uniquely determined
-        -- if only one character in the group could cast this, then that was the caster.
-        -- might be different from slot if this was an external.
-        if #ns.pdhPossibleCasters[best.name] == 1 then
-            buff.caster = ns.pdhPossibleCasters[best.name][1]
-            cdTracker[ns.pdhPossibleCasters[best.name][1]][best.name] = GetTime() - buff.duration
-        end
+local function traceConfidence(layerName, message, ...)
+    ns:printDebug(string.format(
+        "confidenceLayer(%s): " .. message,
+        layerName, ...))
+end
+
+
+
+-- To be confident that one ability is the correct match, only need to look at the 2
+-- best matches. If the second best match is significantly worse than the best match,
+-- then so are all the other possible abilities and we can be confident. If it isn't,
+-- the we can't be confident anyway.
+local function getTopTwo(list, dummy, comparator)
+    table.sort(list, comparator)
+
+    local best = list[1] or dummy
+    local second = list[2] or dummy
+
+    return best, second
+end
+
+
+
+local function confidenceLayerOnlyOnePossible(possibleSolutions)
+    return #possibleSolutions == 1 and possibleSolutions[1] or nil
+end
+
+
+
+local function confidenceLayerDuration(possibleSolutions)
+    best, second = getTopTwo(possibleSolutions,
+        { name='dummy', durationDiff=ns.INFINITY },
+        function(a, b) return a.durationDiff <= b.durationDiff end)
+
+    if second.durationDiff - best.durationDiff >= ns.DURATION_CONFIDENT_DIFFERENCE then
+        traceConfidence('duration', 'success: best=%0.3f, second=%0.3f, required diff=%0.3f',
+            best.durationDiff, second.durationDiff, ns.DURATION_CONFIDENT_DIFFERENCE)
+        return best
     else
-        ns:printDebug('could not confidently distinguish between ' ..
-            best.ability.name .. ' (best), diff=' .. best.diff ..
-            ' and ' .. second.ability.name .. ' (second best), diff=' ..
-            second.diff)
+        traceConfidence('duration', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
+            best.durationDiff, second.durationDiff, ns.DURATION_CONFIDENT_DIFFERENCE)
+        return nil
     end
+end
 
-    if ns:isAbilityIdentified(buff) then
+
+
+local function confidenceLayerCastTime(possibleSolutions)
+    best, second = getTopTwo(possibleSolutions,
+        { name='dummy', castTimeDiff=ns.INFINITY },
+        function(a, b) return a.castTimeDiff <= b.castTimeDiff end)
+
+    if second.castTimeDiff - best.castTimeDiff >= ns.CASTTIME_CONFIDENT_DIFFERENCE then
+        return best
+    else
+        traceConfidence('castTime', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
+            best.castTimeDiff, second.castTimeDiff, ns.CASTTIME_CONFIDENT_DIFFERENCE)
+        return nil
+    end
+end
+
+
+
+-- Given a list of possible abilities that could have produced buff, determine:
+--    1. what the best matching solution is
+--    2. whether the best matching solution is a *significantly better* match than
+--       all other possible solutions.
+--
+-- Keep in mind that it is VERY common for defensives that there's only one possible
+-- matching ability, even without duration knowledge.
+--
+-- When there are multiple possible abilities, the instant identification rate will
+-- be low.
+-- A good illustration is blessing of freedom: it is NOT flagged as an external, can
+-- be cast on anyone, and has a (1,0,0) flag set, which is a common flag set for
+-- important personals like DH metamorphosis. Freedom can be easily
+-- distinguished from meta after it completes via duration, but instant IDing is hard.
+-- Everyone is likely casting something every GCD, so there is a high chance that
+-- both the DH and paladin cast something near the time the buff was observed.
+--
+-- If confidence is attained, return the ability otherwise return nil.
+-- Confidence layers are fundamentally an OR operation: if any of the layers can
+-- *confidently* (this word is doing a lot of work here) distinguish between abilities,
+-- then we have a match.
+--
+-- XXX: TODO: Would be nice to do a consistency check across confidence layers to
+-- make sure the confident ones agree with each other.
+local function getConfidentMatch(possibleSolutions)
+    match = confidenceLayerOnlyOnePossible(possibleSolutions) or
+        confidenceLayerCastTime(possibleSolutions) or
+        confidenceLayerDuration(possibleSolutions)
+
+    return match
+end
+
+
+
+-- Use various rules about who can cast what ability on whom to narrow down
+-- the possible abilities that could be "buff".
+--
+-- Will always produce some non-nil value for buff.cooldown - the worst it
+-- could be is the maximum across all possible abilities that can target this player.
+function ns:inferAbility(slot, buff, useDuration, cdTracker)
+    ns:printDebug(string.format("target=[%s]: STARTING inference --------------------------------" ,
+         slot))
+    if useDuration == nil then useDuration = true end
+    -- allow the caller to override the tracked state of CDs to simulate an
+    -- unknown state. useful for determining which abilities are ALWAYS
+    -- uniquely identifiable.
+    cdTracker = cdTracker or ns.pdhCDTracker
+
+    -- all logic and ranking is performed in these two lines
+    possibleSolutions, maxCD = getPossibleSolutions(buff, slot, useDuration, cdTracker)
+    abilityMatch = getConfidentMatch(possibleSolutions)
+    if abilityMatch then
+        buff.auraName = abilityMatch.name
+        buff.cooldown = abilityMatch.cooldown
+        buff.spellId = abilityMatch.id
+        buff.external = abilityMatch.external
+        buff.iconId = abilityMatch.iconId
+        buff.caster = abilityMatch.caster
+
+        -- track the ability's cooldown
+        cdTracker[buff.caster][buff.auraName] = buff.startTime
         ns:printDebug("time=" .. GetTime() .. ": " .. buff.caster .. " cast ability " ..
-            buff.auraName .. " at time " ..
-            cdTracker[buff.caster][buff.auraName])
+            buff.auraName .. " at time " .. buff.startTime)
     else
-        ns:printDebug("couldn't identify ability")
+        buff.cooldown = maxCD
+        ns:printDebug("couldn't infer ability")
     end
 
     return ns:isAbilityIdentified(buff)
@@ -225,8 +375,7 @@ end
 -- Is called every time LibSpec identifies a spec, so must loop over the
 -- whole group each time.
 --
--- XXX: TODO: the logic here shouldn't be completely separate (and poorly duplicated)
--- from the identifyAbility() function. the bookkeeping part should be, though.
+-- XXX: TODO: split the update portion from the simulation portion
 function ns:updatePdhGroupSolution()
     local externals = {}   -- key=caster, value=ability info
 
@@ -235,11 +384,13 @@ function ns:updatePdhGroupSolution()
     -- find all externals (i.e., spells where target might not equal caster) and
     -- build the table of non-externals for each player.
     for slot, _ in pairs(ns.allSlots) do
+        externals[slot] = {}
         specId = ns.pdhGroupCDs[slot].specId
         ns.pdhGroupCDs[slot].abilities = {}
         if specId then
             abilities = ns.SpecDefensiveDb[specId]
             for _, ability in pairs(abilities) do
+                ability.caster = slot
                 -- Record the fact that this slot can cast this ability
                 if ns.pdhPossibleCasters[ability.name] then
                     table.insert(ns.pdhPossibleCasters[ability.name], slot)
@@ -250,7 +401,7 @@ function ns:updatePdhGroupSolution()
                 if ability.external == ns.NOT_EXTERNAL then
                     table.insert(ns.pdhGroupCDs[slot].abilities, ns:shallowcopy(ability))
                 else
-                    externals[slot] = ability
+                    table.insert(externals[slot], ns:shallowcopy(ability))
                 end
             end
         end
@@ -262,11 +413,12 @@ function ns:updatePdhGroupSolution()
     --   2. another caster's external, assuming there are no rules preventing this
     --      (e.g., blessing of sac can't be cast on self).
     for slot, _ in pairs(ns.allSlots) do
-        for caster, ability in pairs(externals) do
-            -- the only rule I know of is no self casting
-            if not (caster == slot and ability.external == ns.EXTERNAL_NOT_SELF) then
-                ns:printDebug("adding external " .. ability.name .. " to valid list for " .. slot)
-                table.insert(ns.pdhGroupCDs[slot].abilities, ns:shallowcopy(ability))
+        for caster, abilities in pairs(externals) do
+            for _, ability in pairs(abilities) do
+                -- the only rule I know of is no self casting
+                if not (caster == slot and ability.external == ns.EXTERNAL_NOT_SELF) then
+                    table.insert(ns.pdhGroupCDs[slot].abilities, ns:shallowcopy(ability))
+                end
             end
         end
     end
@@ -276,20 +428,26 @@ function ns:updatePdhGroupSolution()
     for slot, _ in pairs(ns.allSlots) do
         abilities = ns.pdhGroupCDs[slot].abilities
         for _, ability in pairs(abilities) do
-            -- make a "perfect" buff. this data is normally observed by UNIT_AURA and
+            -- make a buff that perfectly matches all expectations.
+            -- buff data is normally observed by UNIT_AURA and therefore
             -- some of it (like duration) do not match the ideal values.
             -- for abilities with isBuff=false, the buff payload needs to match the
             -- buff the ability applied. E.g., cheat death on prot paladin triggers
             -- GoAK, but we want to track the cheat death cooldown as a separate ability
+
             local buff = {
+                slot = slot,
                 startTime = GetTime(),
                 endTime = GetTime() + ability.duration,   -- perfect duration
                 duration = ability.duration,
                 isImportant = ability.importantFlag,
                 isBigDefensive = ability.bigFlag,
                 isExternal = ability.externalFlag,
+                isRaid = ability.raidFlag,
+                isRaidInCombat = ability.raidInCombatFlag,
                 numUpdates = 0,
-                concurrentDebuffs = {}
+                concurrentDebuffs = {},
+                closestCasts = {}
             }
 
             -- if the ability is supposed to come with a concurrent debuff, give it a
@@ -298,16 +456,22 @@ function ns:updatePdhGroupSolution()
                 table.insert(buff.concurrentDebuffs, 1)
             end
 
+            -- give everyone a cast at the perfect time, which allows the ability to
+            -- pass the logic layers but would never identify the ability at the
+            -- confidence layer because the second-best is also a perfect match.
+            for slot, _ in pairs(ns.allSlots) do
+                buff.closestCasts[slot] = GetTime()  
+            end
 
             -- make a fake cooldown state where no cooldowns have been seen
             blankCDs = {}
             for slot, _ in pairs(ns.allSlots) do
                 blankCDs[slot] = {}
             end
-            -- XXX: TODO: make empty fake spell cast histories if those end up being used.
-            ns:identifyAbility(slot, buff, false, blankCDs)
+
+            ns:inferAbility(slot, buff, false, blankCDs)
             ability.solved = ns:isAbilityIdentified(buff)
-            -- would be nice if identifyAbility would return the conflicting spell/caster combos
+            -- would be nice if inferAbility would return the conflicting spell/caster combos
             ability.conflicts = {}
         end
     end
@@ -327,7 +491,6 @@ function ns:getCastableAbilities(slot)
             end
         end
     end
-ns.printer(castable)
     return castable
 end
 
@@ -356,7 +519,6 @@ LibSpecialization.RegisterGroup(internalPdhGroupSpecs, function(specId, role, po
         end
 
         -- Static cooldown row
-        local x = ns:getCastableAbilities(slot)
-        ns:updateStaticRows(slot, x) -- ns:getCastableAbilities(slot))
+        ns:updateStaticRows(slot, ns:getCastableAbilities(slot))
     end
 end)
