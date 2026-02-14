@@ -24,6 +24,7 @@ NEEDS TESTING
 
 FEATURES
 ===========================================================================
+- hide cooldown swipe on active static buffs
 - ALL raidFlag and raidInCombatFlag values need to be checked! cannot dump them automatically
 - cross-confidence layer consistency check
 - maybe ADDON_LOADED is a better event for allocating stuff (not anchoring)
@@ -33,15 +34,10 @@ FEATURES
   icon.
 - on death: at least clear active cooldown glows for all static icons
     - i guess a UNIT_AURA that removes all auras doesn't fire on death?
-- identifyAbility() - save the conflicting spells/casters for UI elements
+- inferAbility() - save the conflicting spells/casters for UI elements
 - would be nice to firm up two object classes: Buff and HistoryItem, where Buff represents
   the aura itself and HistoryItem only handles tracking and display duties.
 - option to disable all inference (@Aryella WoWUIDev)
-- stop using blizzard's CenterDefensiveBuff (just hide it) so that multiple active buffs and
-  non-defensive buffs can be supported
-- add spell caster inference with UNIT_SPELLCAST_SUCCEEDED
-    - HALF 1: track casts
-    - HALF 2: use the info
 - updating/clearing tracker data
     - when party members join/leave group or change positions
     - could be easier to just clear for now, but could be annoying if,
@@ -53,17 +49,15 @@ FEATURES
 - check tier bonuses to make sure they don't alter duration/charges/CDR/etc.
 - get data to make better estimates on duration solve tolerance
     - both the "match" epsilon and the minimum difference
-- the blessing of freedom problem: it's an external castable on anyone but it isn't flagged
-  as external, so any group with a paladin puts an 8s duration (1,0,0) flagged ability
-  on everyone.
 - how to handle sac in "solved" interface? (since its duration is _less than or
     equal to_ 12s, meaning it clashes with almost every defensive buff
     - solved interface should perhaps be the most conservative solution, meaning
       exact duration matches, no advanced inference (CD tracking, variable duration, etc)
     - turns out there's an external flag on sac, so this is less of a problem
     - need to figure out ironbark+sac in the same group
-- better handle VDH fiery brand using aurasUpdated
+- maybe consider using aurasUpdated
     - turns out almost everything about fiery brand is bugged so can't work on this
+    - can be useful for fiery brand, sentinel (due to buff stacks ticking down)
 - support for detecting death?
     - UNIT_DIED exists, but surprisingly is secret. could we guess someone died
       if a ton of auras were removed in one batch and a UNIT_DIED fired sometime
@@ -107,6 +101,9 @@ BUGS
 ===========================================================================
 - DOESN'T WORK WHEN SOLO
     - libspec doesn't fire a second time, so static rows aren't populated
+    - even requires /reload after joining a group
+    - gives this error when it happens
+        PetesDefensiveHistory.lua:194: attempt to index field 'items' (a nil value)
 - handle shared cooldown between BoP and spellwarding
     - amusingly, which is cast can be differentiated 
 - gift of the golden valkyr doesn't track if occurs during goak
@@ -171,7 +168,15 @@ https://github.com/WeakAuras/WeakAuras2/blob/cabde3e6c9419516889cd0305b358c749f9
 
 DONE
 ===========================================================================
-- handle instant identification
+- the blessing of freedom problem: it's an external castable on anyone but it isn't flagged
+  as external, so any group with a paladin puts an 8s duration (1,0,0) flagged ability
+  on everyone. turns out it's HELPFUL|RAID flagged and that allows major disambiguation
+- stop using blizzard's CenterDefensiveBuff (just hide it) so that multiple active buffs and
+  non-defensive buffs can be supported
+- add spell caster inference with UNIT_SPELLCAST_SUCCEEDED
+    - HALF 1: track casts
+    - HALF 2: use the info
+- handle instant inference in the cases where it's possible
     * for buffs that are unique without duration info
     * align these buffs next to frames omniCD style
     * these never enter the history tray

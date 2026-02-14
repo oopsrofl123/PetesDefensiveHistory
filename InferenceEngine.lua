@@ -2,21 +2,21 @@ local _, ns = ...
 
 
 -- This dict is the set of all possible spells that can target each slot
-ns.pdhGroupCDs = {}
+ns.groupCDs = {}
 -- For each unique (caster, ability), this dict tracks the last time that
 -- ability was identified
-ns.pdhCDTracker = {}
+ns.cdTracker = {}
 for slot, _ in pairs(ns.allSlots) do
-    ns.pdhGroupCDs[slot] = {
+    ns.groupCDs[slot] = {
         specId = nil,
         abilities = nil    -- nil for an undetected/unset spec. {} for a spec with no abilities
     }
-    ns.pdhCDTracker[slot] = {}
+    ns.cdTracker[slot] = {}
 end
 
 -- For each ability, what players can possibly cast the ability? This
 -- allows redirecting externals to their casters rather than their targets.
-ns.pdhPossibleCasters = {}
+ns.possibleCasters = {}
 
 
 
@@ -201,7 +201,7 @@ local function getPossibleSolutions(buff, slot, useDuration, cdTracker)
     local maxCD = -1
     local possibleSolutions = {}
 
-    for _, ability in pairs(ns.pdhGroupCDs[slot].abilities) do
+    for _, ability in pairs(ns.groupCDs[slot].abilities) do
         -- it's tempting to only use possible abilities, but the heuristics
         -- below can exclude abilities incorrectly due to the duration
         -- tolerances. so to be sure we have SOME fallback, take the max
@@ -340,7 +340,7 @@ function ns:inferAbility(slot, buff, useDuration, cdTracker)
     -- allow the caller to override the tracked state of CDs to simulate an
     -- unknown state. useful for determining which abilities are ALWAYS
     -- uniquely identifiable.
-    cdTracker = cdTracker or ns.pdhCDTracker
+    cdTracker = cdTracker or ns.cdTracker
 
     -- all logic and ranking is performed in these two lines
     possibleSolutions, maxCD = getPossibleSolutions(buff, slot, useDuration, cdTracker)
@@ -375,7 +375,7 @@ end
 --      matching. Only infer abilities using the minimum possible info.
 function ns:zeroKnowledgeSolve()
     for slot, _ in pairs(ns.allSlots) do
-        abilities = ns.pdhGroupCDs[slot].abilities
+        abilities = ns.groupCDs[slot].abilities
         for _, ability in pairs(abilities) do
             -- make the buff we would expect to see if this ability got used.
             -- for abilities with isBuff=false, the buff payload needs to match the
@@ -428,12 +428,12 @@ end
 
 function ns:getCastableAbilities(slot)
     castable = {}
-    -- the pdhGroupCDs table stores what abilities can be cast ON slot, not BY slot.
+    -- the groupCDs table stores what abilities can be cast ON slot, not BY slot.
     -- so have to loop over the whole group to find externals like blessing of sac
     -- that cannot be self cast.
     for target, _ in pairs(ns.allSlots) do
-        for _, ability in pairs(ns.pdhGroupCDs[target].abilities) do
-            if ns:tablecontains(ns.pdhPossibleCasters[ability.name], slot) then
+        for _, ability in pairs(ns.groupCDs[target].abilities) do
+            if ns:tablecontains(ns.possibleCasters[ability.name], slot) then
                 castable[ability.name] = ability
             end
         end

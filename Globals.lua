@@ -40,4 +40,4 @@ end
 
 -- Some callbacks (like to LibSpecialization) might occur before the
 -- expected data structures are set up.
-ns.pdhInitialized = false
+ns.initialized = false

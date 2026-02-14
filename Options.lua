@@ -54,7 +54,7 @@ local btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
 btn:SetSize(120, 24)
 btn:SetPoint("TOPLEFT", 16, -16)
 btn:SetText("Reset")
-btn:SetScript("OnClick", function() pdhReset() end)
+btn:SetScript("OnClick", function() ns:reset() end)
 
 local resetCategory = Settings.RegisterCanvasLayoutSubcategory(ns.optionsCategory, frame, "Reset")
 Settings.RegisterAddOnCategory(resetCategory)

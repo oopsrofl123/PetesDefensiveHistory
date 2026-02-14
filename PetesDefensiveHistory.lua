@@ -149,13 +149,6 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         local imp, big, ext, raid, ric = getFilterFlagsForAuraInstanceId(unitTarget, v.auraInstanceID)
         local harm = isAuraHarmful(unitTarget, v.auraInstanceID)
 
--- XXX: debugging
---if unitTarget == "player" then
-        --print("player aura", v.auraInstanceID, imp, big, ext, ric, harm)
-    --if imp then
-        --f.icon:SetTexture(v.icon)
-    --end
---end
         -- the abilities we handle are helpfuls that are either important, big or externals
         if not harm and (imp or big or ext) then
             -- get all of the debuff auras added in this event
@@ -170,7 +163,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- attempt instant identification
             if ns:inferAbility(unitTarget, buff, false) then
                 -- IDable abilities go to the static tracker
-                local cd = ns.staticRows[buff.caster].items[buff.auraName]
+                local cd = ns.staticRows[buff.caster].items[buff.name]
                 CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
                 cd.swipeTexture:Show()
                 LibButtonGlow.ShowOverlayGlow(cd)
@@ -198,7 +191,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
 
             if ns:inferAbility(unitTarget, buff, true) then
                 -- IDable abilities go to the static tracker
-                local cd = ns.staticRows[buff.caster].items[buff.auraName]
+                local cd = ns.staticRows[buff.caster].items[buff.name]
                 CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
                 cd.swipeTexture:Show()
                 LibButtonGlow.HideOverlayGlow(cd)
@@ -226,7 +219,7 @@ loader:RegisterEvent("GROUP_ROSTER_UPDATE")
 loader:SetScript("OnEvent", function(self, event)
     ns:printDebug(event)
     -- PLAYER_ENTERING_WORLD fires when loading into an instance
-    if not ns.pdhInitialized and event == "PLAYER_ENTERING_WORLD" then
+    if not ns.initialized and event == "PLAYER_ENTERING_WORLD" then
         -- Can't initialize in addon load code due to the need to anchor to party frames
         ns:allocHistoryGrid()
 		ns:allocPdhGroupSolutionUI()

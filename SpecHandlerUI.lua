@@ -51,7 +51,7 @@ function ns:showPdhGroupSolutionRow(row)
     -- Fill in icons from left to right..obviously
     for i=1,UI_MAX_ABILITIES_PER_SLOT do
         local icon = row.abilityIcons[i]
-        local ability = ns.pdhGroupCDs[row.slot].abilities[i]
+        local ability = ns.groupCDs[row.slot].abilities[i]
         local conflictsLabel = row.abilityConflictsLabel[i]
         local cooldownLabel = row.abilityCooldownLabel[i]
         local durationLabel = row.abilityDurationLabel[i]
@@ -89,8 +89,8 @@ function ns:showPdhGroupSolutionRow(row)
 
     row.specLabel:SetPoint("BOTTOMRIGHT", row.abilityIcons[1], "BOTTOMLEFT", -UI_ICON_PADDING, 5)
     if ns.historyRows[row.slot] then
-        if ns.pdhGroupCDs[row.slot].specId then
-            row.specLabel:SetText(ns:specIdToString(ns.pdhGroupCDs[row.slot].specId))
+        if ns.groupCDs[row.slot].specId then
+            row.specLabel:SetText(ns:specIdToString(ns.groupCDs[row.slot].specId))
             _, class = UnitClass(row.slot)
             classColor = RAID_CLASS_COLORS[class]
             row.specLabel:SetTextColor(classColor.r, classColor.g, classColor.b)

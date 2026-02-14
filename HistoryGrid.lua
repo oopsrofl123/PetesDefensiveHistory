@@ -85,9 +85,6 @@ end
 
 -- This is here because `item` is a historyItem, not the `buff` data structure
 -- understood by the inference code. Should probably not do it this way.
-function ns:isAbilityIdentified(item)
-    return item.auraName ~= nil
-end
 
 
 
@@ -102,22 +99,6 @@ function ns:findAuraIndex(row, auraName)
     end
 
     return nil
-end
-
-
-
--- Handle the various logic paths for tracking abilities. Currently:
---     1. The ability is not identified: show a count-up timer
---     2. The ability is identified: show a cooldown swipe
-local function showHistoryItemTracker(item)
-    item.inferredCD:SetText(item.cooldown)
-    if ns:isAbilityIdentified(item) then
-        CooldownFrame_Set(item.swipeTexture, item.startTime, item.cooldown, true)
-        item.swipeTexture:Show()
-    else
-        item.timer:Show()
-    end
-    item:Show()
 end
 
 
@@ -210,29 +191,12 @@ function ns:addBuffToHistory(slot, buff)
     ns:printDebug("aura instance ID " .. buff.auraInstanceID ..
         " added to history tray " .. slot .. " after " .. buff.duration .. "s")
 
-    if ns:isAbilityIdentified(buff) then
+    if ns:isAbilityInferred(buff) then
         ns:printDebug("ERROR: adding inferred ability to history tray, should go to static tracker")
     end
-    -- don't try to identify again if it was already done (instant ID)
-    --if not ns:isAbilityIdentified(buff) then
-        -- Use information about the target's spec and buff duration to identify the ability.
-        -- Works in many cases. Returns nil if the ability can't be identified.
-        -- Returns the best guess of the caster, which may not be the same as slot
-        -- if this was an external.
-        --ns:inferAbility(slot, buff)
-    --end
 
     slot = buff.caster  -- for externals, might be updated by identify
     local row = ns.historyRows[slot]
-
-    -- If identified, remove any previous instance of this buff
-    -- XXX: TODO: for abilities with charges, do something better
-    --if ns:isAbilityIdentified(buff) then
-        --local index = ns:findAuraIndex(row, buff.auraName)
-        --if index then
-            --shiftHistoryRightFrom(row.historyItems, index)
-        --end
-    --end
 
     -- Empty the youngest history slot
     shiftHistoryLeftFrom(row.historyItems)
@@ -245,16 +209,9 @@ function ns:addBuffToHistory(slot, buff)
     item.duration = buff.duration
     item.cooldown = buff.cooldown
     item.numUpdates = buff.numUpdates
-    -- If there is an iconId in the database, it means to override
-    -- Blizzard's texture.
-    if ns:isAbilityIdentified(buff) and buff.iconId then
-        item.icon:SetTexture(buff.iconId)
-    else
-        item.icon:SetTexture(buff.secretTexture)
-    end
+    item.icon:SetTexture(buff.secretTexture)
     item.icon:Show()
-
-    showHistoryItemTracker(item)
+    item.timer:Show()
 end
 
 
@@ -463,7 +420,7 @@ end
 -- frames is increasing MAX_HISTORY. Rather than handle that, just force the user
 -- to /reload.
 function ns:allocHistoryGrid()
-    if ns.pdhInitialized then
+    if ns.initialized then
         ns:printDebug("allocHistoryGrid() called after already being initialized")
         return
     end
@@ -486,16 +443,15 @@ function ns:allocHistoryGrid()
         ns.staticRows[slot] = newRow
     end
 
-    ns.pdhInitialized = true
+    ns.initialized = true
 end
 
 
 
-function ns:pdhReset()
+function ns:reset()
     ns:printDebug("resetting")
     for slot, row in pairs(ns.historyRows) do
         ns:clearRow(row)
-        --updateAnchors(slot)
         if UnitExists(slot) then
             ns:printDebug("showing row for slot " .. slot)
             ns:showRow(slot)
