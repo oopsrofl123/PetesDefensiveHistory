@@ -36,6 +36,10 @@ function ns:fixedFIFO(size)
         return v
     end
 
+    function q:items()
+        return t
+    end
+
     function q:print()
         ns.printer(t)
     end
@@ -143,7 +147,8 @@ end
 
 function ns:printDebug(string)
     if ns.DEBUG_MESSAGES then
-        print('|cff00ff00' .. addonName .. ':|r ' .. string)
+        --print('|cff00ff00' .. addonName .. ':|r ' .. string)
+        print('|cff00ff00PDH:|r ' .. string)
     end
 end
 
