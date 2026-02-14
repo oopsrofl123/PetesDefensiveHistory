@@ -62,6 +62,22 @@ end
 
 
 
+local function getCastableAbilities(slot)
+    castable = {}
+    -- the groupCDs table stores what abilities can be cast ON slot, not BY slot.
+    -- so have to loop over the whole group to find externals like blessing of sac
+    -- that cannot be self cast.
+    for target, _ in pairs(ns.allSlots) do
+        for _, ability in pairs(ns.groupCDs[target].abilities) do
+            if ns:tablecontains(ns.possibleCasters[ability.name], slot) then
+                castable[ability.name] = ability
+            end
+        end
+    end
+    return castable
+end
+
+
 
 -- This function could run before the data structures are initialized.
 LibSpecialization.RegisterGroup(internalPdhGroupSpecs, function(specId, role, position, playerName, talents)
@@ -87,6 +103,7 @@ LibSpecialization.RegisterGroup(internalPdhGroupSpecs, function(specId, role, po
         end
 
         -- Static cooldown row
-        ns:updateStaticRows(slot, ns:getCastableAbilities(slot))
+        -- XXX: TODO: not at all what we want. only show inferrable abilities
+        ns:updateStaticRows(slot, getCastableAbilities(slot))
     end
 end)
