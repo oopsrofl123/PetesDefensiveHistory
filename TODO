@@ -24,7 +24,14 @@ NEEDS TESTING
 
 FEATURES
 ===========================================================================
-- hide cooldown swipe on active static buffs
+- add logic layer to detect when all possible CDs have been cast
+    - how useful is this? suppose at time X we know every ability is on
+      cooldown. then when the next ability is used, can assume the best case
+      scenario for every ability (min CD across all abilities).  this could
+      eliminate some possibilities.  e.g., DK uses AMS at time=1 and IBF at
+      time=10.  so at time=10 both are on CD.  the min CD across the two is
+      40s, so until time=10+IBF's cooldown, anymore abilities from that player
+      must have been AMS.
 - ALL raidFlag and raidInCombatFlag values need to be checked! cannot dump them automatically
 - cross-confidence layer consistency check
 - maybe ADDON_LOADED is a better event for allocating stuff (not anchoring)
@@ -168,6 +175,7 @@ https://github.com/WeakAuras/WeakAuras2/blob/cabde3e6c9419516889cd0305b358c749f9
 
 DONE
 ===========================================================================
+- hide cooldown swipe on active static buffs
 - the blessing of freedom problem: it's an external castable on anyone but it isn't flagged
   as external, so any group with a paladin puts an 8s duration (1,0,0) flagged ability
   on everyone. turns out it's HELPFUL|RAID flagged and that allows major disambiguation
