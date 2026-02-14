@@ -363,8 +363,8 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=true,
-            raidFlag=false,
-            raidInCombatFlag=false,
+            raidFlag=true,
+            raidInCombatFlag=true,
 			external=ns.EXTERNAL_ANY,
             concurrentDebuff=false
 		}
