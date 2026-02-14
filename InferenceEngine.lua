@@ -333,10 +333,11 @@ end
 --
 -- Will always produce some non-nil value for buff.cooldown - the worst it
 -- could be is the maximum across all possible abilities that can target this player.
-function ns:inferAbility(slot, buff, useDuration, cdTracker)
-    ns:printDebug(string.format("target=[%s]: STARTING inference --------------------------------" ,
-         slot))
+function ns:inferAbility(slot, buff, useDuration, cdTracker, disableInference)
+    ns:printDebug("target=["..slot.."]: STARTING inference --------------------------------" )
     if useDuration == nil then useDuration = true end
+    if disableInference == nil then disableInference = false end
+
     -- allow the caller to override the tracked state of CDs to simulate an
     -- unknown state. useful for determining which abilities are ALWAYS
     -- uniquely identifiable.
@@ -344,8 +345,9 @@ function ns:inferAbility(slot, buff, useDuration, cdTracker)
 
     -- all logic and ranking is performed in these two lines
     possibleSolutions, maxCD = getPossibleSolutions(buff, slot, useDuration, cdTracker)
+
     abilityMatch = getConfidentMatch(possibleSolutions)
-    if abilityMatch then
+    if abilityMatch and not disableInference then
         buff.name = abilityMatch.name
         buff.cooldown = abilityMatch.cooldown
         buff.spellId = abilityMatch.id
@@ -422,21 +424,4 @@ function ns:zeroKnowledgeSolve()
             ability.conflicts = {}
         end
     end
-end
-
-
-
-function ns:getCastableAbilities(slot)
-    castable = {}
-    -- the groupCDs table stores what abilities can be cast ON slot, not BY slot.
-    -- so have to loop over the whole group to find externals like blessing of sac
-    -- that cannot be self cast.
-    for target, _ in pairs(ns.allSlots) do
-        for _, ability in pairs(ns.groupCDs[target].abilities) do
-            if ns:tablecontains(ns.possibleCasters[ability.name], slot) then
-                castable[ability.name] = ability
-            end
-        end
-    end
-    return castable
 end
