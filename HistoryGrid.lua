@@ -48,6 +48,9 @@ local LibButtonGlow = LibStub("LibButtonGlowcustom")
 -- Does a lot of things. Should probably make these separately selectable.
 -- In short: move the defensive buff icon from being centered in the party frame
 -- to the left of the party frame, like OmniCD would have shown.
+-- XXX: UPDATE: after the instant inference static tracking update, this no longer
+-- makes as much sense.
+-- XXX: THIS WHOLE FUNCTION IS DEAD CODE
 local function updateAnchors(slot)
     if UnitExists(slot) then
         local partyframe = ns:slotToPartyFrame(slot)
@@ -56,24 +59,24 @@ local function updateAnchors(slot)
 
 			ns.historyRows[slot]:SetPoint("RIGHT", ns:slotToPartyFrame(slot), "LEFT", -2, 0)
 
-            --cdb:ClearAllPoints()
-            --cdb:SetPoint("RIGHT", partyframe, "LEFT", 3, 0)
+            cdb:ClearAllPoints()
+            cdb:SetPoint("RIGHT", partyframe, "LEFT", 3, 0)
 
             -- Add a glow to the CenterDefensiveBuff to distinguish from the history tracker
-            --LibButtonGlow.ShowOverlayGlow(cdb)
+            LibButtonGlow.ShowOverlayGlow(cdb)
 
             -- need to access these in callback
-            --cdb.historyRow = ns.historyRows[slot]
+            cdb.historyRow = ns.historyRows[slot]
 
             -- For history reanchoring: when the defensive buff shows up, attach history
             -- to the buff's left. When the buff goes away, attach history to the
             -- party frame's left edge.
-            --cdb:SetScript("OnShow", function(frame)
-                --frame.historyRow:SetPoint("RIGHT", frame, "LEFT", -5, 0)
-            --end)
-            --cdb:SetScript("OnHide", function(frame)
-                --frame.historyRow:SetPoint("RIGHT", ns:slotToPartyFrame(frame.historyRow.slot), "LEFT", -2, 0)
-            --end)
+            cdb:SetScript("OnShow", function(frame)
+                frame.historyRow:SetPoint("RIGHT", frame, "LEFT", -5, 0)
+            end)
+            cdb:SetScript("OnHide", function(frame)
+                frame.historyRow:SetPoint("RIGHT", ns:slotToPartyFrame(frame.historyRow.slot), "LEFT", -2, 0)
+            end)
         end
     end
 end
@@ -259,7 +262,8 @@ function ns:showRow(slot)
 
     ns:updateSlotToFrameMapping(slot)
     -- when group members change the history trackers may need to be moved
-    updateAnchors(slot)
+    --updateAnchors(slot)
+	row:SetPoint("BOTTOMRIGHT", ns:slotToPartyFrame(slot), "BOTTOMLEFT", -2, 0)
 
     row:Show()
 
@@ -402,7 +406,7 @@ function ns:updateStaticRows(slot, abilities)
         row.items = {}
     end
 
-row:Show()
+    row:Show()
     ns:printDebug("updateStaticRows(" .. slot .. ")")
 
     -- Add a new frame for each tracked cooldown
@@ -414,6 +418,7 @@ row:Show()
                 newItem.icon:SetTexture(ability.iconId)
             end
             newItem:Show()
+            newItem.icon:Show()
         end
     end
 
@@ -467,10 +472,12 @@ function ns:allocHistoryGrid()
         ns.historyRows[slot] = allocRow(slot)
         newRow = CreateFrame("Frame", addonName .. "StaticRow" .. slot, UIParent)
         newRow:SetSize(200, ns.ICON_SIZE)
+
         newRow.bg = newRow:CreateTexture(nil, "BACKGROUND")
-        
         newRow.bg:SetAllPoints()
         newRow.bg:SetColorTexture(0,0,0,0.4)
+        ns:showDebugVisual(newRow.bg)
+
         newRow:SetPoint("TOPRIGHT", ns:slotToPartyFrame(slot), "TOPLEFT")
         newRow:Show()
         ns.staticRows[slot] = newRow
@@ -485,7 +492,7 @@ function ns:pdhReset()
     ns:printDebug("resetting")
     for slot, row in pairs(ns.historyRows) do
         ns:clearRow(row)
-        updateAnchors(slot)
+        --updateAnchors(slot)
         if UnitExists(slot) then
             ns:printDebug("showing row for slot " .. slot)
             ns:showRow(slot)
