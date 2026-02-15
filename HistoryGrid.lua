@@ -109,7 +109,7 @@ local function clearHistoryItem(item)
     item.inferredCD:SetText(tostring(item.cooldown))
     ns:showDebugVisual(item.inferredCD)
 
-    item:Hide()
+    ns:showDebugVisual(item)
 
     return item
 end
@@ -173,19 +173,16 @@ end
 
 
 -- showRow() is called when a player in position `slot` exists in the party
-function ns:showRow(slot)
-    local row = ns.historyRows[slot]
+function ns:showRow(row)
+    local slot = row.slot
 
     ns:updateSlotToFrameMapping(slot)
-    -- when group members change the history trackers may need to be moved
-    --updateAnchors(slot)
 	row:SetPoint("BOTTOMRIGHT", ns:slotToPartyFrame(slot), "BOTTOMLEFT", -2, 0)
-
-    row:Show()
 
     for key, item in pairs(row.historyItems) do
         item:Show()
     end
+    row:Show()
 end
 
 
@@ -250,7 +247,6 @@ function ns:clearRow(row)
 	row.cpfMapping = ns.allSlots[row.slot]
 
     -- Blank state for all visuals
-    row.bg:SetColorTexture(0,0,0,0.4)
     ns:showDebugVisual(row.bg)
 
     row.specText:SetText(tostring(row.specId))
@@ -259,7 +255,7 @@ function ns:clearRow(row)
 	row.cpfMappingText:SetText(tostring(row.cpfMapping))
 	ns:showDebugVisual(row.cpfMappingText)
 
-    row:Hide()
+    ns:showDebugVisual(row)
 
     for i, item in pairs(row.historyItems) do
         row.historyItems[i] = clearHistoryItem(item)
@@ -270,21 +266,15 @@ end
 
 
 
--- Return a row for a specific slot. Anchor the row to the relevant party frame
+-- Create a row for a specific slot. Anchor the row to the relevant party frame
 -- and allocate a blank set of history items.
 local function allocRow(slot)
     local row = CreateFrame("Frame", addonName .. "Row" .. slot, UIParent)
-
     row.slot = slot
-    ns.historyRows[slot] = row
-
-    -- Do not do this in clearRow() since historyItems contain frames. These will
-    -- be allocated here and the top-level data will be immutable.
-    row.historyItems = {}
 
     -- Position next to Blizzard frames
     row:SetSize(ns.MAX_HISTORY*ns.ICON_SIZE + (ns.MAX_HISTORY-1)*ns.ICON_SPACING, ns.ICON_SIZE)
-    row:SetPoint("BOTTOMRIGHT", ns:slotToPartyFrame(slot), "BOTTOMLEFT", -2, 0)
+    row:SetPoint("BOTTOMRIGHT", ns:slotToPartyFrame(slot), "BOTTOMLEFT", -ns.SPACING_FROM_FRAMES, 0)
 
     -- Debug mode transparent background
     row.bg = row:CreateTexture(nil, "BACKGROUND")
@@ -301,6 +291,9 @@ local function allocRow(slot)
     row.cpfMappingText:SetFont(row.cpfMappingText:GetFont(), 15, "OUTLINE")
 
     -- Create all historyItems for this row
+    -- Do not do this in clearRow() since historyItems contain frames. These will
+    -- be allocated here and the top-level data will be immutable.
+    row.historyItems = {}
     for i=1,ns.MAX_HISTORY do
         historyItem = allocHistoryItem(row, slot, i)
         -- historyItems are statically positioned with index 1 being the oldest
@@ -320,8 +313,6 @@ end
 -- can live with it for a while.
 function ns:updateStaticRows(slot, abilities)
     local row = ns.staticRows[slot]
-
-    row:Show()
     ns:printDebug("updateStaticRows(" .. slot .. ")")
 
     -- Add a new frame for each tracked cooldown
@@ -350,9 +341,11 @@ function ns:updateStaticRows(slot, abilities)
     -- Adjust layout based on the icons surviving the previous purge
     local i = 0
     for name, historyItem in pairs(row.items) do
-        historyItem:SetPoint("RIGHT", row, "RIGHT", -ns.ICON_SIZE*i, 0)
+        historyItem:SetPoint("RIGHT", row, "RIGHT", -(ns.ICON_SIZE + ns.ICON_SPACING)*i, 0)
         i = i + 1
     end
+
+    row:Show()
 end
 
 
@@ -360,13 +353,31 @@ end
 -- Update a single row, e.g. when party members change. SOLVING a row (i.e.,
 -- figuring out what cooldowns can and can't be guessed) shouldn't be done here
 -- as it requires knowledge of all group cds (specifically external defensives).
-function ns:updateRow(slot, specId, playerName)
-    row = historyRows[slot]
+function ns:updateRow(row, specId, playerName)
     ns:clearRow(row)
     row.specId = specId
+    row.specText:SetText(ns:specIdToString(specId))
+    row.specText:Show()
     row.playerName = playerName
-    -- Now interact with spec cooldown database to infer cds and other stuff
-    -- XXX: TODO
+end
+
+
+
+local function allocStaticRow(slot)
+    local row = CreateFrame("Frame", addonName .. "StaticRow" .. slot, UIParent)
+    row:SetSize(200, ns.ICON_SIZE+2)
+
+    row.bg = row:CreateTexture(nil, "BACKGROUND")
+    row.bg:SetAllPoints()
+    row.bg:SetColorTexture(0,0,0,0.4)
+    ns:showDebugVisual(row.bg)
+
+    row:SetPoint("TOPRIGHT", ns:slotToPartyFrame(slot), "TOPLEFT", -ns.SPACING_FROM_FRAMES, 0)
+    row:Show()
+
+    row.items = {}
+
+    return row
 end
 
 
@@ -375,39 +386,29 @@ end
 -- frames is increasing MAX_HISTORY. Rather than handle that, just force the user
 -- to /reload.
 function ns:allocHistoryGrid()
-    -- Allocate slots for 5 party members regardless of whether there's even a
-    -- party yet. As party members join, the already-allocated frames will be
-    -- unhidden.
     for slot, _ in pairs(ns.allSlots) do
+        -- Fallback mode: history tray
         ns.historyRows[slot] = allocRow(slot)
-        newRow = CreateFrame("Frame", addonName .. "StaticRow" .. slot, UIParent)
-        newRow:SetSize(200, ns.ICON_SIZE)
 
-        newRow.bg = newRow:CreateTexture(nil, "BACKGROUND")
-        newRow.bg:SetAllPoints()
-        newRow.bg:SetColorTexture(0,0,0,0.4)
-        ns:showDebugVisual(newRow.bg)
-
-        newRow:SetPoint("TOPRIGHT", ns:slotToPartyFrame(slot), "TOPLEFT")
-        newRow:Show()
-
-        newRow.items = {}
-        ns.staticRows[slot] = newRow
+        -- Inferred abilities: omniCD-like cooldown tracking
+        ns.staticRows[slot] = allocStaticRow(slot)
     end
 end
 
 
 
+-- XXX: TODO: This was meant to reset tracking data. Haven't used it in forever,
+-- probably very broken.
 function ns:reset()
     ns:printDebug("resetting")
     for slot, row in pairs(ns.historyRows) do
         ns:clearRow(row)
         if UnitExists(slot) then
             ns:printDebug("showing row for slot " .. slot)
-            ns:showRow(slot)
+            ns:showRow(row)
         else
             ns:printDebug("hiding row for slot " .. slot)
         end
     end
-    printDebug("done resetting")
+    ns:printDebug("done resetting")
 end
