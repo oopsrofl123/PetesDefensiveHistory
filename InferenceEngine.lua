@@ -152,14 +152,14 @@ local function logicLayerCheckConcurrentDebuffs(buff, ability)
     if ability.concurrentDebuff then
         if #buff.concurrentDebuffs == 0 then
             traceLogic(buff, ability,
-                "excluding: does not create concurrent debuff but %d debuffs observed",
+                "excluding: requires concurrent debuff but %d debuffs observed",
                 #buff.concurrentDebuffs)
             return false
         end
     else
         if #buff.concurrentDebuffs > 0 then
             traceLogic(buff, ability,
-                "excluding: requires concurrent debuff but %d debuffs observed",
+                "excluding: does not create concurrent debuff but %d debuffs observed",
                 #buff.concurrentDebuffs)
             return false
         end
@@ -173,21 +173,8 @@ local function getCastTimeDiff(buff, ability)
     local closest = buff.closestCasts[ability.caster] or ns.INFINITY
     local buffApplied = buff.startTime
     local diff = math.abs(closest - buffApplied)
-if closest == nil or buffApplied == nil or diff == nil then
-    print("############################################################")
-    print("############################################################")
-    print("############################################################")
-    print("############################################################")
-    print("############################################################")
-    print("NIL BUG FOUND")
-    print("############################################################")
-    print("############################################################")
-    print("############################################################")
-    print("############################################################")
-    print("############################################################")
-end
 
-    return closest, buffStart, math.abs(closest - buffApplied)
+    return closest, buffApplied, math.abs(closest - buffApplied)
 end
 
 
@@ -195,7 +182,9 @@ end
 -- Ensure the person who can cast this ability did cast something around the correct time
 local function logicLayerCasterDidCast(buff, ability)
     local closest, buffApplied, diff = getCastTimeDiff(buff, ability)
-    if diff > ns.DURATION_TOLERANCE then
+    -- buttonPress - does the ability require the player to press a button? cheat death
+    -- mechanics like last resort and golden valkyr proc without an action
+    if ability.buttonPress and diff > ns.DURATION_TOLERANCE then
         traceLogic(buff, ability,
             "excluding: caster's closest cast=%0.3f, buff applied=%0.3f (diff=%0.3f)",
             closest, buffApplied, diff)
@@ -308,6 +297,33 @@ end
 
 
 
+-- Special handling for DH's meta due to the apex talent. If the only 2
+-- valid abilities are meta and the apex talent, then we don't know which
+-- cooldown to initiate, but we do know that the buff attained is meta. So
+-- return the buff so that we can display it now on the frames as active.
+--
+-- This can only happen at initial inference since the buffs have different
+-- duration.
+local function confidenceLayerMetamorphosis(possibleSolutions)
+    if #possibleSolutions == 2 then
+        local s1 = possibleSolutions[1]
+        local s2 = possibleSolutions[2]
+        if (s1.name == "Metamorphosis" and s2.name == "Untethered Rage") or
+           (s2.name == "Metamorphosis" and s1.name == "Untethered Rage") then
+            return s1.name == "Metamorphosis" and s1 or s2
+        end
+        traceConfidence('Metamorphosis', 'failure: not the two correct possible solutions s1=[%s], s2=[%s]',
+            s1.name, s2.name)
+        return nil
+    else
+        traceConfidence('Metamorphosis', 'failure: #possibleSolutions=%d (not 2)',
+            #possibleSolutions)
+        return nil
+    end
+end
+
+
+
 -- Given a list of possible abilities that could have produced buff, determine:
 --    1. what the best matching solution is
 --    2. whether the best matching solution is a *significantly better* match than
@@ -335,7 +351,8 @@ end
 local function getConfidentMatch(possibleSolutions)
     match = confidenceLayerOnlyOnePossible(possibleSolutions) or
         confidenceLayerCastTime(possibleSolutions) or
-        confidenceLayerDuration(possibleSolutions)
+        confidenceLayerDuration(possibleSolutions) or
+        confidenceLayerMetamorphosis(possibleSolutions)
 
     return match
 end
@@ -348,7 +365,8 @@ end
 -- Will always produce some non-nil value for buff.cooldown - the worst it
 -- could be is the maximum across all possible abilities that can target this player.
 function ns:inferAbility(slot, buff, useDuration, cdTracker)
-    ns:printDebug("target=["..slot.."]: STARTING inference --------------------------------" )
+    ns:printDebug(string.format("|cffD8B87CStarting inference(slot=[%s], time=%0.3f) ------------------------------|r",
+        slot, GetTime()))
     if useDuration == nil then useDuration = true end
 
     -- allow the caller to override the tracked state of CDs to simulate an
@@ -364,14 +382,12 @@ function ns:inferAbility(slot, buff, useDuration, cdTracker)
         buff.name = abilityMatch.name
         buff.cooldown = abilityMatch.cooldown
         buff.spellId = abilityMatch.id
-        buff.external = abilityMatch.external
+        -- XXX: TODO: fairly sure this is dead, remove later
+        --buff.external = abilityMatch.external
         buff.iconId = abilityMatch.iconId
         buff.caster = abilityMatch.caster
-
-        -- track the ability's cooldown
-        cdTracker[buff.caster][buff.name] = buff.startTime
-        ns:printDebug("time=" .. GetTime() .. ": " .. buff.caster .. " cast ability " ..
-            buff.name .. " at time " .. buff.startTime)
+        buff.certainOnFirstInference = abilityMatch.certainOnFirstInference
+        buff.activeBuff = abilityMatch.activeBuff
     else
         buff.cooldown = maxCD
         ns:printDebug("couldn't infer ability")
