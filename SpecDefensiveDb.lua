@@ -379,7 +379,48 @@ ns.SpecDefensiveDb = {
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false,
             certainOnFirstInference=true
-		}
+		},
+        -- Can only have one of celestial alignment or incarn
+		{
+			name="Celestial Alignment",
+            buttonPress=true,
+            isBuff=true,
+			id=383410,
+            iconId=136060,
+			cooldown=120,   -- talent: 180 > 120
+			duration=15,    -- talent: 8 > 12
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,  -- there is a weird CDR hero talent in hero talents keeper of the grove
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+		{
+			name="Incarnation: Chosen of Elune",
+            buttonPress=true,
+            isBuff=true,
+			id=102560,
+            iconId=571586,
+			cooldown=120,   -- talent: 180 > 120
+			duration=20,    -- talent: 8 > 12
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 	},
 	-- Feral
 	[103] = {
@@ -402,11 +443,31 @@ ns.SpecDefensiveDb = {
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false,
             certainOnFirstInference=true
+		},
+        -- Either incarn or berserk+convoke
+		{
+			name="Incarnation: Avatar of Ashamane",
+            buttonPress=true,
+            isBuff=true,
+			id=102543,
+            iconId=571586,
+			cooldown=120,    -- base: 3min, talent1: -60, talent2: -30
+			duration=20,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Guardian
 	[104] = {
-        -- Survival instincts actually isn't tracked. wild.
 		{
 			name="Barkskin",
             buttonPress=true,
@@ -426,7 +487,49 @@ ns.SpecDefensiveDb = {
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false,
             certainOnFirstInference=true
+		},
+		{
+			name="Incarnation: Guardian of Ursoc",
+            buttonPress=true,
+            isBuff=true,
+			id=102558,
+            iconId=571586,
+			cooldown=180,
+			duration=30,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=true,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
+        -- there is a spell called Survival Insticts marked as BIG_DEFENSIVE, but it's
+        -- the wrong spell ID (=50322), so it is not tracked.
+		-- {
+			-- name="Survival Instincts",
+            -- buttonPress=true,
+            -- isBuff=true,
+			-- id=61336,
+            -- iconId=236169,
+			-- cooldown=180,
+			-- duration=6,
+			-- duration_variable=ns.DURATION_FIXED,
+			-- charges=2,
+			-- cdr=false,
+            -- importantFlag=true,
+            -- bigFlag=false,
+            -- externalFlag=false,
+            -- raidFlag=false,
+            -- raidInCombatFlag=false,
+			-- external=ns.NOT_EXTERNAL,
+            -- concurrentDebuff=false,
+            -- certainOnFirstInference=true
+		-- }
 	},
 	-- Resto druid
 	[105] = {
@@ -519,6 +622,7 @@ ns.SpecDefensiveDb = {
             buttonPress=true,
             isBuff=true,
 			id=264735,
+            iconId=136094,
 			cooldown=90,
 			duration=8,                -- talent: 6 > 8
 			duration_variable=ns.DURATION_FIXED,
@@ -526,6 +630,26 @@ ns.SpecDefensiveDb = {
 			cdr=false,
             importantFlag=true,
             bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+		{
+			name="Trueshot",
+            buttonPress=true,
+            isBuff=true,
+			id=288613,
+            iconId=132329,
+			cooldown=90,    -- talent -30s
+			duration=15,                -- hero talent: +4
+			duration_variable=ns.DURATION_FIXED,
+			charges=2,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
             externalFlag=false,
             raidFlag=false,
             raidInCombatFlag=false,
@@ -541,6 +665,7 @@ ns.SpecDefensiveDb = {
             buttonPress=true,
             isBuff=true,
 			id=264735,
+            iconId=136094,
 			cooldown=90,
 			duration=8,                -- talent: 6 > 8
 			duration_variable=ns.DURATION_FIXED,
@@ -555,6 +680,28 @@ ns.SpecDefensiveDb = {
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
+        -- Although marked IMPORTANT, exhilaration isn't a buff. It causes a short
+        -- HoT buff if talented, but that HoT is not important, so wouldn't be detected.
+		-- {
+			-- name="Exhilaration"
+            -- buttonPress=true,
+            -- isBuff=true,
+			-- id=109304,
+            -- iconId=461117,
+			-- cooldown=60,   -- talent: 2pts -60s
+			-- duration=12,
+			-- duration_variable=ns.DURATION_FIXED,
+			-- charges=1,
+			-- cdr=false,
+            -- importantFlag=true,
+            -- bigFlag=true,
+            -- externalFlag=false,
+            -- raidFlag=false,
+            -- raidInCombatFlag=false,
+			-- external=ns.NOT_EXTERNAL,
+            -- concurrentDebuff=false,
+            -- certainOnFirstInference=true
+		-- },
 	},
 
 
