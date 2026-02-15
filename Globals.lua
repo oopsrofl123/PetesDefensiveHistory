@@ -26,18 +26,11 @@ ns.activeDefensives = {}    -- One list of currently active aura instance IDs pe
                          -- This IS NOT the history!
 ns.castHistory = {}
 
-ns.groupSolutionUIFrame = nil
-ns.groupSolutionUI = {}
+ns.groupSolutionUI = nil
 
 for slot, _ in pairs(ns.allSlots) do
     ns.activeDefensives[slot] = {}
     ns.staticRows[slot] = {}
     ns.historyRows[slot] = {}
-	ns.groupSolutionUI[slot] = {}
     ns.castHistory[slot] = {}
 end
-
-
--- Some callbacks (like to LibSpecialization) might occur before the
--- expected data structures are set up.
-ns.initialized = false

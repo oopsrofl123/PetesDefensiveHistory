@@ -1,8 +1,9 @@
 -- Get class specs for each group member
 
 local _, ns = ...
+
 local LibSpecialization = LibStub("LibSpecialization")
-local internalPdhGroupSpecs = {}    -- For internal use by LibSpecialization
+local internalGroupSpecs = {}    -- For internal use by LibSpecialization
 
 
 -- For each player, collect information across the group to determine
@@ -79,8 +80,7 @@ end
 
 
 
--- This function could run before the data structures are initialized.
-LibSpecialization.RegisterGroup(internalPdhGroupSpecs, function(specId, role, position, playerName, talents)
+LibSpecialization.RegisterGroup(internalGroupSpecs, function(specId, role, position, playerName, talents)
     local slot = ns:nameToSlot(playerName)
     ns:printDebug(string.format("%s (%s): spec ID=%d, a %s %s.\nTalent string=[%s]",
         playerName, slot, specId, position, role, talents))
@@ -90,20 +90,17 @@ LibSpecialization.RegisterGroup(internalPdhGroupSpecs, function(specId, role, po
     updateGroupData()
     ns:zeroKnowledgeSolve()
 
-    -- UI elements. N.B. this often happens before frames are allocated
-    if ns.initialized then
-        local row = ns.historyRows[slot]
-        if row then
-            local specstring = ns:specIdToString(specId)
-            row.specText:SetText(specstring)
-            ns.groupSolutionUI[slot].specLabel:SetText(specstring)
-            for slot, _ in pairs(ns.allSlots) do
-                ns:showPdhGroupSolutionRow(ns.groupSolutionUI[slot])
-            end
-        end
+    -- Update various UI elements:
+    -- 1. Party frames static cooldown row
+    -- XXX: TODO: not at all what we want. only show inferrable abilities
+    ns:updateStaticRows(slot, getCastableAbilities(slot))
 
-        -- Static cooldown row
-        -- XXX: TODO: not at all what we want. only show inferrable abilities
-        ns:updateStaticRows(slot, getCastableAbilities(slot))
+    -- 2. Party frames fallback history tray
+    ns.historyRows[slot].specText:SetText(ns:specIdToString(specId))
+
+    -- 3. the solutions UI. have to do all rows because each group member affects
+    --    other group members unique solves.
+    for slot, _ in pairs(ns.allSlots) do
+        ns:updateGroupSolutionRow(ns.groupSolutionUI.rows[slot])
     end
 end)
