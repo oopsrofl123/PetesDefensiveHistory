@@ -173,6 +173,20 @@ local function getCastTimeDiff(buff, ability)
     local closest = buff.closestCasts[ability.caster] or ns.INFINITY
     local buffApplied = buff.startTime
     local diff = math.abs(closest - buffApplied)
+if closest == nil or buffApplied == nil or diff == nil then
+    print("############################################################")
+    print("############################################################")
+    print("############################################################")
+    print("############################################################")
+    print("############################################################")
+    print("NIL BUG FOUND")
+    print("############################################################")
+    print("############################################################")
+    print("############################################################")
+    print("############################################################")
+    print("############################################################")
+end
+
     return closest, buffStart, math.abs(closest - buffApplied)
 end
 
@@ -333,10 +347,9 @@ end
 --
 -- Will always produce some non-nil value for buff.cooldown - the worst it
 -- could be is the maximum across all possible abilities that can target this player.
-function ns:inferAbility(slot, buff, useDuration, cdTracker, disableInference)
+function ns:inferAbility(slot, buff, useDuration, cdTracker)
     ns:printDebug("target=["..slot.."]: STARTING inference --------------------------------" )
     if useDuration == nil then useDuration = true end
-    if disableInference == nil then disableInference = false end
 
     -- allow the caller to override the tracked state of CDs to simulate an
     -- unknown state. useful for determining which abilities are ALWAYS
@@ -347,7 +360,7 @@ function ns:inferAbility(slot, buff, useDuration, cdTracker, disableInference)
     possibleSolutions, maxCD = getPossibleSolutions(buff, slot, useDuration, cdTracker)
 
     abilityMatch = getConfidentMatch(possibleSolutions)
-    if abilityMatch and not disableInference then
+    if abilityMatch and not PetesDefensiveHistoryOptionsDb.disableInference then
         buff.name = abilityMatch.name
         buff.cooldown = abilityMatch.cooldown
         buff.spellId = abilityMatch.id

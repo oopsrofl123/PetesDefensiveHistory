@@ -136,7 +136,7 @@ end
 
 
 function ns:showDebugVisual(object)
-    if ns.DEBUG_VISUALS then
+    if PetesDefensiveHistoryOptionsDb.debugVisuals then
         object:Show()
     else
         object:Hide()
@@ -146,7 +146,8 @@ end
 
 
 function ns:printDebug(string)
-    if ns.DEBUG_MESSAGES then
+    --if ns.DEBUG_MESSAGES then
+    if PetesDefensiveHistoryOptionsDb.debugLogging then
         --print('|cff00ff00' .. addonName .. ':|r ' .. string)
         print('|cff00ff00PDH:|r ' .. string)
     end

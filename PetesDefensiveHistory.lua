@@ -102,12 +102,6 @@ castHandler:SetScript("OnEvent", function(self, event, unitTarget, castGUID, spe
     -- between group members.. there is already enough of that in the different
     -- times that the same event is handled on different clients.
     ns.castHistory[unitTarget]:push({ time=GetTime(), spellId=spellId })
-
-    -- Wild spam, should use multiple debug levels but too lazy
-    if ns.DEBUG_MESSAGES and unitTarget == "player" then
-        print('player cast history:')
-        ns.castHistory[unitTarget]:print()
-    end
 end)
 
 
@@ -140,7 +134,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Convenience mode for collecting data about buff rules. Show all buffs and
     -- debuffs added, including secret data that would not be available in
     -- real content
-    if (true or ns.dataMiningMode) and unitTarget == "player" then
+    if PetesDefensiveHistoryOptionsDb.dataMiningMode and unitTarget == "player" then
         print(string.format("DATA MINING: %d added, %d updated, %d removed",
             #aurasAdded, #aurasUpdated, #aurasRemoved))
         for _, v in pairs(aurasAdded) do
@@ -229,15 +223,27 @@ loader:SetScript("OnEvent", function(self, event)
 
     -- PLAYER_ENTERING_WORLD fires when loading into an instance
     if event == "PLAYER_ENTERING_WORLD" then
-        -- no longer does anything, for now
+        -- now frame allocation and data structure setup is durig addon readin
     end
 
     -- GROUP_ROSTER_UPDATE or PLAYER_ENTERING_WORLD
+    -- Only handle the fallback history tray here. The static cooldown row is
+    -- handled by the LibSpec callback when spec is detected.
     for slot, _ in pairs(ns.allSlots) do
+        local row = ns.historyRows[slot]
+
+        -- account for the fact that LibSpec also fires on GROUP_ROSTER_UPDATE
+        -- and can either come before or after this event.
         if UnitExists(slot) then
-            ns:showRow(slot)
-		else
-			ns:clearRow(ns.historyRows[slot])
+            if UnitName(slot) ~= row.playerName then
+                -- this handler was called before LibSpec
+                ns:updateRow(row, nil, UnitName(slot))
+            else
+                -- this handler was called after LibSpec. nothing to do
+            end
+        else
+            ns:clearRow(row)
+            ns:showDebugVisual(row)
         end
     end
 end)
