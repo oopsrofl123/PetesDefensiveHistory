@@ -3,7 +3,6 @@ local addonName, ns = ...
 
 local LibButtonGlow = LibStub("LibButtonGlowcustom")
 
-
 local function isAuraHarmful(slot, auraInstanceId)
     -- could also filter for HARMFUL
     return not ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL"), auraInstanceId)
@@ -138,6 +137,22 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         ', #aurasUpdated=' .. #aurasUpdated ..
         ', #aurasRemoved=' .. #aurasRemoved) 
 
+    -- Convenience mode for collecting data about buff rules. Show all buffs and
+    -- debuffs added, including secret data that would not be available in
+    -- real content
+    if (true or ns.dataMiningMode) and unitTarget == "player" then
+        print(string.format("DATA MINING: %d added, %d updated, %d removed",
+            #aurasAdded, #aurasUpdated, #aurasRemoved))
+        for _, v in pairs(aurasAdded) do
+            print("DATA MINING: aura added ID=" .. v.auraInstanceID)
+            ns.printer(v)
+        end
+        print("DATA MINING: auras updated:")
+        ns.printer(aurasUpdated)
+        print("DATA MINING: auras removed:")
+        ns.printer(aurasRemoved)
+    end
+
     -- aurasAdded is a list of data structures unlike the other aura sets
     for _, v in pairs(aurasAdded) do
         local imp, big, ext, raid, ric = getFilterFlagsForAuraInstanceId(unitTarget, v.auraInstanceID)
@@ -158,7 +173,6 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             if ns:inferAbility(unitTarget, buff, false) then
                 -- IDable abilities go to the static tracker
                 local cd = ns.staticRows[buff.caster].items[buff.name]
-                --CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
                 cd.swipeTexture:Hide()
                 LibButtonGlow.ShowOverlayGlow(cd)
             end
@@ -212,14 +226,10 @@ loader:RegisterEvent("PLAYER_ENTERING_WORLD")
 loader:RegisterEvent("GROUP_ROSTER_UPDATE")
 loader:SetScript("OnEvent", function(self, event)
     ns:printDebug(event)
+
     -- PLAYER_ENTERING_WORLD fires when loading into an instance
-    if not ns.initialized and event == "PLAYER_ENTERING_WORLD" then
-        -- Can't initialize in addon load code due to the need to anchor to party frames
-        ns:allocHistoryGrid()
-		ns:allocPdhGroupSolutionUI()
-        for slot, _ in pairs(ns.allSlots) do
-            ns.castHistory[slot] = ns:fixedFIFO(ns.MAX_CAST_HISTORY)
-        end
+    if event == "PLAYER_ENTERING_WORLD" then
+        -- no longer does anything, for now
     end
 
     -- GROUP_ROSTER_UPDATE or PLAYER_ENTERING_WORLD
@@ -233,9 +243,15 @@ loader:SetScript("OnEvent", function(self, event)
 end)
 
 
+-- Addons should be loaded after all blizzard frames, so can allocate everything now.
+ns:allocHistoryGrid()
+for slot, _ in pairs(ns.allSlots) do
+    ns.castHistory[slot] = ns:fixedFIFO(ns.MAX_CAST_HISTORY)
+end
+ns.groupSolutionUI = ns:allocGroupSolutionUI()
 
 -- Open the solution UI
 SLASH_PDH1 = "/pdh"
 -- Open the config panel
 -- SlashCmdList.PDH = function() Settings.OpenToCategory(ns.optionsCategory:GetID()) end
-SlashCmdList.PDH = function() ns.groupSolutionUIFrame:Show() end
+SlashCmdList.PDH = function() ns.groupSolutionUI:Show() end
