@@ -365,7 +365,8 @@ end
 -- Will always produce some non-nil value for buff.cooldown - the worst it
 -- could be is the maximum across all possible abilities that can target this player.
 function ns:inferAbility(slot, buff, useDuration, cdTracker)
-    ns:printDebug(string.format("|cffD8B87CStarting inference(slot=[%s], time=%0.3f) ------------------------------|r",
+    ns:printDebug(string.format(
+        "|cffD8B87CStarting inference(slot=[%s], time=%0.3f) ------------------------------|r",
         slot, GetTime()))
     if useDuration == nil then useDuration = true end
 
