@@ -96,7 +96,7 @@ LibSpecialization.RegisterGroup(internalGroupSpecs, function(specId, role, posit
     ns:updateStaticRows(slot, getCastableAbilities(slot))
 
     -- 2. Party frames fallback history tray
-    ns.historyRows[slot].specText:SetText(ns:specIdToString(specId))
+    ns:updateRow(ns.historyRows[slot], specId, playerName)
 
     -- 3. the solutions UI. have to do all rows because each group member affects
     --    other group members unique solves.
