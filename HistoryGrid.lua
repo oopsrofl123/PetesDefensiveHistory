@@ -334,7 +334,9 @@ function ns:updateStaticRows(slot, abilities)
         if not abilities[name] then
             -- XXX: TODO: WARNING! this leaks frames! need a frame pool at some point
             -- since frames cannot be deallocated.
-            row.items[name] = nil
+            row.items[name]:ClearAllPoints()
+            row.items[name]:Hide()
+            --row.items[name] = nil
         end
     end
 
