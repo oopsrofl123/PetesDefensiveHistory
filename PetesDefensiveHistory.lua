@@ -40,12 +40,12 @@ local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentDebuffs)
         slot, #ns.activeDefensives[slot])
     )
 
-    ns:printDebug('building list of most recent successful casts for all slots..')
+    ns:printDebug('timeNow='..timeNow..'building list of most recent successful casts for all slots..')
     closestCasts = {}
     for slot, castHistory in pairs(ns.castHistory) do
         closest = ns.INFINITY
         for _, cast in pairs(castHistory:items()) do
-            if abs(cast.time - timeNow) < closest then
+            if math.abs(cast.time - timeNow) < math.abs(closest - timeNow) then
                 closest = cast.time
             end
         end
@@ -68,7 +68,8 @@ local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentDebuffs)
         isRaidInCombat = isRaidInCombat,
         numUpdates = 0,                 -- how many times has this aura been in the aurasUpdated list?
         concurrentDebuffs = concurrentDebuffs or {},
-        closestCasts = closestCasts
+        closestCasts = closestCasts,
+        buffCertainOnFirstInference = false
     }
 
     ns.activeDefensives[slot][auraInstanceID] = defensive
@@ -76,6 +77,17 @@ local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentDebuffs)
     return defensive
 end
 
+
+
+-- Call this function when we are ready to fully accept whatever the best
+-- inference was.
+local function finalizeInference(buff, attempt)
+    ns:printDebug(string.format(
+        "|cff00CDCDFINAL INFERENCE (attempt=%d, time=%0.3f): [%s] cast [%s] at time [%0.3f]!|r",
+            attempt, GetTime(), buff.caster, buff.name, buff.startTime))
+
+    ns.cdTracker[buff.caster][buff.name] = buff.startTime
+end
 
 
 
@@ -93,15 +105,14 @@ castHandler:SetScript("OnEvent", function(self, event, unitTarget, castGUID, spe
     castGUID = ns:maskSecret(castGUID)
     castBarID = ns:maskSecret(castBarID)
 
-    ns:printDebug("UNIT_SPELLCAST_SUCCEEDED(" .. unitTarget .. ", " ..
-        tostring(castGUID) .. ", " .. tostring(spellID) ..
-        ", " .. tostring(castBarID) .. ")")
+    ns:printDebug(string.format("UNIT_SPELLCAST_SUCCEEDED(%s, %s, %s, %s, %0.3f)",
+        unitTarget, tostring(castGUID), tostring(spellID), tostring(castBarID), GetTime()))
         
     -- loathe to use spellId since it's secret for all party members except the
     -- person who cast it. don't want to get into debugging behavior that changes
     -- between group members.. there is already enough of that in the different
     -- times that the same event is handled on different clients.
-    ns.castHistory[unitTarget]:push({ time=GetTime(), spellId=spellId })
+    ns.castHistory[unitTarget]:push({ time=GetTime() }) --, spellId=issecretvalue(spellId) and -1 or spellId })
 end)
 
 
@@ -126,10 +137,8 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
 
     -- Way too verbose even for testing and also not very useful since
     -- aura instance IDs aren't printed unless we unpack the tables.
-    ns:printDebug('UNIT_AURA: unitTarget=' .. unitTarget ..
-        ' #aurasAdded=' .. #aurasAdded ..
-        ', #aurasUpdated=' .. #aurasUpdated ..
-        ', #aurasRemoved=' .. #aurasRemoved) 
+    ns:printDebug(string.format('UNIT_AURA(time=%0.3f, slot=[%s], #aurasAdded=[%d], #aurasUpdated=[%d], #aurasRemoved=[%d])',
+        GetTime(), unitTarget, #aurasAdded, #aurasUpdated, #aurasRemoved))
 
     -- Convenience mode for collecting data about buff rules. Show all buffs and
     -- debuffs added, including secret data that would not be available in
@@ -139,7 +148,9 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             #aurasAdded, #aurasUpdated, #aurasRemoved))
         for _, v in pairs(aurasAdded) do
             print("DATA MINING: aura added ID=" .. v.auraInstanceID)
-            ns.printer(v)
+            if not issecretvalue(v.spellId) then
+                ns.printer(v)
+            end
         end
         print("DATA MINING: auras updated:")
         ns.printer(aurasUpdated)
@@ -165,6 +176,9 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             local buff = trackActiveBuff(unitTarget, v.auraInstanceID, v.icon, debuffs)
             -- attempt instant identification
             if ns:inferAbility(unitTarget, buff, false) then
+                if buff.certainOnFirstInference then
+                    finalizeInference(buff, 1)
+                end
                 -- IDable abilities go to the static tracker
                 local cd = ns.staticRows[buff.caster].items[buff.name]
                 cd.swipeTexture:Hide()
@@ -191,11 +205,22 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             buff.endTime = GetTime()
             buff.duration = buff.endTime - buff.startTime
 
-            if ns:isAbilityInferred(buff) or ns:inferAbility(unitTarget, buff, true) then
+            -- Try inference at expiration if it failed before or if the ability is
+            -- flagged as uncertain on the first inference. The latter allows some
+            -- interesting logic/confidence layers.
+            if not ns:isAbilityInferred(buff) or not buff.certainOnFirstInference then
+                if ns:inferAbility(unitTarget, buff, true) then
+                    finalizeInference(buff, 2)
+                end
+            end
+
+            if ns:isAbilityInferred(buff) then
                 -- IDable abilities go to the static tracker
                 local cd = ns.staticRows[buff.caster].items[buff.name]
                 CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
                 cd.swipeTexture:Show()
+                -- Support the activated buff being different from the cooldown tracker
+                cd = ns.staticRows[buff.caster].items[buff.activeBuff or buff.name]
                 LibButtonGlow.HideOverlayGlow(cd)
             else
                 -- This was the last chance at IDing. So if it's still non-IDable,

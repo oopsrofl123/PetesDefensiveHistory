@@ -42,6 +42,7 @@ ns.SpecDefensiveDb = {
 	[250] = {
 		{
 			name="Anti-Magic Shell",
+            buttonPress=true,
             isBuff=true,
 			id=48707,
             iconId=136120,
@@ -56,10 +57,12 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 		{
 			name="Icebound Fortitude",
+            buttonPress=true,
             isBuff=true,
 			id=48792,
             iconId=237525,
@@ -74,10 +77,12 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 		{
 			name="Vampiric Blood",
+            buttonPress=true,
             isBuff=true,
 			id=55233,
             iconId=136168,
@@ -94,7 +99,8 @@ ns.SpecDefensiveDb = {
 			external=ns.NOT_EXTERNAL,
             -- adds Coagulating Blood (id=463730), which is not harmful but is
             -- not returned by the aura filter HELPFUL
-            concurrentDebuff=true
+            concurrentDebuff=true,
+            certainOnFirstInference=true
 		},
         
 	},
@@ -102,6 +108,7 @@ ns.SpecDefensiveDb = {
 	[251] = {
 		{
 			name="Anti-Magic Shell",
+            buttonPress=true,
             isBuff=true,
 			id=48707,
             iconId=136120,
@@ -116,10 +123,12 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 		{
 			name="Icebound Fortitude",
+            buttonPress=true,
             isBuff=true,
 			id=48792,
             iconId=237525,
@@ -134,10 +143,12 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 		{
 			name="Pillar of Frost",
+            buttonPress=true,
             isBuff=true,
 			id=51271,
             iconId=458718,
@@ -152,13 +163,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Unholy
 	[252] = {
 		{
 			name="Anti-Magic Shell",
+            buttonPress=true,
             isBuff=true,
 			id=48707,
             iconId=136120,
@@ -173,10 +186,12 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 		{
 			name="Icebound Fortitude",
+            buttonPress=true,
             isBuff=true,
 			id=48792,
             iconId=237525,
@@ -191,7 +206,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 
@@ -203,6 +219,7 @@ ns.SpecDefensiveDb = {
 	[577] = {
 		{
 			name="Blur",
+            buttonPress=true,
             isBuff=true,
 			id=212800,
 			cooldown=60,
@@ -216,21 +233,92 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Vengeance
 	[581] = {
 		{
-			-- lot of talents affect this
+			name="Metamorphosis",
+            buttonPress=true,
+            isBuff=true,
+			id=187827,
+            iconId=1247263,
+			cooldown=120,
+			duration=20,         -- talent: 15 > 20, req for cheat death talent, so maybe safe to assume
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,           -- true for annihilator
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=false -- can't track Meta because of the apex talent. however, if meta and the apex talent are the only things that could have happened, we do know what buff as applied (meta) but not which coodown to track (meta or apex)
+		},
+        -- Cheat death from meta. Gives a full duration meta, so only way to differentiate
+        -- is through concurrent debuff (Uncontained Fel, spellID=209261),
+		{
+			name="Last Resort",
+            buttonPress=false,   -- fires on its own, without the player pressing a button, so do not check the cast history
+            isBuff=false,
+			id=187827,
+            iconId=1348655,
+			cooldown=480,
+			duration=20,         -- talent: 15 > 20, req for cheat death talent, so maybe safe to assume
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,           -- true for annihilator
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=true,
+            certainOnFirstInference=true
+		},
+        -- Apex talent: allows meta to be cast but it only lasts 10s. So we can't ever
+        -- know which meta is cast (and whether it incurred a cooldown) until after the
+        -- buff completes.
+		{
+			name="Untethered Rage",
+            buttonPress=true,
+            isBuff=false,
+			id=187827,
+            iconId=7636527,
+			cooldown=0,
+			duration=10,         -- talent: 15 > 20, req for cheat death talent, so maybe safe to assume
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,           -- true for annihilator
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            -- confusingly, although this ability is why meta can't be inferred instantly,
+            -- this flag should be false here.
+            certainOnFirstInference=true,
+            -- Only for active buff tracking
+            activeBuff="Metamorphosis"
+		},
+		-- lot of talents affect brand
+		{
 			name="Fiery Brand",
+            buttonPress=true,
             isBuff=true,
 			id=207771,
             iconId=1344647,
 			cooldown=60,             -- talent: 60 > 48
 			duration=12,
 			duration_variable=ns.DURATION_GTE, -- talent: spreading in multi-target and +0.25s duration on immo ticks
-			charges=1,               -- talent: +1 charge
+			charges=1,               -- talent: +1 charge, same talent that affects cd
 			cdr=false,
             importantFlag=false,
             bigFlag=true,
@@ -238,13 +326,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Devourer
 	[1480] = {
 		{
 			name="Blur",
+            buttonPress=true,
             isBuff=true,
 			id=212800,
 			cooldown=60,
@@ -258,7 +348,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 
@@ -270,6 +361,7 @@ ns.SpecDefensiveDb = {
 	[102] = {
 		{
 			name="Barkskin",
+            buttonPress=true,
             isBuff=true,
 			id=22812,
             iconId=136097,
@@ -284,13 +376,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Feral
 	[103] = {
 		{
 			name="Barkskin",
+            buttonPress=true,
             isBuff=true,
 			id=22812,
             iconId=136097,
@@ -305,7 +399,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Guardian
@@ -313,6 +408,7 @@ ns.SpecDefensiveDb = {
         -- Survival instincts actually isn't tracked. wild.
 		{
 			name="Barkskin",
+            buttonPress=true,
             isBuff=true,
 			id=22812,
             iconId=136097,
@@ -327,13 +423,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Resto druid
 	[105] = {
 		{
 			name="Barkskin",
+            buttonPress=true,
             isBuff=true,
 			id=22812,
             iconId=136097,
@@ -348,10 +446,12 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 		{
 			name="Ironbark",
+            buttonPress=true,
             isBuff=true,
 			id=102342,
             iconId=572025,
@@ -366,7 +466,8 @@ ns.SpecDefensiveDb = {
             raidFlag=true,
             raidInCombatFlag=true,
 			external=ns.EXTERNAL_ANY,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 
@@ -392,6 +493,7 @@ ns.SpecDefensiveDb = {
 	[253] = {
 		{
 			name="Survival of the Fittest",
+            buttonPress=true,
             isBuff=true,
 			id=264735,
 			cooldown=90,
@@ -405,13 +507,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 	},
 	-- Marks
 	[254] = {
 		{
 			name="Survival of the Fittest",
+            buttonPress=true,
             isBuff=true,
 			id=264735,
 			cooldown=90,
@@ -425,13 +529,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
     },
 	-- Survival
 	[255] = {
 		{
 			name="Survival of the Fittest",
+            buttonPress=true,
             isBuff=true,
 			id=264735,
 			cooldown=90,
@@ -445,7 +551,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 	},
 
@@ -460,6 +567,7 @@ ns.SpecDefensiveDb = {
 		-- XXX: any way to use hypothermia as extra info?
 		{
 			name="Ice Cold",
+            buttonPress=true,
             isBuff=true,
 			id=414658,
 			cooldown=240,   -- base: 240 3 talents each give -30s
@@ -473,7 +581,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Fire
@@ -481,6 +590,7 @@ ns.SpecDefensiveDb = {
 		-- XXX: any way to use hypothermia as extra info?
 		{
 			name="Ice Cold",
+            buttonPress=true,
             isBuff=true,
 			id=414658,
 			cooldown=240,   -- base: 240 3 talents each give -30s
@@ -494,7 +604,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Frost
@@ -504,6 +615,7 @@ ns.SpecDefensiveDb = {
 		-- XXX: any way to use hypothermia as extra info?
 		{
 			name="Ice Cold",
+            buttonPress=true,
             isBuff=true,
 			id=414658,
 			cooldown=240,   -- base: 240 3 talents each give -30s
@@ -517,7 +629,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 
@@ -587,6 +700,7 @@ ns.SpecDefensiveDb = {
 	[65] = {
 		{
 			name="Blessing of Sacrifice",
+            buttonPress=true,
             isBuff=true,
 			id=6940,
             iconId=135966,
@@ -601,7 +715,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.EXTERNAL_NOT_SELF,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 		-- Divine Protection is not tracked
 		--{
@@ -621,6 +736,7 @@ ns.SpecDefensiveDb = {
 	[66] = {
 		{
 			name="Ardent Defender",
+            buttonPress=true,
             isBuff=true,
 			id=31850,
             iconId=135870,
@@ -635,10 +751,12 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 		{
 			name="Divine Shield",
+            buttonPress=true,
             isBuff=true,
 			id=642,
             iconId=524354,
@@ -653,10 +771,12 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=true
+            concurrentDebuff=true,
+            certainOnFirstInference=true
 		},
 		{
 			name="Guardian of Ancient Kings",
+            buttonPress=true,
             isBuff=true,
 			id=86659,
             iconId=135919,
@@ -671,11 +791,13 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 		{
 			-- GoAK from cheat death talent
 			name="Gift of the Golden Valkyr",
+            buttonPress=false,    -- does not require the player to press a button, don't check cast history
             isBuff=false,
 			id=393108,
             iconId=1349535,   -- blizzard shows the GoAK icon. show the talent instead
@@ -691,10 +813,12 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=true
+            concurrentDebuff=true,
+            certainOnFirstInference=true
 		},
 		{
 			name="Blessing of Sacrifice",
+            buttonPress=true,
             isBuff=true,
 			id=6940,
             iconId=135966,
@@ -709,11 +833,13 @@ ns.SpecDefensiveDb = {
             raidFlag=true,
             raidInCombatFlag=true,
 			external=ns.EXTERNAL_NOT_SELF,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
         -- XXX: TODO: BoP isn't flagged as important
 		{
 			name="Blessing of Protection",
+            buttonPress=true,
             isBuff=true,
 			id=1022,
             iconId=135964,
@@ -730,10 +856,12 @@ ns.SpecDefensiveDb = {
             raidFlag=true,
             raidInCombatFlag=true,
 			external=ns.EXTERNAL_ANY,
-            concurrentDebuff=false -- applies forbearance, but the debuff isn't in the same payload
+            concurrentDebuff=false,    -- applies forbearance, but the debuff isn't in the same payload
+            certainOnFirstInference=true
 		},
 		{
 			name="Blessing of Spellwarding",
+            buttonPress=true,
             isBuff=true,
 			id=6940,
             iconId=135880,
@@ -750,10 +878,12 @@ ns.SpecDefensiveDb = {
             raidFlag=true,
             raidInCombatFlag=false,
 			external=ns.EXTERNAL_ANY,
-            concurrentDebuff=false -- applies forbearance, but the debuff isn't in the same payload
+            concurrentDebuff=false,  -- applies forbearance, but the debuff isn't in the same payload
+            certainOnFirstInference=true
 		},
 		{
 			name="Blessing of Freedom",
+            buttonPress=true,
             isBuff=true,
 			id=1044,
             iconId=135968,
@@ -768,10 +898,12 @@ ns.SpecDefensiveDb = {
             raidFlag=true,
             raidInCombatFlag=false,
 			external=ns.EXTERNAL_ANY,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 		{
 			name="Avenging Wrath",
+            buttonPress=true,
             isBuff=true,
 			id=31884,
             iconId=135875,
@@ -786,7 +918,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		},
 	},
 	-- Retribution
@@ -806,6 +939,7 @@ ns.SpecDefensiveDb = {
 		--},
 		{
 			name="Blessing of Sacrifice",
+            buttonPress=true,
             isBuff=true,
 			id=6940,
 			cooldown=60,   -- talent 2min > 1min
@@ -819,7 +953,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.EXTERNAL_NOT_SELF,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 
@@ -845,6 +980,7 @@ ns.SpecDefensiveDb = {
 	[259] = {
 		{
 			name="Cloak of Shadows",
+            buttonPress=true,
             isBuff=true,
 			id=31224,
 			cooldown=120,   -- talent: 120 > 90
@@ -858,13 +994,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Outlaw
 	[260] = {
 		{
 			name="Cloak of Shadows",
+            buttonPress=true,
             isBuff=true,
 			id=31224,
 			cooldown=120,   -- talent: 120 > 90
@@ -878,13 +1016,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Subtlety
 	[261] = {
 		{
 			name="Cloak of Shadows",
+            buttonPress=true,
             isBuff=true,
 			id=31224,
 			cooldown=120,   -- talent: 120 > 90
@@ -898,7 +1038,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 
@@ -910,6 +1051,7 @@ ns.SpecDefensiveDb = {
 	[262] = {
 		{
 			name="Astral Shift",
+            buttonPress=true,
             isBuff=true,
 			id=108271,
             iconId=538565,
@@ -924,13 +1066,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Enhancement
 	[263] = {
 		{
 			name="Astral Shift",
+            buttonPress=true,
             isBuff=true,
 			id=108271,
             iconId=538565,
@@ -945,13 +1089,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Resto
 	[264] = {
 		{
 			name="Astral Shift",
+            buttonPress=true,
             isBuff=true,
 			id=108271,
             iconId=538565,
@@ -966,7 +1112,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 
@@ -978,6 +1125,7 @@ ns.SpecDefensiveDb = {
 	[265] = {
 		{
 			name="Unending Resolve",
+            buttonPress=true,
             isBuff=true,
 			id=104773,
 			cooldown=135,   -- talent: 180 > 135
@@ -991,13 +1139,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Demo
 	[266] = {
 		{
 			name="Unending Resolve",
+            buttonPress=true,
             isBuff=true,
 			id=104773,
 			cooldown=135,   -- talent: 180 > 135
@@ -1011,13 +1161,15 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 	-- Destro
 	[267] = {
 		{
 			name="Unending Resolve",
+            buttonPress=true,
             isBuff=true,
 			id=104773,
 			cooldown=135,   -- talent: 180 > 135
@@ -1031,7 +1183,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
+            concurrentDebuff=false,
+            certainOnFirstInference=true
 		}
 	},
 
@@ -1050,6 +1203,7 @@ ns.SpecDefensiveDb = {
         -- There are so many talents that affect shield wall
         {
 			name="Shield Wall",
+            buttonPress=true,
             isBuff=true,
 			id=871,
 			cooldown=120,   -- talent 1: -10%, talent 2: -60s
@@ -1063,7 +1217,8 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false
-        },
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+        }
 	},
 }
