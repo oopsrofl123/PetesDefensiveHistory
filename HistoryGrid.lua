@@ -316,11 +316,10 @@ end
 
 
 
+-- XXX: TODO: This function leaks frames, but it happens rarely enough that we
+-- can live with it for a while.
 function ns:updateStaticRows(slot, abilities)
     local row = ns.staticRows[slot]
-    if not row.items then
-        row.items = {}
-    end
 
     row:Show()
     ns:printDebug("updateStaticRows(" .. slot .. ")")
@@ -376,11 +375,6 @@ end
 -- frames is increasing MAX_HISTORY. Rather than handle that, just force the user
 -- to /reload.
 function ns:allocHistoryGrid()
-    if ns.initialized then
-        ns:printDebug("allocHistoryGrid() called after already being initialized")
-        return
-    end
-
     -- Allocate slots for 5 party members regardless of whether there's even a
     -- party yet. As party members join, the already-allocated frames will be
     -- unhidden.
@@ -396,10 +390,10 @@ function ns:allocHistoryGrid()
 
         newRow:SetPoint("TOPRIGHT", ns:slotToPartyFrame(slot), "TOPLEFT")
         newRow:Show()
+
+        newRow.items = {}
         ns.staticRows[slot] = newRow
     end
-
-    ns.initialized = true
 end
 
 
