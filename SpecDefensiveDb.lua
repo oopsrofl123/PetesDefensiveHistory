@@ -1139,7 +1139,7 @@ ns.SpecDefensiveDb = {
 	},
 	-- Windwalker
 	[269] = {
-		-- touch of karma also ignored
+		-- touch of karma also doesn't trigger a UNIT_AURA with (imp|big|ext)
 		-- Yep, fort brew ignored by Blizzard
 		-- fort brew: 120s cd > 90s cd with talent
 		--{
@@ -1160,6 +1160,13 @@ ns.SpecDefensiveDb = {
 	---------------------------------------------
 	-- Paladin
 	---------------------------------------------
+    -- All paladin specs have the same flavor of abilities:
+    --     - they share (most) of the external blessings, though cds/durations can differ
+    --     - each spec has some alternative wings that replaces wings and is basically a
+    --       different buff altogether.
+    --     - for ret and holy, generally the challenge is differentiating divine protection
+    --       from wings on cast. at expiration, duration distinguishes them but maybe some
+    --       of the buffs gained on cast of wings can make inference instant.
 	-- Holy
 	[65] = {
 		{
@@ -1176,25 +1183,116 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=true,
-            raidFlag=false,
-            raidInCombatFlag=false,
+            raidFlag=true,
+            raidInCombatFlag=true,
 			external=ns.EXTERNAL_NOT_SELF,
             concurrentDebuff=false,
             certainOnFirstInference=true
-		}
-		-- Divine Protection is not tracked
-		--{
-		--	name="Divine Protection",
-        --  isBuff=true,
-		--	id=403876,
-		--	cooldown=60,   -- talent: -30%: 60s > 48s  -- base is diff from ret
-		--	duration=8,
-		--	duration_variable=ns.DURATION_FIXED,
-		--	charges=1,
-		--	cdr=false,
-		--	external=ns.NOT_EXTERNAL,
-        --  concurrentDebuff=false
-		--},
+		},
+		{
+			name="Divine Protection",
+            buttonPress=true,
+            isBuff=true,
+			id=498,
+            iconId=524353,
+			cooldown=42,      -- talent: -30% (60 > 42)
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+		{
+			name="Divine Shield",
+            buttonPress=true,
+            isBuff=true,
+			id=642,
+            iconId=524354,
+			cooldown=210,  -- talent1: 300 > 210 (-30%)
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=true,
+            certainOnFirstInference=true
+		},
+		{
+			name="Blessing of Protection",
+            buttonPress=true,
+            isBuff=true,
+			id=1022,
+            iconId=135964,
+			cooldown=240,   -- base: 300, talent1: -60s, talent2: -15% (=45s)
+			duration=10,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=false,
+            bigFlag=false,
+            externalFlag=true,
+            raidFlag=true,
+            raidInCombatFlag=true,
+			external=ns.EXTERNAL_ANY,
+            concurrentDebuff=false,    -- applies forbearance, but the debuff isn't in the same payload
+            certainOnFirstInference=true
+		},
+		{
+			name="Blessing of Freedom",
+            buttonPress=true,
+            isBuff=true,
+			id=1044,
+            iconId=135968,
+			cooldown=25,
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=true,
+            raidInCombatFlag=false,
+			external=ns.EXTERNAL_ANY,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+        -- such a mess. so many talents. wrath and crusader are affected differently too
+        -- applies several other buffs simultaneously, maybe those could distinguish wing
+        -- from divine protection (only other 10000-flagged spell for holy)
+		{
+			name="Avenging Wrath",
+            buttonPress=true,
+            isBuff=true,
+			id=31884,
+            iconId=135875,
+			cooldown=90,  -- WRATH: base 120, talent (2pts) -30s; CRUSADER: base 60, talent (2pts) -15s
+			duration=18,  -- WRATH: base 20s, talent (2p) -8s; CRUSADER base 15s, talent (2p) -5s
+                          -- on top of all of this, +50% duration talent
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 	},
 	-- Protection
 	[66] = {
@@ -1351,7 +1449,7 @@ ns.SpecDefensiveDb = {
             isBuff=true,
 			id=1044,
             iconId=135968,
-			cooldown=25,   -- WRONG
+			cooldown=25,
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
@@ -1371,7 +1469,7 @@ ns.SpecDefensiveDb = {
             isBuff=true,
 			id=31884,
             iconId=135875,
-			cooldown=120,   -- WRONG
+			cooldown=120,
 			duration=18,
 			duration_variable=ns.DURATION_GTE,
 			charges=1,
@@ -1388,24 +1486,33 @@ ns.SpecDefensiveDb = {
 	},
 	-- Retribution
 	[70] = {
-		-- Divine Protection is not tracked
-		--{
-		--	name="Divine Protection",
-        --  isBuff=true,
-		--	id=403876,
-		--	cooldown=60,   -- talent: -30%: 90s > 63s
-		--	duration=8,
-		--	duration_variable=ns.DURATION_FIXED,
-		--	charges=1,
-		--	cdr=false,
-		--	external=ns.NOT_EXTERNAL,
-        --  concurrentDebuff=false
-		--},
+        -- XXX: TODO: also casts shield of vengeance for ret only, concurrent buff could help ID
+		{
+			name="Divine Protection",
+            buttonPress=true,
+            isBuff=true,
+			id=498,
+            iconId=524353,
+			cooldown=63,      -- talent: -30% (90 > 63)
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 		{
 			name="Blessing of Sacrifice",
             buttonPress=true,
             isBuff=true,
 			id=6940,
+            iconId=135966,
 			cooldown=60,   -- talent 2min > 1min
 			duration=12,
 			duration_variable=ns.DURATION_LTE,   -- cancels if caster falls < 20% health
@@ -1414,12 +1521,101 @@ ns.SpecDefensiveDb = {
             importantFlag=false,
             bigFlag=true,
             externalFlag=true,
-            raidFlag=false,
-            raidInCombatFlag=false,
+            raidFlag=true,
+            raidInCombatFlag=true,
 			external=ns.EXTERNAL_NOT_SELF,
             concurrentDebuff=false,
             certainOnFirstInference=true
-		}
+		},
+		{
+			name="Divine Shield",
+            buttonPress=true,
+            isBuff=true,
+			id=642,
+            iconId=524354,
+			cooldown=210,  -- talent1: 300 > 210 (-30%)
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=true,
+            certainOnFirstInference=true
+		},
+        -- XXX: TODO: forbearance: when applied to someone else, forbearance is applied in
+        -- a separate, immediately following UNIT_AURA call. good example of where a delayed
+        -- inference could add support through a new confidence layer.
+		{
+			name="Blessing of Protection",
+            buttonPress=true,
+            isBuff=true,
+			id=1022,
+            iconId=135964,
+			cooldown=240,   -- base: 300, talent1: -60s, talent2: -15% (=45s)
+			duration=10,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=false,
+            bigFlag=false,
+            externalFlag=true,
+            raidFlag=true,
+            raidInCombatFlag=true,
+			external=ns.EXTERNAL_ANY,
+            concurrentDebuff=false,    -- applies forbearance, but the debuff isn't in the same payload
+            certainOnFirstInference=true
+		},
+		{
+			name="Blessing of Freedom",
+            buttonPress=true,
+            isBuff=true,
+			id=1044,
+            iconId=135968,
+			cooldown=25,
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=true,
+            raidInCombatFlag=false,
+			external=ns.EXTERNAL_ANY,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+        -- wake of ashes+radiant glory triggers wings when wake of ashes is used.
+        -- (cd=30s, wings dur=12). this combo replaces wings.
+        -- luckily, when wake of ashes is used this way, a wings buff with (different
+        -- duration) is put on the caster so it can be detected as normal
+        -- crusade does not replace wings, it just gives wings extra haste
+        -- XXX: TODO: for now, guessing radiant glory will be the standard
+		{
+			name="Avenging Wrath",
+            buttonPress=true,
+            isBuff=true,
+			id=31884,
+            iconId=135875,
+			cooldown=30,       -- WINGS: 60; RADIANT GLORY: 30
+			duration=12,       -- WINGS: base 20, talent 2p 20>24; RADIANT GLORY: base 8, talent 2p 8>12
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 	},
 
 
