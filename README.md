@@ -7,7 +7,7 @@ raid frames are trackable.
 
 Which cooldown has been used is guessed based on the small number of Blizzard marked buffs and some additional logic about who those buffs can be cast by and applied to. Since no exploits are used, tracking is not 100% accurate and varies depending on group composition. When a buff that appears on raid frames cannot be assigned to a specific ability, the addon falls back to history tray mode. Buffs added to the history tray get a count-up timer beginning from when the buff was first detected. Player knowledge can be used to know when the cooldown is available again (e.g., since Barkskin has a 60s cooldown, when the count-up timer reaches 60, Barkskin is available again).
 
-STILL A WORK IN PROGRESS. Most notably, support to automatically identify talents that change cooldown length, buff duration or number of charges.
+*STILL A WORK IN PROGRESS.* Still does not automatically detect talents that change cooldown length, buff duration or number of charges, but support is coming soon.
 
 ### History tray fallback mode when cooldown is ambiguous
 The default mode: when a big cooldown is used, keep the icon around (without knowing what it is) and attach a timer that counts up. Similar to a GCD tracker - is useful if the player knows the cooldown of the ability.
