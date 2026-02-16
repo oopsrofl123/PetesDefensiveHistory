@@ -255,7 +255,8 @@ function ns:clearRow(row)
 	row.cpfMappingText:SetText(tostring(row.cpfMapping))
 	ns:showDebugVisual(row.cpfMappingText)
 
-    ns:showDebugVisual(row)
+    --ns:showDebugVisual(row)
+    row:Show()
 
     for i, item in pairs(row.historyItems) do
         row.historyItems[i] = clearHistoryItem(item)
@@ -344,7 +345,9 @@ function ns:updateStaticRows(slot, abilities)
     local i = 0
     for name, historyItem in pairs(row.items) do
         historyItem:SetPoint("RIGHT", row, "RIGHT", -(ns.ICON_SIZE + ns.ICON_SPACING)*i, 0)
-        i = i + 1
+        if historyItem:IsShown() then
+            i = i + 1
+        end
     end
 
     row:Show()
@@ -359,7 +362,7 @@ function ns:updateRow(row, specId, playerName)
     ns:clearRow(row)
     row.specId = specId
     row.specText:SetText(ns:specIdToString(specId))
-    row.specText:Show()
+    ns:showDebugVisual(row.specText)
     row.playerName = playerName
 end
 
