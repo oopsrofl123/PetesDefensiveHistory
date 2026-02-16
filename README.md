@@ -1,6 +1,6 @@
 # PetesDefensiveHistory
 
-Tracks cooldowns for Blizzard-approved IMPORTANT, BIG_DEFENSIVE and EXTERNAL buffs.
+Tracks cooldowns for Blizzard-approved `IMPORTANT`, `BIG_DEFENSIVE` and `EXTERNAL` buffs.
 
 This is NOT an addon for general cooldown tracking, only buffs that appear on Blizzard's
 raid frames are trackable.
