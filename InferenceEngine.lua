@@ -78,8 +78,8 @@ local function logicLayerBuffFlags(buff, ability)
             ability.importantFlag and 1 or 0,
             ability.bigFlag and 1 or 0,
             ability.externalFlag and 1 or 0,
-            ability.isRaidFlag and 1 or 0,
-            ability.isRaidInCombatFlag and 1 or 0)
+            ability.raidFlag and 1 or 0,
+            ability.raidInCombatFlag and 1 or 0)
         return false
     end
     return true
