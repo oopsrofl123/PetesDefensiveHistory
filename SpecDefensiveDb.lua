@@ -708,16 +708,38 @@ ns.SpecDefensiveDb = {
 	---------------------------------------------
 	-- Mage
 	---------------------------------------------
-	-- Ice block does appear as a big defensive even though it's an immunity
+	-- XXX: TODO: handle ice block for all specs. does anyone take ice block in m+?
 	-- all talents that affect ice cold equally affect ice block
 	-- Arcane
 	[62] = {
-		-- XXX: any way to use hypothermia as extra info?
+		{
+            -- XXX: TODO: arcane surge always comes with several other buffs. maybe
+            -- can use that to identify.
+			name="Arcane Surge",
+            buttonPress=true,
+            isBuff=true,
+			id=365350,
+            iconId=4667417,
+			cooldown=90,
+			duration=15,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 		{
 			name="Ice Cold",
             buttonPress=true,
             isBuff=true,
 			id=414658,
+            iconId=135777,
 			cooldown=240,   -- base: 240 3 talents each give -30s
 			duration=6,
 			duration_variable=ns.DURATION_FIXED,
@@ -729,18 +751,82 @@ ns.SpecDefensiveDb = {
             raidFlag=false,
             raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=true,
+            certainOnFirstInference=true
+		},
+		{
+			name="Mirror Image",
+            buttonPress=true,
+            isBuff=true,
+			id=55342,
+            iconId=135994,
+			cooldown=120,   -- base 120, talent -30
+			duration=15,
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+		{
+			name="Alter Time",
+            buttonPress=true,
+            isBuff=true,
+			id=342245,
+            iconId=609811,
+			cooldown=50,   -- hero talent -40s 50>40
+			duration=10,
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=false,
+            -- this disagrees with C_Spell.IsSpellImportant and C_UnitAuras.AuraIsBigDefensive
+            -- but this is what happens in game. There are other Alter Time spell IDs, but this
+            -- spell ID is the one shown by idTip in game.
+            importantFlag=true,   -- false
+            bigFlag=false,        -- true
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		}
 	},
 	-- Fire
 	[63] = {
+		{
+			name="Combustion",
+            buttonPress=true,
+            isBuff=true,
+			id=190319,
+            iconId=135824,
+			cooldown=60,   -- several talents
+			duration=12,
+			duration_variable=ns.DURATION_GTE,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 		-- XXX: any way to use hypothermia as extra info?
 		{
 			name="Ice Cold",
             buttonPress=true,
             isBuff=true,
 			id=414658,
+            iconId=135777,
 			cooldown=240,   -- base: 240 3 talents each give -30s
 			duration=6,
 			duration_variable=ns.DURATION_FIXED,
@@ -748,6 +834,49 @@ ns.SpecDefensiveDb = {
 			cdr=false,
             importantFlag=true,
             bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=true,
+            certainOnFirstInference=true
+		},
+		{
+			name="Mirror Image",
+            buttonPress=true,
+            isBuff=true,
+			id=55342,
+            iconId=135994,
+			cooldown=120,   -- base 120, talent -30
+			duration=15,
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+		{
+			name="Alter Time",
+            buttonPress=true,
+            isBuff=true,
+			id=342245,
+            iconId=609811,
+			cooldown=50,     -- hero talent 50>40 (-10s)
+			duration=10,
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=false,
+            -- this disagrees with C_Spell.IsSpellImportant and C_UnitAuras.AuraIsBigDefensive
+            -- but this is what happens in game. There are other Alter Time spell IDs, but this
+            -- spell ID is the one shown by idTip in game.
+            importantFlag=true,   -- false
+            bigFlag=false,        -- true
             externalFlag=false,
             raidFlag=false,
             raidInCombatFlag=false,
@@ -760,12 +889,12 @@ ns.SpecDefensiveDb = {
 	[64] = {
 		-- Will be hard to track this properly: cold snap resets cooldown
 		-- and other choice node talent gives a second charge.
-		-- XXX: any way to use hypothermia as extra info?
 		{
 			name="Ice Cold",
             buttonPress=true,
             isBuff=true,
 			id=414658,
+            iconId=135777,
 			cooldown=240,   -- base: 240 3 talents each give -30s
 			duration=6,
 			duration_variable=ns.DURATION_FIXED,
@@ -773,6 +902,49 @@ ns.SpecDefensiveDb = {
 			cdr=false,
             importantFlag=true,
             bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=true,
+            certainOnFirstInference=true
+		},
+		{
+			name="Mirror Image",
+            buttonPress=true,
+            isBuff=true,
+			id=55342,
+            iconId=135994,
+			cooldown=120,   -- base 120, talent -30
+			duration=15,
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+		{
+			name="Alter Time",
+            buttonPress=true,
+            isBuff=true,
+			id=342245,
+            iconId=609811,
+			cooldown=50,
+			duration=10,
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=false,
+            -- this disagrees with C_Spell.IsSpellImportant and C_UnitAuras.AuraIsBigDefensive
+            -- but this is what happens in game. There are other Alter Time spell IDs, but this
+            -- spell ID is the one shown by idTip in game.
+            importantFlag=true,   -- false
+            bigFlag=false,        -- true
             externalFlag=false,
             raidFlag=false,
             raidInCombatFlag=false,
@@ -788,38 +960,73 @@ ns.SpecDefensiveDb = {
 	---------------------------------------------
 	-- Brewmaster
 	[268] = {
-		-- Yep, fort brew ignored by Blizzard
-		-- fort brew: 120s cd > 90s cd with talent
-		--{
-		--	name="Fortifying Brew",
-        --  isBuff=true,
-		--	-- this ID might be diff for brew id=115203,
-		--	cooldown=360   -- talent: 360 > 240 base is really 6min for brew
-		--	duration=15,
-		--	duration_variable=ns.DURATION_FIXED,
-		--	charges=1,      -- only frost has talent +1 charge
-		--	cdr=false,
-		--	external=ns.NOT_EXTERNAL,
-        --  concurrentDebuff=false
-		--}
+        -- XXX: TODO: actual in-game buff is not imp or big flagged, so not observable
+		-- {
+	   	    -- name="Fortifying Brew",
+            -- buttonPress=true,
+            -- isBuff=true,
+			-- id=115203,
+            -- iconId=615341,
+		    --	cooldown=360   -- talent: 360 > 240 base is really 6min for brew
+			-- duration=15,
+			-- duration_variable=ns.DURATION_FIXED,
+			-- charges=1,
+			-- cdr=false,
+            -- importantFlag=true,
+            -- bigFlag=true,
+            -- externalFlag=false,
+            -- raidFlag=false,
+            -- raidInCombatFlag=false,
+			-- external=ns.NOT_EXTERNAL,
+            -- concurrentDebuff=false,
+            -- certainOnFirstInference=true
+		-- },
 	},
 	-- Mistweaver
 	[270] = {
+        -- actual in-game buff is not imp or big flagged, so not observable
+		-- {
+	   	    -- name="Fortifying Brew",
+            -- buttonPress=true,
+            -- isBuff=true,
+			-- id=115203,
+            -- iconId=615341,
+			-- cooldown=120,   -- base 120, talent -30
+			-- duration=15,
+			-- duration_variable=ns.DURATION_FIXED,
+			-- charges=1,
+			-- cdr=false,
+            -- importantFlag=true,
+            -- bigFlag=true,
+            -- externalFlag=false,
+            -- raidFlag=false,
+            -- raidInCombatFlag=false,
+			-- external=ns.NOT_EXTERNAL,
+            -- concurrentDebuff=false,
+            -- certainOnFirstInference=true
+		-- },
 		-- life cocoon not tracked
-		-- Yep, fort brew ignored by Blizzard
-		-- fort brew: 120s cd > 90s cd with talent
-		--{
-		--	name="Fortifying Brew",
-        --  isBuff=true,
-		--	id=115203,
-		--	cooldown=120,   -- talent: 120 > 90
-		--	duration=15,
-		--	duration_variable=ns.DURATION_FIXED,
-		--	charges=1,      -- only frost has talent +1 charge
-		--	cdr=false,
-		--	external=ns.NOT_EXTERNAL,
-        --  concurrentDebuff=false
-		--}
+        -- XXX: TODO: need to test this when cast on someone else
+        {
+			name="Life Cocoon",
+            buttonPress=true,
+            isBuff=true,
+			id=116849,
+            iconId=627485,
+			cooldown=75,   -- base 120, talent -45
+			duration=12,
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=true,
+            importantFlag=false,
+            bigFlag=false,
+            externalFlag=true,
+            raidFlag=true,
+            raidInCombatFlag=true,
+			external=ns.EXTERNAL_ANY,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 	},
 	-- Windwalker
 	[269] = {
