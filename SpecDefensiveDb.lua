@@ -581,12 +581,120 @@ ns.SpecDefensiveDb = {
 	---------------------------------------------
 	-- Devastation
 	[1467] = {
+		{
+			name="Dragonrage",
+            buttonPress=true,
+            isBuff=true,
+			id=375087,
+            iconId=4622452,
+			cooldown=120,
+			duration=18,
+			duration_variable=ns.DURATION_GTE,  -- talent: +5s per empowered spell
+			charges=2,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+        -- hero talent: applies to your target or a random nearby injured ally at 50%.
+        -- turns scales into an external.
+        -- XXX: TODO: however, the external buff is not imp|big|external flagged, so it
+        -- doesn't trigger inference.
+		{
+			name="Obsidian Scales",
+            buttonPress=true,
+            isBuff=true,
+			id=363916,
+            iconId=1394891,
+			cooldown=90,
+			duration=12,
+			duration_variable=ns.DURATION_FIXED,
+			charges=2,                 -- talent: 2 charges
+			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
+            raidFlag=true,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 	},
 	-- Preservation
 	[1468] = {
+		{
+			name="Time Dilation",
+            buttonPress=true,
+            isBuff=true,
+			id=357170,
+            iconId=4622478,
+			cooldown=60,               -- talent: -10s 60>50
+			duration=8,                -- talent: +15% 8>9.2
+			duration_variable=ns.DURATION_FIXED,
+			charges=2,                 -- talent: +1 charge
+			cdr=false,
+            importantFlag=false,
+            bigFlag=true,
+            externalFlag=true,
+            raidFlag=true,
+            raidInCombatFlag=true,
+			external=ns.EXTERNAL_ANY,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+        -- hero talent: applies to your target or a random nearby injured ally at 50%.
+        -- turns scales into an external.
+        -- XXX: TODO: however, the external buff is not imp|big|external flagged, so it
+        -- doesn't trigger inference.
+		{
+			name="Obsidian Scales",
+            buttonPress=true,
+            isBuff=true,
+			id=363916,
+            iconId=1394891,
+			cooldown=90,
+			duration=12,
+			duration_variable=ns.DURATION_FIXED,
+			charges=2,                 -- talent: 2 charges
+			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
+            raidFlag=true,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 	},
 	-- Augmentation
-	[1465] = {
+	[1473] = {
+		{
+			name="Obsidian Scales",
+            buttonPress=true,
+            isBuff=true,
+			id=363916,
+            iconId=1394891,
+			cooldown=81,      -- looks like aug gets baseline -10% (-9s, 90>81)
+			duration=12.5,
+			duration_variable=ns.DURATION_FIXED,
+			charges=2,                 -- talent: 2 charges
+			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
+            raidFlag=true,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 	},
 	
 
@@ -600,6 +708,7 @@ ns.SpecDefensiveDb = {
             buttonPress=true,
             isBuff=true,
 			id=264735,
+            iconId=136094,
 			cooldown=90,
 			duration=8,                -- talent: 6 > 8
 			duration_variable=ns.DURATION_FIXED,
