@@ -22,7 +22,7 @@ for i = 0, 1000000 do
    else 
    a = a .. "0,"  
    end
-   if not helpful and matched then
+   if helpful and matched then
       local info = C_Spell.GetSpellInfo(i)
       local name = info and info.name
       output = output .. i .. ",\"" .. name .. "\"," .. a .. "\n"
