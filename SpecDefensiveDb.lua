@@ -1624,12 +1624,156 @@ ns.SpecDefensiveDb = {
 	---------------------------------------------
 	-- Discipline
 	[256] = {
+		{
+			name="Desperate Prayer",
+            buttonPress=true,
+            isBuff=true,
+			id=19236,
+            iconId=237550,
+			cooldown=70,   -- talent: 90>70
+			duration=10,   -- optional oracle hero talent gives +10s 
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+		{
+			name="Pain Suppression",
+            buttonPress=true,
+            isBuff=true,
+			id=33206,
+            iconId=135936,
+			cooldown=180,
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=2,    -- talent +1 charge also gives -3s CD per PW:shield cast
+			cdr=true,
+            importantFlag=false,
+            bigFlag=true,
+            externalFlag=true,
+            raidFlag=true,
+            raidInCombatFlag=true,
+			external=ns.EXTERNAL_ANY,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 	},
 	-- Holy
 	[257] = {
+		{
+			name="Desperate Prayer",
+            buttonPress=true,
+            isBuff=true,
+			id=19236,
+            iconId=237550,
+			cooldown=70,   -- talent: 90>70
+			duration=10,   -- optional oracle hero talent gives +10s 
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+        -- Divine Hymn creates multiple buffs. The one that is flagged such that UNIT_AURA
+        -- would detect it (flag=10000) is the channel, which I think has a 4.5s base
+        -- cast time but is affected by haste.
+		{
+			name="Divine Hymn",
+            buttonPress=true,
+            isBuff=true,
+			id=64843,
+            iconId=237540,
+			cooldown=120,   -- talent: 180>120
+			duration=5,     -- this is the cast (channel) time of divine hymn. cancelled as usual
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+		{
+			name="Guardian Spirit",
+            buttonPress=true,
+            isBuff=true,
+			id=47788,
+            iconId=237542,
+			cooldown=180,
+			duration=12,    -- 10 base +2s hero (orcale, mandatory) talent
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=true,       -- talent: -60s on CD if the target dies. should rarely trigger
+            importantFlag=false,
+            bigFlag=false,
+            externalFlag=true,
+            raidFlag=true,
+            raidInCombatFlag=true,
+			external=ns.EXTERNAL_ANY,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 	},
 	-- Shadow
 	[258] = {
+		{
+			name="Desperate Prayer",
+            buttonPress=true,
+            isBuff=true,
+			id=19236,
+            iconId=237550,
+			cooldown=70,   -- talent: 90>70
+			duration=10,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+		{
+			name="Voidform",
+            buttonPress=true,
+            isBuff=true,
+			id=228260,
+            iconId=1386548,
+			cooldown=120,
+			duration=20,
+            -- also a hero talent that adds dynamic duration
+			duration_variable=ns.DURATION_GTE,  -- talent: +3s dur dynamic per cast of SW: madness
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		}
 	},
 
 
@@ -1643,6 +1787,7 @@ ns.SpecDefensiveDb = {
             buttonPress=true,
             isBuff=true,
 			id=31224,
+            iconId=136177,
 			cooldown=120,   -- talent: 120 > 90
 			duration=5,     -- hero talent: 5 > 7
 			duration_variable=ns.DURATION_FIXED,
@@ -1656,7 +1801,27 @@ ns.SpecDefensiveDb = {
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false,
             certainOnFirstInference=true
-		}
+		},
+		{
+			name="Evasion",
+            buttonPress=true,
+            isBuff=true,
+			id=5277,
+            iconId=136205,
+			cooldown=120,
+			duration=10,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 	},
 	-- Outlaw
 	[260] = {
@@ -1665,6 +1830,7 @@ ns.SpecDefensiveDb = {
             buttonPress=true,
             isBuff=true,
 			id=31224,
+            iconId=136177,
 			cooldown=120,   -- talent: 120 > 90
 			duration=5,     -- hero talent: 5 > 7
 			duration_variable=ns.DURATION_FIXED,
@@ -1678,7 +1844,51 @@ ns.SpecDefensiveDb = {
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false,
             certainOnFirstInference=true
-		}
+		},
+		{
+			name="Evasion",
+            buttonPress=true,
+            isBuff=true,
+			id=5277,
+            iconId=136205,
+			cooldown=120,
+			duration=10,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+        -- XXX: TODO: adrenaline rush has a weird application where it both adds and updates
+        -- itself in the same UNIT_AURA event. should allow instant ID.
+        -- also adrenaline rush can be reset with preparation. since there is no CDR for
+        -- rush, could infer prep was used if rush is used again before CD is up.
+		{
+			name="Adrenaline Rush",
+            buttonPress=true,
+            isBuff=true,
+			id=13750,
+            iconId=136206,
+			cooldown=180,
+			duration=19,   -- talent: 15 > 19 (+4s)
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
 	},
 	-- Subtlety
 	[261] = {
@@ -1687,6 +1897,7 @@ ns.SpecDefensiveDb = {
             buttonPress=true,
             isBuff=true,
 			id=31224,
+            iconId=136177,
 			cooldown=120,   -- talent: 120 > 90
 			duration=5,     -- hero talent: 5 > 7
 			duration_variable=ns.DURATION_FIXED,
@@ -1694,6 +1905,72 @@ ns.SpecDefensiveDb = {
 			cdr=false,
             importantFlag=false,
             bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+		{
+			name="Evasion",
+            buttonPress=true,
+            isBuff=true,
+			id=5277,
+            iconId=136205,
+			cooldown=120,
+			duration=10,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+        -- XXX: TODO: switches to stealth bar, so maybe there's some updated character
+        -- state that can be used to guess dance?
+        -- also: causes several dance-specific buffs: symbolic victory (457167), danse macabre (393969), 
+        -- master of shadows (196980, not dance-specific), fade to nothing (386237, not dance-specific)
+        -- could add logic layer that says at least 3 buffs total?
+		{
+			name="Shadow Dance",
+            buttonPress=true,
+            isBuff=true,
+			id=185313,
+            iconId=236279,
+			cooldown=20,
+			duration=7.2,
+			duration_variable=ns.DURATION_FIXED,
+			charges=2,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+        -- blades doesn't apply any other auras in the same event
+		{
+			name="Shadow Blades",
+            buttonPress=true,
+            isBuff=true,
+			id=121471,
+            iconId=376022,
+			cooldown=90,
+			duration=16,
+			duration_variable=ns.DURATION_FIXED,
+			charges=2,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
             externalFlag=false,
             raidFlag=false,
             raidInCombatFlag=false,
@@ -1755,6 +2032,28 @@ ns.SpecDefensiveDb = {
 	},
 	-- Resto
 	[264] = {
+        -- XXX: TODO: marked as important, but no event fires when it's used
+        -- have to choose between healing tide and ascendance
+		-- {
+			-- name="Healing Tide Totem",
+            -- buttonPress=true,
+            -- isBuff=true,
+			-- id=108280,
+            -- iconId=538569,
+			-- cooldown=120,   -- talent: 180 > 120
+			-- duration=10,
+			-- duration_variable=ns.DURATION_FIXED,
+			-- charges=1,
+			-- cdr=false,
+            -- importantFlag=true,
+            -- bigFlag=true,
+            -- externalFlag=false,
+            -- raidFlag=false,
+            -- raidInCombatFlag=false,
+			-- external=ns.NOT_EXTERNAL,
+            -- concurrentDebuff=false,
+            -- certainOnFirstInference=true
+		-- },
 		{
 			name="Astral Shift",
             buttonPress=true,
@@ -1788,6 +2087,7 @@ ns.SpecDefensiveDb = {
             buttonPress=true,
             isBuff=true,
 			id=104773,
+            iconId=136150,
 			cooldown=135,   -- talent: 180 > 135
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
@@ -1805,11 +2105,33 @@ ns.SpecDefensiveDb = {
 	},
 	-- Demo
 	[266] = {
+        -- marked as IMPORTANT but fires no UNIT_AURA
+		-- {
+			-- name="Summon Demon Tyrant",
+            -- buttonPress=true,
+            -- isBuff=true,
+			-- id=265187,
+            -- iconId=2065628,
+			-- cooldown=60,
+			-- duration=20,   -- talent: 15>20
+			-- duration_variable=ns.DURATION_FIXED,
+			-- charges=1,
+			-- cdr=false,
+            -- importantFlag=true,
+            -- bigFlag=false,
+            -- externalFlag=false,
+            -- raidFlag=false,
+            -- raidInCombatFlag=false,
+			-- external=ns.NOT_EXTERNAL,
+            -- concurrentDebuff=false,
+            -- certainOnFirstInference=true
+		-- },
 		{
 			name="Unending Resolve",
             buttonPress=true,
             isBuff=true,
 			id=104773,
+            iconId=136150,
 			cooldown=135,   -- talent: 180 > 135
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
@@ -1832,6 +2154,7 @@ ns.SpecDefensiveDb = {
             buttonPress=true,
             isBuff=true,
 			id=104773,
+            iconId=136150,
 			cooldown=135,   -- talent: 180 > 135
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
@@ -1854,28 +2177,138 @@ ns.SpecDefensiveDb = {
 	---------------------------------------------
 	-- Arms
 	[71] = {
-	},
-	-- Fury
-	[72] = {
-	},
-	-- Protection
-	[73] = {
-        -- There are so many talents that affect shield wall
-        {
-			name="Shield Wall",
+		{
+			name="Die by the Sword",
             buttonPress=true,
             isBuff=true,
-			id=871,
-			cooldown=120,   -- talent 1: -10%, talent 2: -60s
-			duration=8,     -- luckily duration is never affected
+			id=118038,
+            iconId=132336,
+			cooldown=108,   -- talent: 120 > 108
+			duration=8,
 			duration_variable=ns.DURATION_FIXED,
-			charges=2,
-			cdr=true,       -- talent 1: 20 rage=1s, talent 2: shield slam=6s
+			charges=1,
+			cdr=false,
             importantFlag=true,
             bigFlag=true,
             externalFlag=false,
             raidFlag=false,
             raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+		{
+			name="Avatar",
+            buttonPress=true,
+            isBuff=true,
+			id=107574,
+            iconId=613534,
+			cooldown=90,
+			duration=20,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=true,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		}
+	},
+	-- Fury
+	[72] = {
+        -- XXX: TODO: heavily modified by mountain thane hero spec (dur extension, random procs)
+        -- proc support needs a separate isBuff=false entry
+        -- for mountain thane, also applies thunder blast, could be used to distinguish from enraged regen
+		{
+			name="Avatar",
+            buttonPress=true,
+            isBuff=true,
+			id=107574,
+            iconId=613534,
+			cooldown=90,
+			duration=20,
+			duration_variable=ns.DURATION_GTE,
+			charges=1,
+			cdr=true,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+        -- no extra auras with enraged regen
+		{
+			name="Enraged Regeneration",
+            buttonPress=true,
+            isBuff=true,
+			id=184364,
+            iconId=132345,
+			cooldown=108,    -- talent: 120>108 (-10%)
+			duration=8,      -- talent: +3s 8>11
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		}
+        -- XXX: TODO: recklessness is listed as important but generates no UNIT_AURA event
+	},
+	-- Protection
+	[73] = {
+        -- XXX: TODO: heavily modified by mountain thane hero spec (dur extension, random procs)
+        -- proc support needs a separate isBuff=false entry
+        -- for mountain thane, also applies thunder blast, could be used to distinguish from enraged regen
+		{
+			name="Avatar",
+            buttonPress=true,
+            isBuff=true,
+			id=107574,
+            iconId=613534,
+			cooldown=90,
+			duration=20,
+			duration_variable=ns.DURATION_GTE,
+			charges=1,
+			cdr=true,
+            importantFlag=true,
+            bigFlag=false,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+        -- There are so many talents that affect shield wall
+        -- last stand talent adds a concurrent buff to shield wall. could be useful
+        {
+			name="Shield Wall",
+            buttonPress=true,
+            isBuff=true,
+			id=871,
+            iconId=132362,
+			cooldown=108,   -- base 180: talent 1: -10%, talent 2: -60s. seems -10% applies after -60s
+			duration=8,     -- luckily duration is never affected
+			duration_variable=ns.DURATION_FIXED,
+			charges=2,      -- +1 charge talent (same as -60s CD talent)
+			cdr=true,       -- talent 1: 20 rage=1s, talent 2: shield slam=6s
+            importantFlag=true,
+            bigFlag=true,
+            externalFlag=false,
+            raidFlag=false,
+            raidInCombatFlag=true,
 			external=ns.NOT_EXTERNAL,
             concurrentDebuff=false,
             certainOnFirstInference=true
