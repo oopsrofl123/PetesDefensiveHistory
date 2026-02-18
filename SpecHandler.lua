@@ -16,11 +16,16 @@ local internalGroupSpecs = {}    -- For internal use by LibSpecialization
 --
 -- Is called every time LibSpec identifies a spec, so must loop over the
 -- whole group each time.
-local function updateGroupData(slot, playerName, specId, talents)
+local function updateGroupData(slot, playerName, specId, talentExportString)
     local externals = {}   -- key=caster, value=ability info
 
     ns:printDebug(string.format("updateGroupData(%s=[%s], spec ID=%d)\nTalent string=[%s]",
-        playerName, slot, specId, talents))
+        playerName, slot, specId, talentExportString))
+
+    -- Decode the talent string. There are talent IDs, but all talents are
+    -- related to spell IDs.
+    talentRanks = ns:getTalentRanks(specId, talentExportString)
+    -- XXX: TODO: update ability data using talents
 
     ns.groupCDs[slot].playerName = playerName
     ns.groupCDs[slot].specId = specId
@@ -78,10 +83,6 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
     function(specId, role, position, playerName, talentExportString)
         local slot = ns:nameToSlot(playerName)
         updateGroupData(slot, playerName, specId, talentExportString)
-
-        -- Decode the talent string. There are talent IDs, but all talents are
-        -- related to spell IDs.
-        talentRanks = ns:getTalentRanks(specId, talentExportString)
 
         -- Solve unique solutions group-wide
         ns:zeroKnowledgeSolve()
