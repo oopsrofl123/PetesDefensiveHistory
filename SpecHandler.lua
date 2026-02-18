@@ -6,6 +6,9 @@ local LibSpecialization = LibStub("LibSpecialization")
 local internalGroupSpecs = {}    -- For internal use by LibSpecialization
 
 
+-- Update the group CD databases with the new information that player in
+-- `slot` is class/specialization `specId`.
+--
 -- For each player, collect information across the group to determine
 -- which spells can be uniquely identified. Other summary data like the
 -- maximum cooldown time across all possible abilities is also collected
@@ -13,8 +16,14 @@ local internalGroupSpecs = {}    -- For internal use by LibSpecialization
 --
 -- Is called every time LibSpec identifies a spec, so must loop over the
 -- whole group each time.
-local function updateGroupData()
+local function updateGroupData(slot, playerName, specId, talents)
     local externals = {}   -- key=caster, value=ability info
+
+    ns:printDebug(string.format("updateGroupData(%s=[%s], spec ID=%d)\nTalent string=[%s]",
+        playerName, slot, specId, talents))
+
+    ns.groupCDs[slot].playerName = playerName
+    ns.groupCDs[slot].specId = specId
 
     ns.possibleCasters = {}  -- rebuild from scratch every time
 
@@ -22,12 +31,14 @@ local function updateGroupData()
     -- build the table of non-externals for each player.
     for slot, _ in pairs(ns.allSlots) do
         externals[slot] = {}
-        specId = ns.groupCDs[slot].specId
-        ns.groupCDs[slot].abilities = {}
+        local specId = ns.groupCDs[slot].specId
+        ns.groupCDs[slot].abilities = {}          -- things that can be CAST ON this slot
+        ns.groupCDs[slot].castableAbilities = {}  -- things that can be CAST by this slot
         if specId then
-            abilities = ns.SpecDefensiveDb[specId]
+            abilities = ns.SpecAbilityDb[specId]
             for _, ability in pairs(abilities) do
                 ability.caster = slot
+                ns.groupCDs[slot].castableAbilities[ability.name] = ability
                 -- Record the fact that this slot can cast this ability
                 if ns.possibleCasters[ability.name] then
                     table.insert(ns.possibleCasters[ability.name], slot)
@@ -63,37 +74,18 @@ end
 
 
 
-local function getCastableAbilities(slot)
-    castable = {}
-    -- the groupCDs table stores what abilities can be cast ON slot, not BY slot.
-    -- so have to loop over the whole group to find externals like blessing of sac
-    -- that cannot be self cast.
-    for target, _ in pairs(ns.allSlots) do
-        for _, ability in pairs(ns.groupCDs[target].abilities) do
-            if ns:tablecontains(ns.possibleCasters[ability.name], slot) then
-                castable[ability.name] = ability
-            end
-        end
-    end
-    return castable
-end
-
-
-
 LibSpecialization.RegisterGroup(internalGroupSpecs, function(specId, role, position, playerName, talents)
     local slot = ns:nameToSlot(playerName)
-    ns:printDebug(string.format("%s (%s): spec ID=%d, a %s %s.\nTalent string=[%s]",
-        playerName, slot, specId, position, role, talents))
-    ns.groupCDs[slot].specId = specId
+    updateGroupData(slot, playerName, specId, talents)
 
-    -- Solving
-    updateGroupData()
+    -- Solve unique solutions group-wide
     ns:zeroKnowledgeSolve()
 
     -- Update various UI elements:
     -- 1. Party frames static cooldown row
-    -- XXX: TODO: not at all what we want. only show inferrable abilities
-    ns:updateStaticRows(slot, getCastableAbilities(slot))
+    -- XXX: TODO: shows abilities that aren't always inferrable. this could be what we want
+    -- since in some scenarios they could be inferrable.  have to think about this.
+    ns:updateStaticRows(slot)
 
     -- 2. Party frames fallback history tray
     ns:updateRow(ns.historyRows[slot], specId, playerName)
