@@ -40,7 +40,7 @@ local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentDebuffs)
         slot, #ns.activeDefensives[slot])
     )
 
-    ns:printDebug('timeNow='..timeNow..'building list of most recent successful casts for all slots..')
+    ns:printDebug('timeNow='..timeNow..' building list of most recent successful casts for all slots..')
     closestCasts = {}
     for slot, castHistory in pairs(ns.castHistory) do
         closest = ns.INFINITY
@@ -163,6 +163,8 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         local imp, big, ext, raid, ric = getFilterFlagsForAuraInstanceId(unitTarget, v.auraInstanceID)
         local harm = isAuraHarmful(unitTarget, v.auraInstanceID)
 
+        ns:printDebug("ADDED ABILITY (not filtered imp|big|ext): " ..
+            v.auraInstanceID, imp, big, ext, raid, ric, harm)
         -- the abilities we handle are helpfuls that are either important, big or externals
         if not harm and (imp or big or ext) then
             -- get all of the debuff auras added in this event
@@ -233,7 +235,6 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         end
     end
 end)
-
 
 
 
