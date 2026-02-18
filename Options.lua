@@ -9,7 +9,11 @@ PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or {
 }
 
 
-ns.optionsCategory = Settings.RegisterVerticalLayoutCategory(addonName)
+ns.optionsCategory, layout = Settings.RegisterVerticalLayoutCategory(addonName)
+
+layout:AddInitializer(
+    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Developer options' })
+)
 
 -- Disable all inference. Put everything in the history tray
 local disableInference = Settings.RegisterProxySetting(
@@ -76,21 +80,107 @@ Settings.CreateCheckbox(ns.optionsCategory, dataMiningMode,
 Settings.RegisterAddOnCategory(ns.optionsCategory)
 
 
+local abilities, layout = Settings.RegisterVerticalLayoutSubcategory(ns.optionsCategory, "Tracked abilities")
 
--------------------------------------------------------------------------------------
--- There is no button for vertical layouts and it is impossible to mix a canvas into
--- the vertical layout. So just create a second page with nothing but a reset button.
--------------------------------------------------------------------------------------
 
-local frame = CreateFrame("Frame", addonName .. "Reset")
-frame:SetSize(500, 400)
+-- since abilities are replicated for each spec, track unique ones here to prevent
+-- adding checkboxes multiple times for the same ability.
+local uniqueAbilities = {}
+
+local checkAll = CreateSettingsButtonInitializer(
+    "Track all abilities",
+    "Check all",
+    function()
+        for _, setting in pairs(uniqueAbilities) do
+            setting:SetValue(true)
+        end
+    end,
+    "Select all checkboxes",
+    true, -- addSearchTags
+    nil, -- newTagID
+    nil -- gameDataFunc
+)
+
+layout:AddInitializer(checkAll)
+
+
+local uncheckAll = CreateSettingsButtonInitializer(
+    "Track no abilities",
+    "Uncheck all",
+    function()
+        for _, setting in pairs(uniqueAbilities) do
+            setting:SetValue(false)
+        end
+    end,
+    "Unselect all checkboxes",
+    true, -- addSearchTags
+    nil, -- newTagID
+    nil -- gameDataFunc
+)
+
+layout:AddInitializer(uncheckAll)
+
+
+local classes = {
+    ["Death Knight"] = { 250, 251, 252 },
+    ["Demon Hunter"] = { 577, 581, 1480 },
+    ["Druid"] = { 102, 103, 104, 105 },
+    ["Evoker"] = { 1467, 1468, 1473 },
+    ["Hunter"] = { 253, 254, 255 },
+    ["Mage"] = { 62, 63, 64 },
+    ["Monk"] = { 268, 269, 270 },
+    ["Paladin"] = { 65, 66, 70 },
+    ["Priest"] = { 256, 257, 258 },
+    ["Rogue"] = { 259, 260, 261 },
+    ["Shaman"] = { 262, 263, 264 },
+    ["Warlock"] = { 265, 266, 267 },
+    ["Warrior"]  = { 71, 72, 73 }
+}
+
+for class, specIdList in pairs(classes) do
+    layout:AddInitializer(
+        Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name=class })
+    )
+
+    for _, specId in pairs(specIdList) do
+        for _, ability in pairs(ns.SpecAbilityDb[specId]) do
+            if not uniqueAbilities[ability.iconId] then
+                -- set default true values
+                PetesDefensiveHistoryOptionsDb["show_" .. ability.iconId] = true
+                local setter = function(value)
+                    PetesDefensiveHistoryOptionsDb["show_" .. ability.iconId] = value
+                    for slot, _ in pairs(ns.allSlots) do
+                        ns:updateStaticRows(slot)
+                    end
+                end
+                setting = Settings.RegisterProxySetting(
+                    ability,
+                    "show_" .. ability.iconId,
+                    Settings.VarType.Boolean,
+                    ability.name,
+                    true,
+                    function() return PetesDefensiveHistoryOptionsDb["show_"..ability.iconId] end,
+                    setter)
+                Settings.CreateCheckbox(abilities, setting)
+                --uniqueAbilities[ability.iconId] = setter
+                uniqueAbilities[ability.iconId] = setting
+            end
+        end
+    end
+end
+
+Settings.RegisterAddOnCategory(abilities)
+-------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------
+--local frame = CreateFrame("Frame", addonName .. "Reset")
+--frame:SetSize(500, 400)
 
 -- Add a button
-local btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-btn:SetSize(120, 24)
-btn:SetPoint("TOPLEFT", 16, -16)
-btn:SetText("Reset")
-btn:SetScript("OnClick", function() ns:reset() end)
+--local btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+--btn:SetSize(120, 24)
+--btn:SetPoint("TOPLEFT", 16, -16)
+--btn:SetText("Reset")
+--btn:SetScript("OnClick", function() ns:reset() end)
 
-local resetCategory = Settings.RegisterCanvasLayoutSubcategory(ns.optionsCategory, frame, "Reset")
-Settings.RegisterAddOnCategory(resetCategory)
+--local resetCategory = Settings.RegisterCanvasLayoutSubcategory(ns.optionsCategory, frame, "Reset")
+--Settings.RegisterAddOnCategory(resetCategory)

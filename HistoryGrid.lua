@@ -1,27 +1,15 @@
 -- get addon namespace
 local addonName, ns = ...
 
-
--- generally: functions to do with HistoryItems should be local. callers entry
--- points should just be:
+-- XXX: Below just describes the history tray for non-inferred abilities. Old
+-- but still somewhat informative.
+--
+-- provides
 --      1. initialization
 --      2. add a buff
 --      3. update per row (maybe?)
 --      4. update full grid (e.g., on group roster change)
-
-
--- Functions for building, updating, resetting and interacting with a grid
--- that tracks defensive history.
---
--- Grid architecture: the alternative (cleaner, IMO) architecture is a pool of
--- frames that is built up as needed based on the number of tracked history icons
--- for each player. The problem with the pool architecture is that it involves
--- reanchoring frames during combat, which is very iffy since Blizzard limits
--- some frame interactions in combat. The grid architecture requires more cumbersome
--- update logic (i.e., removing an old history icon involves shifting all icons
--- rather than just excising the old one), but allows a completely static frame
--- layout that can be created out of combat.
---
+-- for the history tracker and static inferred cooldown rows.
 --
 -- Data layout (not necessarily how the data appears on screen)
 --
@@ -312,9 +300,11 @@ end
 
 -- XXX: TODO: This function leaks frames, but it happens rarely enough that we
 -- can live with it for a while.
-function ns:updateStaticRows(slot, abilities)
+function ns:updateStaticRows(slot)  --, specId, abilities)
     local row = ns.staticRows[slot]
-    ns:printDebug("updateStaticRows(" .. slot .. ")")
+
+    local abilities = ns.groupCDs[slot].castableAbilities
+    ns:printDebug("updateStaticRows(" .. slot .. ")") -- , " .. specId .. ")")
 
     -- Add a new frame for each tracked cooldown
     for _, ability in pairs(abilities) do
@@ -326,6 +316,13 @@ function ns:updateStaticRows(slot, abilities)
             end
             newItem:Show()
             newItem.icon:Show()
+        end
+
+        -- Did the user opt in to showing this ability?
+        if not PetesDefensiveHistoryOptionsDb["show_"..ability.iconId] then
+            row.items[ability.name]:Hide()
+        else
+            row.items[ability.name]:Show()
         end
     end
 

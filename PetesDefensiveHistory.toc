@@ -9,9 +9,9 @@ LibPrettyPrint\LibPrettyPrint.xml
 LibButtonGlowcustom\LibButtonGlowcustom.lua
 LibSpecialization\LibSpecialization.lua
 Globals.lua
+SpecAbilityDb.lua
 Utils.lua
 Options.lua
-SpecDefensiveDb.lua
 SpecHandler.lua
 SpecHandlerUI.lua
 InferenceEngine.lua
