@@ -13,6 +13,7 @@ Globals.lua
 SpecAbilityDb.lua
 Utils.lua
 Options.lua
+Talents.lua
 SpecHandler.lua
 SpecHandlerUI.lua
 InferenceEngine.lua
