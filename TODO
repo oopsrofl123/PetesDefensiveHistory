@@ -2,94 +2,24 @@ NEEDS TESTING
 ===========================================================================
 - better handling of spec querying
 	- libspecialization updates during m+ runs. need to figure out why
-- [needs testing:] support tracking externals when it's unambiguous
-    - three levels of ambiguity, maybe an option for behavior:
-        1. (most important) is there only one person in the group that can cast the
-           external? this is usually true unless multiple paladins
-        2. is the external identifiable ON ALL GROUP MEMBERS? ironbark (12s duration)
-           might be identifiable on most group members, but the resto druid who can
-           cast ironbark also has barkskin (12s), which means the tracker will fail
-           when the druid barks themselves.
-        3. is the external distinguishable from OTHER EXTERNALS? ironbark and sac
-           are a good example. both are 12s durations (though sac could be less),
-           meaning a group with a prot pal and a resto druid could only 
-           determine which was cast in two scenarios:
-            a. the target was the prot paladin (then the spell was ironbark, sac
-               can't be self-cast).
-            b. the sac timed out early due to the 20% health tripwire AND the
-               short duration doesn't match any other cds of the sac's target.
-            (a) is actually common, so the tracker may still have some value. if the
-            druid specs 16s ironbark, then it's likely fully identifiable
 
 
-FEATURES
+IMPORTANT FEATURES
 ===========================================================================
-- add logic layer to detect when all possible CDs have been cast
-    - how useful is this? suppose at time X we know every ability is on
-      cooldown. then when the next ability is used, can assume the best case
-      scenario for every ability (min CD across all abilities).  this could
-      eliminate some possibilities.  e.g., DK uses AMS at time=1 and IBF at
-      time=10.  so at time=10 both are on CD.  the min CD across the two is
-      40s, so until time=10+IBF's cooldown, anymore abilities from that player
-      must have been AMS.
-- ALL raidFlag and raidInCombatFlag values need to be checked! cannot dump them automatically
-- cross-confidence layer consistency check
-- maybe ADDON_LOADED is a better event for allocating stuff (not anchoring)
-- add iconId for all database spells for static tracker
-- for instant tracking: flag spells as static icons when they're identified
-  by the 0-knowledge system and use that flag to decide where to send the cooldown
-  icon.
-- on death: at least clear active cooldown glows for all static icons
-    - i guess a UNIT_AURA that removes all auras doesn't fire on death?
-- inferAbility() - save the conflicting spells/casters for UI elements
-- would be nice to firm up two object classes: Buff and HistoryItem, where Buff represents
-  the aura itself and HistoryItem only handles tracking and display duties.
-- option to disable all inference (@Aryella WoWUIDev)
-- updating/clearing tracker data
-    - when party members join/leave group or change positions
-    - could be easier to just clear for now, but could be annoying if,
-      e.g., you're looking at CDs when a key ends and a group member drops
-      party and deletes all of your info.
-    - update (likely clear, since there is a memory leak by design) between keys.
-	    - is there a different event when changing zones vs. starting a mythic+ key?
-    - add reset button to the /pdh solution window
-- check tier bonuses to make sure they don't alter duration/charges/CDR/etc.
-- get data to make better estimates on duration solve tolerance
-    - both the "match" epsilon and the minimum difference
-- how to handle sac in "solved" interface? (since its duration is _less than or
-    equal to_ 12s, meaning it clashes with almost every defensive buff
-    - solved interface should perhaps be the most conservative solution, meaning
-      exact duration matches, no advanced inference (CD tracking, variable duration, etc)
-    - turns out there's an external flag on sac, so this is less of a problem
-    - need to figure out ironbark+sac in the same group
-- maybe consider using aurasUpdated
-    - turns out almost everything about fiery brand is bugged so can't work on this
-    - can be useful for fiery brand, sentinel (due to buff stacks ticking down)
-- support for detecting death?
-    - UNIT_DIED exists, but surprisingly is secret. could we guess someone died
-      if a ton of auras were removed in one batch and a UNIT_DIED fired sometime
-      recently? PLAYER_TARGET_DIED fired in a follower dungeon when the NPC tank died
-- better handle CDR
-    - can compute upper bounds (or averages) on the amount of CDR gained. e.g., throwing
-      avenger's shield on CD at 5 targets = 5s CDR per 12s (though procs reduce this
-      and so does divine toll).:
 - better handling/inference for abilities with charges
     - tanks are very charge heavy, so will be important
-- updateRow
-    - e.g., when specText or cpfMapping change, update the associated
-      text widgets rather than forcing the functions that update those
-      values to do it.
-- talent informed database
+- talent handling 
     - requires extracting talent selections from talent string. apparently
       WA has code to do this.
-- continue filling out spec ability database
-- consider a different event than OnUpdate for cooldown timers since this
-  fires every frame.
+    - need support for removing alternative spells from talent list when only
+      one of two can be chosen (e.g., balance druid celestial alignment and incarn)
 - options panel
+    - disable all inference (@Aryella WoWUIDev)
     - text sizes
     - text outlines
     - font probably
     - direction
+    - options for what to do with the centerdefensivebuff icon
     - "omnicd mode" - moving the center debuff out of the frame
     - max history size
     - icon size
@@ -101,6 +31,81 @@ FEATURES
         - external
         - special (RAID_IN_COMBAT + at least one of the above, blessing of freedom
           might be the only one of these)
+- [maybe] add CCs/stops if the blizzard CC flags cause uniquely identifiable events
+- add feature to take over the CenterDefensiveBuff frame job. some buffs aren't
+  flagged as big defensives but make sense to show as such (e.g., bubble, evasion, etc.)
+    - show offensives on right
+
+
+NICE-TO-HAVE FEATURES
+===========================================================================
+- visual on solver for abilities that can't be solved under ideal zero knowledge
+  conditions (e.g., arcane mage surge and mirror images have identical flags
+  and durations).
+    - highlight these icons red
+* re-examine catalog of spells
+    - fiery brand is not picked up in the dump even though it is displayed by
+      blizzard's big defensive buff frames. maybe brand is unique since it is
+      actually a debuff on mobs that helps the player, but the point is looping
+      through all spell IDs and dumping any with BIG, IMPORTANT or EXTERNAL flags
+      is not exhaustive.
+- associate player ID token with rows so that on GROUP_ROSTER_UPDATEs we can
+  potentially preserve data. very low priority - just clearing and resetting
+  all data should be fine for real world use.
+- add logic layer to detect when all possible CDs have been cast
+    - how useful is this? suppose at time X we know every ability is on
+      cooldown. then when the next ability is used, can assume the best case
+      scenario for every ability (min CD across all abilities).  this could
+      eliminate some possibilities.  e.g., DK uses AMS at time=1 and IBF at
+      time=10.  so at time=10 both are on CD.  the min CD across the two is
+      40s, so until time=10+IBF's cooldown, anymore abilities from that player
+      must have been AMS.
+- confidence layer -> confidence network
+    - the abstract idea for confidence should be that of a network. each confidence
+      method should state its level of confidence and the decided ability, then the
+      network should check itself for consistency.
+- look into required debuffs - the current code does not actually find debuffs,
+  it finds things not flagged as HELPFUL. vampiric blood is an example of where
+  this doesn't behave as expected
+    - could be why bop and spellwarding didn't detect forbearance? even though it worked for bubble..
+- on death: at least clear active cooldown glows for all static icons
+    - i guess a UNIT_AURA that removes all auras doesn't fire on death?
+- inferAbility() - save the conflicting spells/casters for UI elements
+- would be nice to firm up two object classes: Buff and HistoryItem, where Buff represents
+  the aura itself and HistoryItem only handles tracking and display duties.
+- updating/clearing tracker data
+    - when party members join/leave group or change positions
+    - could be easier to just clear for now, but could be annoying if,
+      e.g., you're looking at CDs when a key ends and a group member drops
+      party and deletes all of your info.
+    - update (likely clear, since there is a memory leak by design) between keys.
+	    - is there a different event when changing zones vs. starting a mythic+ key?
+    - add reset button to the /pdh solution window
+- get data to make better estimates on duration solve tolerance
+    - both the "match" epsilon and the minimum difference
+- how to handle sac in "solved" interface? (since its duration is _less than or
+    equal to_ 12s, meaning it clashes with almost every defensive buff
+    - solved interface should perhaps be the most conservative solution, meaning
+      exact duration matches, no advanced inference (CD tracking, variable duration, etc)
+    - turns out there's an external flag on sac, so this is less of a problem
+    - need to figure out ironbark+sac in the same group
+- consider aurasUpdated logic layer
+    - turns out almost everything about fiery brand is bugged so can't work on this
+    - can be useful for fiery brand, sentinel (due to buff stacks ticking down)
+- support for detecting death?
+    - UNIT_DIED exists, but surprisingly is secret. could we guess someone died
+      if a ton of auras were removed in one batch and a UNIT_DIED fired sometime
+      recently? PLAYER_TARGET_DIED fired in a follower dungeon when the NPC tank died
+- better handle CDR
+    - can compute upper bounds (or averages) on the amount of CDR gained. e.g., throwing
+      avenger's shield on CD at 5 targets = 5s CDR per 12s (though procs reduce this
+      and so does divine toll).:
+- updateRow
+    - e.g., when specText or cpfMapping change, update the associated
+      text widgets rather than forcing the functions that update those
+      values to do it.
+- consider a different event than OnUpdate for cooldown timers since this
+  fires every frame.
 
 
 
@@ -115,14 +120,6 @@ BUGS
     - amusingly, which is cast can be differentiated 
 - gift of the golden valkyr doesn't track if occurs during goak
     - because this is recorded as an update to the previous goak
-- solution UI:
-    - when an offline character is in group, somehow abilities get put into
-      pdhGroupCDs that (a) don't make any sense (e.g., ardent defender in a
-      druid+shaman group) and (b) before updatePdhGroupSolution() was ever
-      run. results in ability != nil but ability.solved=nil and ability.conflicts=nil
-    - maybe the offline player's nil specId causes a lua error in updatePdhGroupSolution
-      that ends the function execution before getting to the identifyAbility() block?
-    - [think solved] this isn't related to an offline member, it's when identifyAbility() dies due to a runtime error
 
 
 
@@ -175,6 +172,36 @@ https://github.com/WeakAuras/WeakAuras2/blob/cabde3e6c9419516889cd0305b358c749f9
 
 DONE
 ===========================================================================
+- add iconId for all database spells for static tracker
+- for instant tracking: flag spells as static icons when they're identified
+  by the 0-knowledge system and use that flag to decide where to send the cooldown
+  icon.
+* checkbox option interface for choosing which spells to track per class
+* database completion tasks:
+    - ALL raidFlag and raidInCombatFlag values need to be checked! cannot dump them automatically
+    - continue filling out spec ability database
+* add logic layer for DH metamorphosis and new apex talent
+    - special case where these two abilities both proc meta but can be
+      distinguished by duration. so the logic layer would say: if there are
+      only two possible remaining ability matches, if those two are only meta
+      and apex talent, then light up the meta tracker no matter what. at the
+      end of the buff, decide whether to start a cooldown timer.
+    - adding this logic layer requires changing our mind about a buff inference
+      at timeout. this could be done, but requires some rearchitecting. almost
+      every part of the inference process is clean (meaning running another
+      inferAbility wouldn't do anything wrong) except for:
+        1. buff.caster
+        2. cdTracker
+      cdTracker is the worst problem for two reasons: (a) it is clobbered when
+      the first inference happens meaning old CD info is lost and (b) it is
+      supposed to be useful for OTHER inferences. the elegant way to handle
+      this is to add an ability option to prevent tracking on first inference.
+      should also move cdTracker maintenance out of InferenceEngine to keep
+      reponsibilities cleanly delegated.
+- do more setup, layout and allocation when the addon is read in rather than
+  waiting for events. obviates many annoying checks and firms up the
+  interaction with LibSpecialization that occurs on login before group comms
+  begin.
 - hide cooldown swipe on active static buffs
 - the blessing of freedom problem: it's an external castable on anyone but it isn't flagged
   as external, so any group with a paladin puts an 8s duration (1,0,0) flagged ability
