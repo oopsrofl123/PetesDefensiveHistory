@@ -34,7 +34,7 @@ ns.EXTERNAL_ANY = 1
 ns.EXTERNAL_NOT_SELF = 2
 
 
-ns.SpecDefensiveDb = {
+ns.SpecAbilityDb = {
 	---------------------------------------------
 	-- Death knight
 	---------------------------------------------
@@ -338,6 +338,7 @@ ns.SpecDefensiveDb = {
             buttonPress=true,
             isBuff=true,
 			id=198589,
+            iconId=1305150,
 			cooldown=60,
 			duration=10,
 			duration_variable=ns.DURATION_FIXED,
@@ -1425,7 +1426,7 @@ ns.SpecDefensiveDb = {
 			name="Blessing of Spellwarding",
             buttonPress=true,
             isBuff=true,
-			id=6940,
+			id=204018,
             iconId=135880,
 			--cooldown=195,   -- base: 300, talent1: -60s, talent2: -15% (=45s)
             -- in game testing shows 205s cd, not the above expected
