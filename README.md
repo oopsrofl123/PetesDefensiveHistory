@@ -14,15 +14,15 @@ The default mode: when a big cooldown is used, keep the icon around (without kno
 
 To reduce clutter, the count-up timer is removed when the longest possible cooldown across all abilities that could be present on that player is reached.
 
-![](fallback_behavior.png)
+![](images/fallback_behavior.png)
 
 
 ### Cooldown tracking when ability can be guessed
 In some cases, the ability used can be guessed. For example, if the group has no external defensives and a spec has only one ability X that is classified as a BIG_DEFENSIVE, then any time a big defensive buff is shown it must be ability X.
 
-![](cooldowns_tracked.png)
+![](images/cooldowns_tracked.png)
 
 ### Group-wide solving which abilities can always be uniquely identified
 Use `/pdh` to show which group members are valid targets for each ability in the group. Abilities that can always be guessed are colored, greyed out abilities can only sometimes be guessed.
 
-![](group_solutions_UI.png)
+![](images/group_solutions_UI.png)
