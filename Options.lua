@@ -4,7 +4,9 @@ local addonName, ns = ...
 PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or {
     iconSize = 32,
     iconSpacing = 3,
+    textSize = 15,
     disableInference = false,
+    disableHistoryTray = false,
 	debugVisuals = false,
 	debugLogging = false,
     dataMiningMode = false
@@ -14,7 +16,7 @@ PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or {
 ns.optionsCategory, layout = Settings.RegisterVerticalLayoutCategory(addonName)
 
 layout:AddInitializer(
-    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Appearance' })
+    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Appearance and behavior' })
 )
 
 -- Set tracker icon size
@@ -29,13 +31,36 @@ local setting = Settings.RegisterProxySetting(
         PetesDefensiveHistoryOptionsDb.iconSize = value
         for slot, _ in pairs(ns.allSlots) do
             ns:updateStaticRow(slot)
+            ns:updateHistoryTrayRow(slot)
         end
     end
 )
 local options = Settings.CreateSliderOptions(8, 64, 1)
 options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right) --, FormatPercentage)
-
 Settings.CreateSlider(ns.optionsCategory, setting, options, "Size of tracker icons")
+
+
+
+-- Set cooldown timer text size
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "textSize",
+    Settings.VarType.Number,
+    "Timer text size",
+    15,
+    function() return PetesDefensiveHistoryOptionsDb.textSize or 15 end,
+    function(value)
+        PetesDefensiveHistoryOptionsDb.textSize = value
+        for slot, _ in pairs(ns.allSlots) do
+            ns:updateStaticRow(slot)
+            ns:updateHistoryTrayRow(slot)
+        end
+    end
+)
+local options = Settings.CreateSliderOptions(4, 32, 1)
+options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+Settings.CreateSlider(ns.optionsCategory, setting, options, "Text size for cooldown timers")
+
 
 
 -- Set spacing between tracker items
@@ -50,21 +75,14 @@ local setting = Settings.RegisterProxySetting(
         PetesDefensiveHistoryOptionsDb.iconSpacing = value
         for slot, _ in pairs(ns.allSlots) do
             ns:updateStaticRow(slot)
+            ns:updateHistoryTrayRow(slot)
         end
     end
 )
 local options = Settings.CreateSliderOptions(0, 10, 1)
 options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-
 Settings.CreateSlider(ns.optionsCategory, setting, options, "Spacing between tracker icons")
 
-
-
-
-
-layout:AddInitializer(
-    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Developer options' })
-)
 
 -- Disable all inference. Put everything in the history tray
 local disableInference = Settings.RegisterProxySetting(
@@ -74,12 +92,41 @@ local disableInference = Settings.RegisterProxySetting(
     "Disable inference",
     false,
     function() return PetesDefensiveHistoryOptionsDb.disableInference or false end,
-    function(value) PetesDefensiveHistoryOptionsDb.disableInference = value  end
+    function(value)
+        PetesDefensiveHistoryOptionsDb.disableInference = value
+        for slot, _ in pairs(ns.allSlots) do
+            ns:updateStaticRow(slot)
+        end
+    end
 )
-
 Settings.CreateCheckbox(ns.optionsCategory, disableInference,
-    "Disable logic to infer abilities. All abilities will instead be sent to the history tracker for the unit on which they were cast. Each ability will receive a count-up timer that stops at the maximum cooldown length for all abilities that can target that player.")
+    "Disable logic to infer abilities and the associated row of icons. All abilities will instead be sent to the history tray for the unit on which they were cast (which may not be the caster!). Items in the history tray receive a count-up timer that stops at the maximum cooldown length for all abilities that can target that unit and the player must know the associated cooldown length.")
 
+
+local setting = Settings.RegisterProxySetting(
+    optionsCategory,
+    "pdh.disableHistoryTray",
+    Settings.VarType.Boolean,
+    "Disable history tray",
+    false,
+    function() return PetesDefensiveHistoryOptionsDb.disableHistoryTray or false end,
+    function(value)
+        PetesDefensiveHistoryOptionsDb.disableHistoryTray = value
+        for slot, _ in pairs(ns.allSlots) do
+            ns:updateHistoryTrayRow(slot)
+        end
+    end
+)
+Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Disable the history tray. Do not send abilities that cannot be guessed to the history tray. Instead, quietly ignore them and only show abilities when they are identified. Careful: some abilities can only |cffff0000sometimes|r be guessed! When they are not, they are normally sent to the history tray and appear as available in the cooldown tracker row. If the history tray is hidden, you will not see this and the ability will simply appear to be available.")
+
+
+
+
+layout:AddInitializer(
+    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate",
+        { name='Developer options' })
+)
 
 
 -- Debug visuals checkbox
@@ -131,6 +178,12 @@ Settings.CreateCheckbox(ns.optionsCategory, dataMiningMode,
 Settings.RegisterAddOnCategory(ns.optionsCategory)
 
 
+
+
+----------------------------------------------------------------------------------
+-- Options subpanel for selecting which spells to track
+----------------------------------------------------------------------------------
+
 local abilities, layout = Settings.RegisterVerticalLayoutSubcategory(ns.optionsCategory, "Tracked abilities")
 
 
@@ -172,23 +225,28 @@ local uncheckAll = CreateSettingsButtonInitializer(
 layout:AddInitializer(uncheckAll)
 
 
+-- These are the locale-independent class names that key into several tables.
+-- The display strings are different.
 local classes = {
-    ["Death Knight"] = { 250, 251, 252 },
-    ["Demon Hunter"] = { 577, 581, 1480 },
-    ["Druid"] = { 102, 103, 104, 105 },
-    ["Evoker"] = { 1467, 1468, 1473 },
-    ["Hunter"] = { 253, 254, 255 },
-    ["Mage"] = { 62, 63, 64 },
-    ["Monk"] = { 268, 269, 270 },
-    ["Paladin"] = { 65, 66, 70 },
-    ["Priest"] = { 256, 257, 258 },
-    ["Rogue"] = { 259, 260, 261 },
-    ["Shaman"] = { 262, 263, 264 },
-    ["Warlock"] = { 265, 266, 267 },
-    ["Warrior"]  = { 71, 72, 73 }
+    ["DEATHKNIGHT"] = { 250, 251, 252 },
+    ["DEMONHUNTER"] = { 577, 581, 1480 },
+    ["DRUID"] = { 102, 103, 104, 105 },
+    ["EVOKER"] = { 1467, 1468, 1473 },
+    ["HUNTER"] = { 253, 254, 255 },
+    ["MAGE"] = { 62, 63, 64 },
+    ["MONK"] = { 268, 269, 270 },
+    ["PALADIN"] = { 65, 66, 70 },
+    ["PRIEST"] = { 256, 257, 258 },
+    ["ROGUE"] = { 259, 260, 261 },
+    ["SHAMAN"] = { 262, 263, 264 },
+    ["WARLOCK"] = { 265, 266, 267 },
+    ["WARRIOR"]  = { 71, 72, 73 }
 }
 
-for class, specIdList in pairs(classes) do
+for classFile, specIdList in pairs(classes) do
+    local class = LOCALIZED_CLASS_NAMES_MALE[classFile] -- maps "WARRIOR" -> "Warrior" or "Guerrier"
+    -- XXX: TODO: not sure how to get the font string object to :SetTextColor()
+    local classColor = RAID_CLASS_COLORS[class]
     layout:AddInitializer(
         Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name=class })
     )
@@ -221,17 +279,3 @@ for class, specIdList in pairs(classes) do
 end
 
 Settings.RegisterAddOnCategory(abilities)
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
---local frame = CreateFrame("Frame", addonName .. "Reset")
---frame:SetSize(500, 400)
-
--- Add a button
---local btn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
---btn:SetSize(120, 24)
---btn:SetPoint("TOPLEFT", 16, -16)
---btn:SetText("Reset")
---btn:SetScript("OnClick", function() ns:reset() end)
-
---local resetCategory = Settings.RegisterCanvasLayoutSubcategory(ns.optionsCategory, frame, "Reset")
---Settings.RegisterAddOnCategory(resetCategory)

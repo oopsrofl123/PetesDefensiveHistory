@@ -219,8 +219,10 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             if ns:isAbilityInferred(buff) then
                 -- IDable abilities go to the static tracker
                 local cd = ns.staticRows[buff.caster].items[buff.name]
-                CooldownFrame_Set(cd.swipeTexture, buff.startTime, buff.cooldown, true)
+                cd.swipeTexture:SetCooldown(buff.startTime, buff.cooldown)
                 cd.swipeTexture:Show()
+                cd.startTime = buff.startTime
+                cd.cooldown = buff.cooldown
                 -- Support the activated buff being different from the cooldown tracker
                 cd = ns.staticRows[buff.caster].items[buff.activeBuff or buff.name]
                 LibButtonGlow.HideOverlayGlow(cd)
@@ -263,7 +265,8 @@ loader:SetScript("OnEvent", function(self, event)
         if UnitExists(slot) then
             if UnitName(slot) ~= row.playerName then
                 -- this handler was called before LibSpec
-                ns:updateRow(row, nil, UnitName(slot))
+                ns:setDataHistoryTrayRow(slot, nil, UnitName(slot))
+                ns:updateHistoryTrayRow(slot)
             else
                 -- this handler was called after LibSpec. nothing to do
             end

@@ -88,7 +88,8 @@ LibSpecialization.RegisterGroup(internalGroupSpecs, function(specId, role, posit
     ns:updateStaticRow(slot)
 
     -- 2. Party frames fallback history tray
-    ns:updateRow(ns.historyRows[slot], specId, playerName)
+    ns:setDataHistoryTrayRow(slot, specId, UnitName(slot))
+    ns:updateHistoryTrayRow(slot)
 
     -- 3. the solutions UI. have to do all rows because each group member affects
     --    other group members unique solves.

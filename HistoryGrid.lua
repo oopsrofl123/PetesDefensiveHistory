@@ -60,13 +60,15 @@ local function shiftHistoryItem(from, to)
     ns:showIfShown(from, to)
     ns:showIfShown(from.timer, to.timer)
     ns:showIfShown(from.icon, to.icon)
+
+    -- XXX: TODO: after the tray/cooldown row split, i think this is all dead code
     -- swipe texture animations have to be restarted in addition to preserving
     -- visibility.
-    ns:showIfShown(from.swipeTexture, to.swipeTexture)
-    -- if the swipe texture is shown, then all of the relevant data is present
-    if from.swipeTexture:IsShown() then
-        CooldownFrame_Set(to.swipeTexture, to.startTime, to.cooldown, true)
-    end
+    --ns:showIfShown(from.swipeTexture, to.swipeTexture)
+    ---- if the swipe texture is shown, then all of the relevant data is present
+    --if from.swipeTexture:IsShown() then
+        --to.swipeTexture:SetCooldown(to.startTime, to.cooldown)
+    --end
     to.inferredCD:SetText(to.cooldown)
     ns:showIfShown(from.inferredCD, to.inferredCD)
 end
@@ -89,10 +91,12 @@ local function clearHistoryItem(item)
     item.icon:SetTexture(ns.DEFAULT_ICON)
     ns:showDebugVisual(item.icon)  -- show empty icons in debug mode
 
-    item.timer:SetText("")
-    item.timer:Hide()
-
-    item.swipeTexture:Hide()
+    if item.countUp then
+        item.timer:SetText("")
+        item.timer:Hide()
+    else
+        item.swipeTexture:Hide()
+    end
 
     item.inferredCD:SetText(tostring(item.cooldown))
     ns:showDebugVisual(item.inferredCD)
@@ -131,6 +135,9 @@ end
 
 
 function ns:addBuffToHistory(slot, buff)
+    -- Don't do anything if the user disabled the history tray
+    if PetesDefensiveHistoryOptionsDb.disableHistoryTray then return end
+
     ns:printDebug("aura instance ID " .. buff.auraInstanceID ..
         " added to history tray " .. slot .. " after " .. buff.duration .. "s")
 
@@ -179,50 +186,83 @@ end
 -- history item and all subcomponents are :Hide()ed. Callers should :Show()
 -- desired elements based on whether the ability represented by this history
 -- item is known.
-function allocHistoryItem(row, slot, index)
+function allocHistoryItem(row, slot, index, countUp)
     local frameName = addonName .. "_" .. slot .. "_" .. index
     local f = CreateFrame("Frame", frameName, row)
+    local textSize = PetesDefensiveHistoryOptionsDb.textSize
     f.slot = slot
 
     f.icon = f:CreateTexture(nil, "ARTWORK")
     f.icon:SetAllPoints()
 
-    -- Count-up history mode timer
-    f.timer = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    f.timer:SetPoint("CENTER", f, 0, 0)
-    f.timer:SetFont(f.timer:GetFont(), 15, "THICKOUTLINE")
+    -- Is this a count-up history tray item or a count-down cooldown tracker item?
+    -- If the cooldown swipe is used, the timer needs to be parented to the 
+    -- CooldownFrameTemplate so that the text is layered at the correct level relative
+    -- to the swipe texture.
+    f.countUp = countUp
+    if countUp then
+        -- Count-up history mode timer
+        f.timer = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        f.timer:SetPoint("CENTER", f, 0, 0)
+        f.timer:SetFont(f.timer:GetFont(), textSize, "THICKOUTLINE")
+        -- XXX: TODO: is there a better event than OnUpdate? This runs every frame
+        f:SetScript("OnUpdate", function(self)
+            if self.startTime and self.cooldown then
+                local elapsed = GetTime() - self.startTime
+                if elapsed <= self.cooldown then
+                    self.timer:SetFormattedText("%.0f", elapsed)
+                else
+                    self.timer:SetText("")
+                end
+            else
+                self.timer:SetText("")
+            end
+        end)
+    else
+        -- Count-down timer and cooldown swipe
+        f.swipeTexture = CreateFrame("Cooldown", frameName .. "_cooldownSwipe", f, "CooldownFrameTemplate")
+        f.swipeTexture:SetAllPoints()
+        -- Have to hide blizzard's countdown text so we can control the size
+        f.swipeTexture:SetHideCountdownNumbers(true)
 
-    -- Single ability cooldown swipe
-    f.swipeTexture = CreateFrame("Cooldown", frameName .. "_cooldownSwipe", f, "CooldownFrameTemplate")
-    f.swipeTexture:SetAllPoints()
+        f.swipeTexture.timer = f.swipeTexture:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        f.swipeTexture.timer:SetPoint("CENTER", f, 0, 0)
+        f.swipeTexture.timer:SetFont(f.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
+        -- XXX: TODO: is there a better event than OnUpdate? This runs every frame
+        f:SetScript("OnUpdate", function(self)
+            if self.startTime and self.cooldown then
+                local untilAvailable = self.startTime + self.cooldown - GetTime()
+                if untilAvailable > 0 then
+                    self.swipeTexture.timer:SetFormattedText("%.0f", untilAvailable)
+                else
+                    self.swipeTexture.timer:SetText("")
+                end
+            else
+                self.swipeTexture.timer:SetText("")
+            end
+        end)
+    end
 
     -- For debugging
     f.inferredCD = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     f.inferredCD:SetPoint("TOP", f, "BOTTOM", 0, 0)
     f.inferredCD:SetFont(f.inferredCD:GetFont(), 15, "OUTLINE")
 
-    -- Count-up timer script
-    -- XXX: TODO: is there a better event than OnUpdate? This runs every frame
-    f:SetScript("OnUpdate", function(self)
-        if self.startTime and self.cooldown then
-            local elapsed = GetTime()-self.startTime
-            if elapsed <= self.cooldown then
-                self.timer:SetFormattedText("%.0f", elapsed)
-            else
-                self.timer:SetText("")
-            end
-        else
-            self.timer:SetText("")
-        end
-    end)
-
     return clearHistoryItem(f)
 end
 
 
 
-local function sizeAndAnchorHistoryItem(item)
-    item:SetSize(PetesDefensiveHistoryOptionsDb.iconSize, PetesDefensiveHistoryOptionsDb.iconSize)
+local function sizeHistoryItem(item)
+    local iconSize = PetesDefensiveHistoryOptionsDb.iconSize
+    local textSize = PetesDefensiveHistoryOptionsDb.textSize
+    item:SetSize(iconSize, iconSize)
+
+    if item.countUp then
+        item.timer:SetFont(item.timer:GetFont(), textSize, "THICKOUTLINE")
+    else
+        item.swipeTexture.timer:SetFont(item.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
+    end
 end
 
 
@@ -259,52 +299,6 @@ end
 
 
 
--- Create a row for a specific slot. Anchor the row to the relevant party frame
--- and allocate a blank set of history items.
-local function allocRow(slot)
-    local row = CreateFrame("Frame", addonName .. "Row" .. slot, UIParent)
-    row.slot = slot
-
-    local size = PetesDefensiveHistoryOptionsDb.iconSize
-    local spacing = PetesDefensiveHistoryOptionsDb.iconSize
-    -- Position next to Blizzard frames
-    row:SetSize(ns.MAX_HISTORY*size + (ns.MAX_HISTORY-1)*spacing, size)
-    row:SetPoint("BOTTOMRIGHT", ns:slotToPartyFrame(slot), "BOTTOMLEFT", -ns.SPACING_FROM_FRAMES, 0)
-
-    -- Debug mode transparent background
-    row.bg = row:CreateTexture(nil, "BACKGROUND")
-    row.bg:SetAllPoints()
-
-    -- Debug mode text showing the detected class/spec
-    row.specText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.specText:SetPoint("BOTTOMRIGHT", row, "TOPRIGHT", 0, 0)
-    row.specText:SetFont(row.specText:GetFont(), 15, "OUTLINE")
-
-    -- Debug mode text showing the CompactPartyFrameMember..i mapping
-    row.cpfMappingText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.cpfMappingText:SetPoint("RIGHT", row, "LEFT", 0, 0)
-    row.cpfMappingText:SetFont(row.cpfMappingText:GetFont(), 15, "OUTLINE")
-
-    -- Create all historyItems for this row
-    -- Do not do this in clearRow() since historyItems contain frames. These will
-    -- be allocated here and the top-level data will be immutable.
-    row.historyItems = {}
-    for i=1,ns.MAX_HISTORY do
-        historyItem = allocHistoryItem(row, slot, i)
-        sizeAndAnchorHistoryItem(historyItem)
-        -- historyItems are statically positioned with index 1 being the oldest
-        -- historyItem and MAX_HISTORY being the newest added item. Different
-        -- party frame layouts (e.g. anchored-on-right) can be accommodated
-        -- without changing any logic - only updating this layout.
-        historyItem:SetPoint("LEFT", row, "LEFT", (i-1)*(size + spacing), 0)
-        row.historyItems[i] = historyItem
-    end
-
-    return ns:clearRow(row)
-end
-
-
-
 -- XXX: TODO: This function leaks frames, but it happens rarely enough that we
 -- can live with it for a while.
 function ns:updateStaticRow(slot)
@@ -316,7 +310,7 @@ function ns:updateStaticRow(slot)
     -- Add a new frame for each tracked cooldown
     for _, ability in pairs(abilities) do
         if not row.items[ability.name] then
-            local newItem = allocHistoryItem(row, slot, ability.name)
+            local newItem = allocHistoryItem(row, slot, ability.name, false)
             row.items[ability.name] = newItem
             if ability.iconId then
                 newItem.icon:SetTexture(ability.iconId)
@@ -326,7 +320,7 @@ function ns:updateStaticRow(slot)
         end
 
         local item = row.items[ability.name]
-        sizeAndAnchorHistoryItem(item)
+        sizeHistoryItem(item)
         -- Did the user opt in to showing this ability?
         if not PetesDefensiveHistoryOptionsDb["show_"..ability.iconId] then
             item:Hide()
@@ -349,31 +343,23 @@ function ns:updateStaticRow(slot)
 
     -- Adjust layout based on the icons surviving the previous purge
     local i = 0
-    local size = PetesDefensiveHistoryOptionsDb.iconSize
-    local spacing = PetesDefensiveHistoryOptionsDb.iconSpacing
-    row:SetSize(row:GetWidth(), size)
+    local iconSize = PetesDefensiveHistoryOptionsDb.iconSize
+    local iconSpacing = PetesDefensiveHistoryOptionsDb.iconSpacing
+    row:SetSize(row:GetWidth(), iconSize)
     row:SetPoint("TOPRIGHT", ns:slotToPartyFrame(slot), "TOPLEFT", -ns.SPACING_FROM_FRAMES, 0)
     for name, historyItem in pairs(row.items) do
-        historyItem:SetPoint("RIGHT", row, "RIGHT", -(size + spacing)*i, 0)
+        historyItem:SetPoint("RIGHT", row, "RIGHT", -(iconSize + iconSpacing)*i, 0)
         if historyItem:IsShown() then
             i = i + 1
         end
     end
 
-    row:Show()
-end
-
-
-
--- Update a single row, e.g. when party members change. SOLVING a row (i.e.,
--- figuring out what cooldowns can and can't be guessed) shouldn't be done here
--- as it requires knowledge of all group cds (specifically external defensives).
-function ns:updateRow(row, specId, playerName)
-    ns:clearRow(row)
-    row.specId = specId
-    row.specText:SetText(ns:specIdToString(specId))
-    ns:showDebugVisual(row.specText)
-    row.playerName = playerName
+    if PetesDefensiveHistoryOptionsDb.disableInference then
+        -- hide the whole row unless visual debugging is turned on
+        ns:showDebugVisual(row)
+    else
+        row:Show()
+    end
 end
 
 
@@ -397,13 +383,92 @@ end
 
 
 
+function ns:setDataHistoryTrayRow(slot, specId, playerName)
+    local row = ns.historyRows[slot]
+    ns:clearRow(row)
+    row.specId = specId
+    row.specText:SetText(ns:specIdToString(specId))
+    ns:showDebugVisual(row.specText)
+    row.playerName = playerName
+end
+
+
+
+-- Update a single row when visual options or party members change.
+function ns:updateHistoryTrayRow(slot, specId, playerName)
+    local row = ns.historyRows[slot]
+    ns:printDebug("updateHistoryTrayRow(" .. slot .. ")")
+
+    local iconSize = PetesDefensiveHistoryOptionsDb.iconSize
+    local textSize = PetesDefensiveHistoryOptionsDb.textSize
+    local iconSpacing = PetesDefensiveHistoryOptionsDb.iconSpacing
+
+    -- Position row next to Blizzard frames
+    row:SetSize(ns.MAX_HISTORY*iconSize + (ns.MAX_HISTORY-1)*iconSpacing, iconSize)
+    row:SetPoint("BOTTOMRIGHT", ns:slotToPartyFrame(slot), "BOTTOMLEFT", -ns.SPACING_FROM_FRAMES, 0)
+
+    row.specText:SetPoint("BOTTOMRIGHT", row, "TOPRIGHT", 0, 0)
+    row.cpfMappingText:SetPoint("RIGHT", row, "LEFT", 0, 0)
+
+    for i=1,ns.MAX_HISTORY do
+        local historyItem = row.historyItems[i]
+        sizeHistoryItem(historyItem)
+        -- historyItems are statically positioned with index 1 being the oldest
+        -- historyItem and MAX_HISTORY being the newest added item. Different
+        -- party frame layouts (e.g. anchored-on-right) can be accommodated
+        -- without changing any logic - only updating this layout.
+        historyItem:SetPoint("LEFT", row, "LEFT", (i-1)*(iconSize + iconSpacing), 0)
+    end
+
+    if PetesDefensiveHistoryOptionsDb.disableHistoryTray then
+        -- hide the whole row unless visual debugging is turned on
+        ns:showDebugVisual(row)
+    else
+        row:Show()
+    end
+end
+
+
+
+-- Create a row for a specific slot. Anchor the row to the relevant party frame
+-- and allocate a blank set of history items.
+local function allocHistoryTrayRow(slot)
+    local row = CreateFrame("Frame", addonName .. "Row" .. slot, UIParent)
+    row.slot = slot
+
+    -- Debug mode transparent background
+    row.bg = row:CreateTexture(nil, "BACKGROUND")
+    row.bg:SetAllPoints()
+
+    -- Debug mode text showing the detected class/spec
+    row.specText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.specText:SetFont(row.specText:GetFont(), 15, "OUTLINE")
+
+    -- Debug mode text showing the CompactPartyFrameMember..i mapping
+    row.cpfMappingText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.cpfMappingText:SetFont(row.cpfMappingText:GetFont(), 15, "OUTLINE")
+
+    -- Create all historyItems for this row
+    -- Do not do this in clearRow() since historyItems contain frames. These will
+    -- be allocated here and the top-level data will be immutable.
+    row.historyItems = {}
+    for i=1,ns.MAX_HISTORY do
+        row.historyItems[i] = allocHistoryItem(row, slot, i, true)
+    end
+
+    return ns:clearRow(row)
+end
+
+
+
 -- Frames are allocated only once - on creation. The only reason to allocate new
 -- frames is increasing MAX_HISTORY. Rather than handle that, just force the user
 -- to /reload.
 function ns:allocHistoryGrid()
     for slot, _ in pairs(ns.allSlots) do
         -- Fallback mode: history tray
-        ns.historyRows[slot] = allocRow(slot)
+        ns.historyRows[slot] = allocHistoryTrayRow(slot)
+        ns:updateHistoryTrayRow(slot)
 
         -- Inferred abilities: omniCD-like cooldown tracking
         ns.staticRows[slot] = allocStaticRow(slot)
