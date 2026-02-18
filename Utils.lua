@@ -2,7 +2,7 @@
 local addonName, ns = ...
 
 ns.printer = LibPrettyPrint:Printer({
-  prefix = addonName,
+    prefix = addonName,
     formatter = { multiline_tables = true }
 })
 

@@ -7,8 +7,6 @@ local _, ns = ...
 ns.INFINITY = 10*24*3600  -- A much longer time than any reasonble value (10 days)
 ns.MAX_HISTORY = 4
 ns.MAX_CAST_HISTORY = 8  -- must be cycled through on every unit on every cast succeeded. keep low.
-ns.ICON_SIZE = 32
-ns.ICON_SPACING = 3
 ns.SPACING_FROM_FRAMES = 2
 ns.DEFAULT_ICON = 134400 -- question mark
 

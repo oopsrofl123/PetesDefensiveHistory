@@ -2,6 +2,8 @@
 local addonName, ns = ...
 
 PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or {
+    iconSize = 32,
+    iconSpacing = 3,
     disableInference = false,
 	debugVisuals = false,
 	debugLogging = false,
@@ -10,6 +12,55 @@ PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or {
 
 
 ns.optionsCategory, layout = Settings.RegisterVerticalLayoutCategory(addonName)
+
+layout:AddInitializer(
+    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Appearance' })
+)
+
+-- Set tracker icon size
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "iconSize",
+    Settings.VarType.Number,
+    "Icon size",
+    32,
+    function() return PetesDefensiveHistoryOptionsDb.iconSize or 32 end,
+    function(value)
+        PetesDefensiveHistoryOptionsDb.iconSize = value
+        for slot, _ in pairs(ns.allSlots) do
+            ns:updateStaticRow(slot)
+        end
+    end
+)
+local options = Settings.CreateSliderOptions(8, 64, 1)
+options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right) --, FormatPercentage)
+
+Settings.CreateSlider(ns.optionsCategory, setting, options, "Size of tracker icons")
+
+
+-- Set spacing between tracker items
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "iconSpacing",
+    Settings.VarType.Number,
+    "Icon spacing",
+    3,
+    function() return PetesDefensiveHistoryOptionsDb.iconSpacing or 3 end,
+    function(value)
+        PetesDefensiveHistoryOptionsDb.iconSpacing = value
+        for slot, _ in pairs(ns.allSlots) do
+            ns:updateStaticRow(slot)
+        end
+    end
+)
+local options = Settings.CreateSliderOptions(0, 10, 1)
+options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+
+Settings.CreateSlider(ns.optionsCategory, setting, options, "Spacing between tracker icons")
+
+
+
+
 
 layout:AddInitializer(
     Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Developer options' })
@@ -150,7 +201,7 @@ for class, specIdList in pairs(classes) do
                 local setter = function(value)
                     PetesDefensiveHistoryOptionsDb["show_" .. ability.iconId] = value
                     for slot, _ in pairs(ns.allSlots) do
-                        ns:updateStaticRows(slot)
+                        ns:updateStaticRow(slot)
                     end
                 end
                 setting = Settings.RegisterProxySetting(

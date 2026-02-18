@@ -184,8 +184,6 @@ function allocHistoryItem(row, slot, index)
     local f = CreateFrame("Frame", frameName, row)
     f.slot = slot
 
-    f:SetSize(ns.ICON_SIZE, ns.ICON_SIZE)
-
     f.icon = f:CreateTexture(nil, "ARTWORK")
     f.icon:SetAllPoints()
 
@@ -219,6 +217,12 @@ function allocHistoryItem(row, slot, index)
     end)
 
     return clearHistoryItem(f)
+end
+
+
+
+local function sizeAndAnchorHistoryItem(item)
+    item:SetSize(PetesDefensiveHistoryOptionsDb.iconSize, PetesDefensiveHistoryOptionsDb.iconSize)
 end
 
 
@@ -261,8 +265,10 @@ local function allocRow(slot)
     local row = CreateFrame("Frame", addonName .. "Row" .. slot, UIParent)
     row.slot = slot
 
+    local size = PetesDefensiveHistoryOptionsDb.iconSize
+    local spacing = PetesDefensiveHistoryOptionsDb.iconSize
     -- Position next to Blizzard frames
-    row:SetSize(ns.MAX_HISTORY*ns.ICON_SIZE + (ns.MAX_HISTORY-1)*ns.ICON_SPACING, ns.ICON_SIZE)
+    row:SetSize(ns.MAX_HISTORY*size + (ns.MAX_HISTORY-1)*spacing, size)
     row:SetPoint("BOTTOMRIGHT", ns:slotToPartyFrame(slot), "BOTTOMLEFT", -ns.SPACING_FROM_FRAMES, 0)
 
     -- Debug mode transparent background
@@ -285,11 +291,12 @@ local function allocRow(slot)
     row.historyItems = {}
     for i=1,ns.MAX_HISTORY do
         historyItem = allocHistoryItem(row, slot, i)
+        sizeAndAnchorHistoryItem(historyItem)
         -- historyItems are statically positioned with index 1 being the oldest
         -- historyItem and MAX_HISTORY being the newest added item. Different
         -- party frame layouts (e.g. anchored-on-right) can be accommodated
         -- without changing any logic - only updating this layout.
-        historyItem:SetPoint("LEFT", row, "LEFT", (i-1)*(ns.ICON_SIZE+ns.ICON_SPACING), 0)
+        historyItem:SetPoint("LEFT", row, "LEFT", (i-1)*(size + spacing), 0)
         row.historyItems[i] = historyItem
     end
 
@@ -300,11 +307,11 @@ end
 
 -- XXX: TODO: This function leaks frames, but it happens rarely enough that we
 -- can live with it for a while.
-function ns:updateStaticRows(slot)  --, specId, abilities)
+function ns:updateStaticRow(slot)
     local row = ns.staticRows[slot]
 
     local abilities = ns.groupCDs[slot].castableAbilities
-    ns:printDebug("updateStaticRows(" .. slot .. ")") -- , " .. specId .. ")")
+    ns:printDebug("updateStaticRow(" .. slot .. ")")
 
     -- Add a new frame for each tracked cooldown
     for _, ability in pairs(abilities) do
@@ -318,11 +325,13 @@ function ns:updateStaticRows(slot)  --, specId, abilities)
             newItem.icon:Show()
         end
 
+        local item = row.items[ability.name]
+        sizeAndAnchorHistoryItem(item)
         -- Did the user opt in to showing this ability?
         if not PetesDefensiveHistoryOptionsDb["show_"..ability.iconId] then
-            row.items[ability.name]:Hide()
+            item:Hide()
         else
-            row.items[ability.name]:Show()
+            item:Show()
         end
     end
 
@@ -340,8 +349,12 @@ function ns:updateStaticRows(slot)  --, specId, abilities)
 
     -- Adjust layout based on the icons surviving the previous purge
     local i = 0
+    local size = PetesDefensiveHistoryOptionsDb.iconSize
+    local spacing = PetesDefensiveHistoryOptionsDb.iconSpacing
+    row:SetSize(row:GetWidth(), size)
+    row:SetPoint("TOPRIGHT", ns:slotToPartyFrame(slot), "TOPLEFT", -ns.SPACING_FROM_FRAMES, 0)
     for name, historyItem in pairs(row.items) do
-        historyItem:SetPoint("RIGHT", row, "RIGHT", -(ns.ICON_SIZE + ns.ICON_SPACING)*i, 0)
+        historyItem:SetPoint("RIGHT", row, "RIGHT", -(size + spacing)*i, 0)
         if historyItem:IsShown() then
             i = i + 1
         end
@@ -367,7 +380,7 @@ end
 
 local function allocStaticRow(slot)
     local row = CreateFrame("Frame", addonName .. "StaticRow" .. slot, UIParent)
-    row:SetSize(200, ns.ICON_SIZE+2)
+    row:SetSize(200, PetesDefensiveHistoryOptionsDb.iconSize+2)
 
     row.bg = row:CreateTexture(nil, "BACKGROUND")
     row.bg:SetAllPoints()

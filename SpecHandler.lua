@@ -85,7 +85,7 @@ LibSpecialization.RegisterGroup(internalGroupSpecs, function(specId, role, posit
     -- 1. Party frames static cooldown row
     -- XXX: TODO: shows abilities that aren't always inferrable. this could be what we want
     -- since in some scenarios they could be inferrable.  have to think about this.
-    ns:updateStaticRows(slot)
+    ns:updateStaticRow(slot)
 
     -- 2. Party frames fallback history tray
     ns:updateRow(ns.historyRows[slot], specId, playerName)
