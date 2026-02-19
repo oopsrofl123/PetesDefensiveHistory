@@ -11,7 +11,7 @@ local UI_TITLE_PADDING = 15
 -- Very different from the MAX_HISTORY size. This must be large enough to show
 -- all abilities for a character AND all externals across the group that could
 -- be applied to that character.
-local UI_MAX_ABILITIES_PER_SLOT = 9
+local UI_MAX_ABILITIES_PER_SLOT = 12
 
 local UI_ROW_HEIGHT = UI_ICON_SIZE + 36
 

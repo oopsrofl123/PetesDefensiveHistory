@@ -6,6 +6,84 @@ local LibSpecialization = LibStub("LibSpecialization")
 local internalGroupSpecs = {}    -- For internal use by LibSpecialization
 
 
+-- 4 possible mods:
+--     1. boolean setter. if the amount is a boolean, then the
+--        value is simply set
+--     2. non-boolean setter. there is only one special case of a
+--        where a setter is not boolean: duration_variable. just
+--        handle this.
+--     3. numeric change
+--         3a. additive change
+--         3b. multiplicative change. mult changes apply to the
+--             base value. reduce mults to adds this way.
+local function applyOneModifier(modifiedAbility, mod)
+    ns:printDebug(string.format('got modifier [%d] = (%d, %s, %s, %s)',
+        modifiedAbility.id, mod.id, mod.modifies,
+        tostring(mod.amount), tostring(mod['mult'] or false)))
+
+    if type(mod.amount) == "boolean" then
+        modifiedAbility[mod.modifies] = mod.amount
+    elseif mod.modifies == "duration_variable" then
+        modifiedAbility[mod.modifies] = mod.amount
+    else -- numeric case
+        local change = mod.amount
+        -- Reduce the multiplicative case to the additive case
+        if mod['mult'] then
+            change = modifiedAbility[mod.modifies] * mod.amount/100
+        end
+        modifiedAbility[mod.modifies] = modifiedAbility[mod.modifies] + change
+    end
+end
+
+
+
+-- Returns a modified copy of baseAbility. Do not modify the values in the
+-- static database of abilities.
+--
+-- Numeric modifiers must be applied in a specific order. First, additive
+-- modifiers followed by multiplicative. To handle this, every modifier
+-- for an ability must be collected before applying any changes.
+local function applyTalentModifiers(baseAbility, talentRanks)
+    local modifiedAbility = ns:shallowcopy(baseAbility)
+    local allMods = {}
+
+    -- Collect all modifiers across all talents for this ability
+    ns:printDebug("looking for modifiers for baseAbility=["..baseAbility.name.."]")
+    for spellId, rank in pairs(talentRanks) do
+        -- TalentModifiers only contains the talents relevant to our tracked abilities.
+        if rank > 0 then
+            talents = ns.TalentModifiers[spellId]
+            if talents then
+                mods = talents[rank]
+                if not mods then
+                    ns:printDebug(string.format(
+                        'applyTalentModifiers: talent=[%d]: rank=[%d] does not exist',
+                        spellId, rank))
+                    return nil
+                end
+    
+                -- Talents can modify multiple spells with multiple modifiers. Get
+                -- just the mods that apply to this ability.
+                for index, mod in pairs(mods) do
+                    if baseAbility.iconId == mod.id then
+                        table.insert(allMods, mod)
+                    end
+                end
+            end
+        end
+    end
+
+    -- Sort additive effects before multiplicative effects
+    table.sort(allMods, function(a, b) return a.mult == nil end)
+    for _, mod in pairs(allMods) do
+        applyOneModifier(modifiedAbility, mod)
+    end
+
+    return modifiedAbility
+end
+
+
+
 -- Update the group CD databases with the new information that player in
 -- `slot` is class/specialization `specId`.
 --
@@ -25,7 +103,7 @@ local function updateGroupData(slot, playerName, specId, talentExportString)
     -- Decode the talent string. There are talent IDs, but all talents are
     -- related to spell IDs.
     talentRanks = ns:getTalentRanks(specId, talentExportString)
-    -- XXX: TODO: update ability data using talents
+ns.printer(talentRanks)
 
     ns.groupCDs[slot].playerName = playerName
     ns.groupCDs[slot].specId = specId
@@ -40,21 +118,24 @@ local function updateGroupData(slot, playerName, specId, talentExportString)
         ns.groupCDs[slot].abilities = {}          -- things that can be CAST ON this slot
         ns.groupCDs[slot].castableAbilities = {}  -- things that can be CAST by this slot
         if specId then
-            abilities = ns.SpecAbilityDb[specId]
-            for _, ability in pairs(abilities) do
-                ability.caster = slot
-                ns.groupCDs[slot].castableAbilities[ability.name] = ability
-                -- Record the fact that this slot can cast this ability
-                if ns.possibleCasters[ability.name] then
-                    table.insert(ns.possibleCasters[ability.name], slot)
-                else
-                    ns.possibleCasters[ability.name] = { slot }
-                end
+            baseAbilities = ns.SpecAbilityDb[specId]
+            for _, baseAbility in pairs(baseAbilities) do
+                local ability = applyTalentModifiers(baseAbility, talentRanks)
+                if ability.hasAbility then
+                    ability.caster = slot
+                    ns.groupCDs[slot].castableAbilities[ability.name] = ability
+                    -- Record the fact that this slot can cast this ability
+                    if ns.possibleCasters[ability.name] then
+                        table.insert(ns.possibleCasters[ability.name], slot)
+                    else
+                        ns.possibleCasters[ability.name] = { slot }
+                    end
 
-                if ability.external == ns.NOT_EXTERNAL then
-                    table.insert(ns.groupCDs[slot].abilities, ns:shallowcopy(ability))
-                else
-                    table.insert(externals[slot], ns:shallowcopy(ability))
+                    if ability.external == ns.NOT_EXTERNAL then
+                        table.insert(ns.groupCDs[slot].abilities, ns:shallowcopy(ability))
+                    else
+                        table.insert(externals[slot], ns:shallowcopy(ability))
+                    end
                 end
             end
         end

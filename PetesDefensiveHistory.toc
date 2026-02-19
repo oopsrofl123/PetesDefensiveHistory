@@ -11,9 +11,11 @@ libs\LibButtonGlowcustom\LibButtonGlowcustom.lua
 libs\LibSpecialization\LibSpecialization\LibSpecialization.lua
 Globals.lua
 SpecAbilityDb.lua
+AbilityDb.lua
 Utils.lua
 Options.lua
 Talents.lua
+TalentDb.lua
 SpecHandler.lua
 SpecHandlerUI.lua
 InferenceEngine.lua
