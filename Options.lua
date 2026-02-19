@@ -228,32 +228,38 @@ layout:AddInitializer(uncheckAll)
 -- These are the locale-independent class names that key into several tables.
 -- The display strings are different.
 local classes = {
-    ["DEATHKNIGHT"] = { 250, 251, 252 },
-    ["DEMONHUNTER"] = { 577, 581, 1480 },
-    ["DRUID"] = { 102, 103, 104, 105 },
-    ["EVOKER"] = { 1467, 1468, 1473 },
-    ["HUNTER"] = { 253, 254, 255 },
-    ["MAGE"] = { 62, 63, 64 },
-    ["MONK"] = { 268, 269, 270 },
-    ["PALADIN"] = { 65, 66, 70 },
-    ["PRIEST"] = { 256, 257, 258 },
-    ["ROGUE"] = { 259, 260, 261 },
-    ["SHAMAN"] = { 262, 263, 264 },
-    ["WARLOCK"] = { 265, 266, 267 },
-    ["WARRIOR"]  = { 71, 72, 73 }
+    { "DEATHKNIGHT", { 250, 251, 252 } },
+    { "DEMONHUNTER", { 577, 581, 1480 } },
+    { "DRUID", { 102, 103, 104, 105 } },
+    { "EVOKER", { 1467, 1468, 1473 } },
+    { "HUNTER", { 253, 254, 255 } },
+    { "MAGE", { 62, 63, 64 } },
+    { "MONK", { 268, 269, 270 } },
+    { "PALADIN", { 65, 66, 70 } },
+    { "PRIEST", { 256, 257, 258 } },
+    { "ROGUE", { 259, 260, 261 } },
+    { "SHAMAN", { 262, 263, 264 } },
+    { "WARLOCK", { 265, 266, 267 } },
+    { "WARRIOR", { 71, 72, 73 } }
 }
 
-for classFile, specIdList in pairs(classes) do
+for _, classData in pairs(classes) do
+    local classFile = classData[1]
+    local specIdList = classData[2]
     local class = LOCALIZED_CLASS_NAMES_MALE[classFile] -- maps "WARRIOR" -> "Warrior" or "Guerrier"
+
     -- XXX: TODO: not sure how to get the font string object to :SetTextColor()
-    local classColor = RAID_CLASS_COLORS[class]
+    --local classColor = RAID_CLASS_COLORS[class]
     layout:AddInitializer(
         Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name=class })
     )
 
     for _, specId in pairs(specIdList) do
         for _, ability in pairs(ns.SpecAbilityDb[specId]) do
-            if not uniqueAbilities[ability.iconId] then
+            -- icons might not be unique across classes. don't use specId because
+            -- we DO want to collapse abilities with icons within specs so there aren't
+            -- a zillion options
+            if not uniqueAbilities[class .. "_" .. ability.iconId] then
                 -- set default true values
                 PetesDefensiveHistoryOptionsDb["show_" .. ability.iconId] = true
                 local setter = function(value)
@@ -271,8 +277,7 @@ for classFile, specIdList in pairs(classes) do
                     function() return PetesDefensiveHistoryOptionsDb["show_"..ability.iconId] end,
                     setter)
                 Settings.CreateCheckbox(abilities, setting)
-                --uniqueAbilities[ability.iconId] = setter
-                uniqueAbilities[ability.iconId] = setting
+                uniqueAbilities[class .. "_" .. ability.iconId] = setting
             end
         end
     end
