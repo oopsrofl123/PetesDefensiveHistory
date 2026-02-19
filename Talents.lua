@@ -99,8 +99,8 @@ function ns:getTalentRanks(specId, talentExportString)
     -- are satisfied. The field layout (1 char per bit) is:
     --            123444444566
     -- Indentation below means that the bit only exists if the parent bit was true.
-    -- Field 1: is the talent selected?
-    --     Field 2: is the talent purchased at all?
+    -- Field 1: is the talent path open?
+    --     Field 2: is the talent purchased?
     --         Field 3: if the talent is purchased, is it at max rank?
     --             Field 4: if the talent is not max rank, what rank is it?
     --         Field 5: is the talent a choice node?
@@ -113,7 +113,7 @@ function ns:getTalentRanks(specId, talentExportString)
     for _, talentId in ipairs(C_Traits.GetTreeNodes(C_ClassTalents.GetTraitTreeForSpec(specId))) do
         local rank = 0
         local choiceIndex = 1    -- choice is index=1 unless there is a choice node
-        local notMaxRank         -- seems this will never be unset if the talent exists
+        local notMaxRank = true
 
         -- Read 1 bit from field 1
         if readbool(stream) then
@@ -124,8 +124,6 @@ function ns:getTalentRanks(specId, talentExportString)
                 if notMaxRank then
                     -- Read 6 bits from field 4
                     rank = stream:ExtractValue(6)
-                else
-                    rank = 1
                 end
 
                 -- Read 1 bit from field 5
