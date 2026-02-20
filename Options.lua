@@ -120,6 +120,22 @@ local setting = Settings.RegisterProxySetting(
 Settings.CreateCheckbox(ns.optionsCategory, setting,
     "Disable the history tray. Do not send abilities that cannot be guessed to the history tray. Instead, quietly ignore them and only show abilities when they are identified. Careful: some abilities can only |cffff0000sometimes|r be guessed! When they are not, they are normally sent to the history tray and appear as available in the cooldown tracker row. If the history tray is hidden, you will not see this and the ability will simply appear to be available.")
 
+local setting = Settings.RegisterProxySetting(
+    optionsCategory,
+    "pdh.showTooltips",
+    Settings.VarType.Boolean,
+    "Show spell tooltips",
+    true,
+    function() return PetesDefensiveHistoryOptionsDb.showTooltips or false end,
+    function(value)
+        PetesDefensiveHistoryOptionsDb.showTooltips = value
+        --for slot, _ in pairs(ns.allSlots) do
+            --ns:updateHistoryTrayRow(slot)
+        --end
+    end
+)
+Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Show spell tooltips for abilities that can be identified. This does not work for abilities in the history tray, since these abilities are not identified.")
 
 
 

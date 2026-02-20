@@ -219,7 +219,8 @@ function allocHistoryItem(row, slot, index, countUp)
             end
         end)
     else
-        -- Count-down timer and cooldown swipe
+        -- Count-down timer and cooldown swipe. These icons have spellIds, so can
+        -- show a tooltip.
         f.swipeTexture = CreateFrame("Cooldown", frameName .. "_cooldownSwipe", f, "CooldownFrameTemplate")
         f.swipeTexture:SetAllPoints()
         -- Have to hide blizzard's countdown text so we can control the size
@@ -239,6 +240,18 @@ function allocHistoryItem(row, slot, index, countUp)
                 end
             else
                 self.swipeTexture.timer:SetText("")
+            end
+        end)
+        f:SetScript("OnEnter", function(self)
+            if PetesDefensiveHistoryOptionsDb.showTooltips then
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:SetSpellByID(self.spellId)
+                GameTooltip:Show()
+            end
+        end)
+        f:SetScript("OnLeave", function(self)
+            if PetesDefensiveHistoryOptionsDb.showTooltips then
+                GameTooltip:Hide()
             end
         end)
     end
@@ -311,6 +324,7 @@ function ns:updateStaticRow(slot)
     for _, ability in pairs(abilities) do
         if not row.items[ability.name] then
             local newItem = allocHistoryItem(row, slot, ability.name, false)
+            newItem.spellId = ability.id
             row.items[ability.name] = newItem
             if ability.iconId then
                 newItem.icon:SetTexture(ability.iconId)
@@ -322,7 +336,7 @@ function ns:updateStaticRow(slot)
         local item = row.items[ability.name]
         sizeHistoryItem(item)
         -- Did the user opt in to showing this ability?
-        if not PetesDefensiveHistoryOptionsDb["show_"..ability.iconId] then
+        if not PetesDefensiveHistoryOptionsDb["show_"..ability.id] then
             item:Hide()
         else
             item:Show()
