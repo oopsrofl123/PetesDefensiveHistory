@@ -43,16 +43,19 @@ end
 -- Numeric modifiers must be applied in a specific order. First, additive
 -- modifiers followed by multiplicative. To handle this, every modifier
 -- for an ability must be collected before applying any changes.
-local function applyTalentModifiers(baseAbility, talentRanks)
+local function applyTalentModifiers(classFile, specId, baseAbility, talentRanks)
     local modifiedAbility = ns:shallowcopy(baseAbility)
     local allMods = {}
+    local classmods = ns.ClassTalentModifiers[classFile]
+    local specmods = ns.SpecTalentModifiers[specId]
 
     -- Collect all modifiers across all talents for this ability
     ns:printDebug("looking for modifiers for baseAbility=["..baseAbility.name.."]")
     for spellId, rank in pairs(talentRanks) do
         -- TalentModifiers only contains the talents relevant to our tracked abilities.
         if rank > 0 then
-            talents = ns.TalentModifiers[spellId]
+            -- Spell IDs are unique, so they can only be in one of the two tables
+            talents = classmods[spellId] or specmods[spellId]
             if talents then
                 mods = talents[rank]
                 if not mods then
@@ -65,7 +68,7 @@ local function applyTalentModifiers(baseAbility, talentRanks)
                 -- Talents can modify multiple spells with multiple modifiers. Get
                 -- just the mods that apply to this ability.
                 for index, mod in pairs(mods) do
-                    if baseAbility.iconId == mod.id then
+                    if baseAbility.id == mod.id then
                         table.insert(allMods, mod)
                     end
                 end
@@ -73,8 +76,18 @@ local function applyTalentModifiers(baseAbility, talentRanks)
         end
     end
 
-    -- Sort additive effects before multiplicative effects
-    table.sort(allMods, function(a, b) return a.mult == nil end)
+    -- To achieve the sorting below, give an integer value to each talent and
+    -- then use a standard < comparator.
+    local function toOrd(mod)
+        local first = mod.mult and 1 or 0
+        local second = mod.modifies == "hasAbility" and mod.amount == false and 100000 or 0
+        return first + second
+    end
+    -- Sort additive effects before multiplicative effects and put talents
+    -- that *remove* abilities at the end of the sort. This is a very brittle
+    -- way to implement talents that replace other abilities and will probably
+    -- break at some point.
+    table.sort(allMods, function(a, b) return toOrd(a) < toOrd(b) end)
     for _, mod in pairs(allMods) do
         applyOneModifier(modifiedAbility, mod)
     end
@@ -94,7 +107,7 @@ end
 --
 -- Is called every time LibSpec identifies a spec, so must loop over the
 -- whole group each time.
-local function updateGroupData(slot, playerName, specId, talentExportString)
+local function updateGroupData(slot, playerName, specId, classFile, talentExportString)
     local externals = {}   -- key=caster, value=ability info
 
     ns:printDebug(string.format("updateGroupData(%s=[%s], spec ID=%d)\nTalent string=[%s]",
@@ -103,7 +116,6 @@ local function updateGroupData(slot, playerName, specId, talentExportString)
     -- Decode the talent string. There are talent IDs, but all talents are
     -- related to spell IDs.
     talentRanks = ns:getTalentRanks(specId, talentExportString)
-ns.printer(talentRanks)
 
     ns.groupCDs[slot].playerName = playerName
     ns.groupCDs[slot].specId = specId
@@ -118,9 +130,9 @@ ns.printer(talentRanks)
         ns.groupCDs[slot].abilities = {}          -- things that can be CAST ON this slot
         ns.groupCDs[slot].castableAbilities = {}  -- things that can be CAST by this slot
         if specId then
-            baseAbilities = ns.SpecAbilityDb[specId]
+            baseAbilities = ns.AbilityDb[classFile]
             for _, baseAbility in pairs(baseAbilities) do
-                local ability = applyTalentModifiers(baseAbility, talentRanks)
+                local ability = applyTalentModifiers(classFile, specId, baseAbility, talentRanks)
                 if ability.hasAbility then
                     ability.caster = slot
                     ns.groupCDs[slot].castableAbilities[ability.name] = ability
@@ -163,7 +175,9 @@ end
 LibSpecialization.RegisterGroup(internalGroupSpecs, 
     function(specId, role, position, playerName, talentExportString)
         local slot = ns:nameToSlot(playerName)
-        updateGroupData(slot, playerName, specId, talentExportString)
+        -- classFile is the locale-independent class name like "WARRIOR" or "PRIEST"
+        local _, _, _, _, _, classFile, _ = GetSpecializationInfoByID(specId)
+        updateGroupData(slot, playerName, specId, classFile, talentExportString)
 
         -- Solve unique solutions group-wide
         ns:zeroKnowledgeSolve()
