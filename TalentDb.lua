@@ -54,6 +54,40 @@ ns.ClassTalentModifiers = {
         --},
     },
 
+    -- Druid class tree ------------------------------------------------------------------------
+    ["DRUID"] = {
+        [327993] = {
+            { { id=22812, modifies=duration, amount=4 } },
+        },
+        [385786] = {  -- adds a shield buff to barkskin. rank 2's shield is bigger but
+                      -- that's irrelevant.
+            { { id=22812, modifies=concurrentBuff, amount=true } },   -- rank 1
+            { { id=22812, modifies=concurrentBuff, amount=true } },   -- rank 2
+        }
+    },
+
+    -- Hunter class tree ----------------------------------------------------------------------
+    ["HUNTER"] = {
+        [264735] = {
+            { { id=264735, modifies=hasAbility, amount=true } }
+        },
+        [459450] = {
+            { { id=264735, modifies=charges, amount=1 } }
+        },
+        [388039] = {
+            { { id=264735, modifies=duration, amount=2 } }
+        },
+    },
+
+
+    -- Monk class tree -------------------------------------------------------------------------
+    ["MONK"] = {
+        [443294] = {  -- hero talent adds CDR
+            { { id=116849, modifies=cdr, amount=true } },
+        },
+    },
+
+
     -- Paladin class tree ----------------------------------------------------------------------
     ["PALADIN"] = {
         [385633] = {  -- all specs are given the auras talent
@@ -87,7 +121,22 @@ ns.ClassTalentModifiers = {
               { id=31850, modifies=cooldown, amount=-30, mult=true },
               { id=135928, modifies=cooldown, amount=-30, mult=true } }
         },
-    }
+    },
+
+    ["SHAMAN"] = {
+        [108271] = {
+            { { id=108271, modifies=hasAbility, amount=true } }
+        },
+        [381647] = {
+            { { id=108271, modifies=cooldown, amount=-30 } }
+        },
+    },
+
+    ["WARLOCK"] = {
+        [386659] = {
+            { { id=104773, modifies=cooldown, amount=-45 } }
+        },
+    },
 }
 
 
@@ -121,6 +170,135 @@ ns.SpecTalentModifiers = {
     [252] = {
     },
 
+
+    -- Balance druid -------------------------------------------------------------------------
+    [102] = {
+        [1239669] = {  -- balance druid root talent. give barkskin
+            { { id=22812, modifies=hasAbility, amount=true } },
+        },
+        [194223] = {
+            { { id=194223, modifies=hasAbility, amount=true } },
+        },
+        [468743] = {
+            { { id=194223, modifies=cooldown, amount=-60 },
+              { id=102560, modifies=cooldown, amount=-60 },
+              { id=194223, modifies=charges, amount=1 },
+              { id=102560, modifies=charges, amount=1 } },
+        },
+        [390378] = {
+            { { id=194223, modifies=cooldown, amount=-60 },
+              { id=102560, modifies=cooldown, amount=-60 } },
+        },
+        [102560] = {
+            { { id=102560, modifies=hasAbility, amount=true },
+              { id=194223, modifies=hasAbility, amount=false } }
+        },
+        [434249] = {  -- hero talent: CDR for all major abilities. maxes at 15s
+            { { id=102560, modifies=cdr, amount=true },
+              { id=194223, modifies=cdr, amount=true } }
+        }
+    },
+    -- Feral druid ---------------------------------------------------------------------------
+    [103] = {
+        [5217] = {  -- feral druid root talent. give barkskin
+            { { id=22812, modifies=hasAbility, amount=true } },
+        },
+        [106951] = {
+            { { id=106951, modifies=hasAbility, amount=true } },
+        },
+        [391174] = {
+            { { id=106951, modifies=cooldown, amount=-60 },
+              { id=102543, modifies=cooldown, amount=-60 } },
+        },
+        [102543] = {
+            { { id=106951, modifies=hasAbility, amount=false },
+              { id=102543, modifies=hasAbility, amount=true } },
+        },
+        [391548] = {
+            { { id=102543, modifies=cooldown, amount=-30 } },
+        }
+    },
+    -- Guardian druid ------------------------------------------------------------------------
+    [104] = {
+        [6807] = {  -- guardian druid root talent. give barkskin
+            { { id=22812, modifies=hasAbility, amount=true },
+              { id=22812, modifies=cooldown, amount=-15 } },
+        },
+        [203965] = {
+            { { id=22812, modifies=cooldown, amount=-12, mult=true } },
+            { { id=22812, modifies=cooldown, amount=-24, mult=true } },
+        },
+        [1250923] = {
+            { { id=22812, modifies=duration, amount=-40, mult=true } },
+        },
+        [393611] = {
+            { { id=22812, modifies=duration, amount=2 } },
+        },
+        [50334] = {
+            { { id=50334, modifies=hasAbility, amount=true } },
+        },
+        [102558] = {
+            { { id=50334, modifies=hasAbility, amount=false },
+              { id=102558, modifies=hasAbility, amount=true } },
+        },
+        [393414] = {
+            { { id=102558, modifies=cdr, amount=true } },
+        }
+    },
+    -- Resto druid ---------------------------------------------------------------------------
+    [105] = {
+        [33763] = {  -- resto druid root talent. give barkskin
+            { { id=22812, modifies=hasAbility, amount=true } },
+        },
+        [102342] = {
+            { { id=102342, modifies=hasAbility, amount=true } },
+        },
+        [382552] = {
+            { { id=102342, modifies=cooldown, amount=-20 } },
+        },
+        [392116] = {
+            { { id=102342, modifies=duration, amount=4 } },
+        },
+    },
+
+
+    -- Beast mastery hunter -----------------------------------------------------------------
+    [253] = {
+    },
+    -- Marks hunter -------------------------------------------------------------------------
+    [254] = {
+        [288613] = {
+            { { id=288613, modifies=hasAbility, amount=true } },
+        },
+        [260404] = {
+            { { id=288613, modifies=cooldown, amount=-30 } },
+        },
+        [1253830] = {
+            { { id=288613, modifies=duration, amount=2 } },
+        },
+    },
+    -- Survival hunter ----------------------------------------------------------------------
+    [255] = {
+    },
+
+
+    -- Brewmaster monk ------------------------------------------------------------------------
+    [268] = {
+    },
+    -- Mistweaver monk ------------------------------------------------------------------------
+    [270] = {
+        [116849] = {
+            { { id=116849, modifies=hasAbility, amount=true } },
+        },
+        [202424] = {
+            { { id=116849, modifies=cooldown, amount=-45 } },
+        },
+    },
+    -- Windwalker monk ------------------------------------------------------------------------
+    [269] = {
+    },
+
+
     -- Holy Paladin ------------------------------------------------------------------------
     [65] = {
         [20473] = { -- required root holy talent. add holy-specific mods here
@@ -151,7 +329,6 @@ ns.SpecTalentModifiers = {
               { id=216331, modifies=duration, amount=50, mult=true } }
         }
     },
-
     -- Prot Paladin ------------------------------------------------------------------------
     [66] = {
         [384820] = {
@@ -237,5 +414,36 @@ ns.SpecTalentModifiers = {
             { { id=255937, modifies=hasAbility, amount=true },
               { id=31884, modifies=hasAbility, amount=false } }
         }
-    }
+    },
+
+
+    -- Elemental shaman ------------------------------------------------------------------------
+    [262] = {
+    },
+    -- Enhancement shaman ------------------------------------------------------------------------
+    [263] = {
+    },
+    -- Resto shaman ------------------------------------------------------------------------
+    [264] = {
+    },
+
+
+    -- Affliction warlock ------------------------------------------------------------------------
+    [265] = {
+        [980] = {  -- root affliction talent
+            { { id=104773, modifies=hasAbility, amount=true } }
+        },
+    },
+    -- Demo warlock ------------------------------------------------------------------------
+    [266] = {
+        [105174] = {  -- root demo talent
+            { { id=104773, modifies=hasAbility, amount=true } }
+        },
+    },
+    -- Destro warlock ------------------------------------------------------------------------
+    [267] = {
+        [116858] = {  -- root destro talent
+            { { id=104773, modifies=hasAbility, amount=true } }
+        },
+    },
 }

@@ -198,7 +198,7 @@ ns.AbilityDb = {
 			id=22812,
             iconId=136097,
 			cooldown=60,
-			duration=12,    -- talent: 8 > 12
+			duration=8,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
@@ -211,10 +211,11 @@ ns.AbilityDb = {
 			name="Celestial Alignment",
             buttonPress=true,
             isBuff=true,
-			id=383410,
+			--id=383410,  -- this is the celestial alignment buff in-game
+            id=194223,
             iconId=136060,
-			cooldown=120,   -- talent: 180 > 120
-			duration=15,    -- talent: 8 > 12
+			cooldown=180,
+			duration=15,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,  -- there is a weird CDR hero talent in hero talents keeper of the grove
@@ -228,24 +229,9 @@ ns.AbilityDb = {
             buttonPress=true,
             isBuff=true,
 			id=102560,
+            --id=390414   -- this is the in-game incarn buff spell ID
             iconId=571586,
-			cooldown=120,   -- talent: 180 > 120
-			duration=20,    -- talent: 8 > 12
-			duration_variable=ns.DURATION_FIXED,
-			charges=1,
-			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
-            concurrentDebuff=false,
-            certainOnFirstInference=true
-		},
-		{
-			name="Incarnation: Avatar of Ashamane",
-            buttonPress=true,
-            isBuff=true,
-			id=102543,
-            iconId=571586,
-			cooldown=120,    -- base: 3min, talent1: -60, talent2: -30
+			cooldown=180,
 			duration=20,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
@@ -255,6 +241,56 @@ ns.AbilityDb = {
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
+        -- Feral berserk
+		{
+			name="Berserk",
+            buttonPress=true,
+            isBuff=true,
+            id=106951,
+            iconId=236149,
+			cooldown=180,
+			duration=15,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+        },
+		{
+			name="Incarnation: Avatar of Ashamane",
+            buttonPress=true,
+            isBuff=true,
+			id=102543,
+            iconId=571586,
+			cooldown=180,
+			duration=20,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+		},
+        -- Guardian berserk
+		{
+			name="Berserk",
+            buttonPress=true,
+            isBuff=true,
+            id=50334,
+            iconId=236149,
+			cooldown=180,
+			duration=15,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+        },
 		{
 			name="Incarnation: Guardian of Ursoc",
             buttonPress=true,
@@ -295,8 +331,8 @@ ns.AbilityDb = {
             isBuff=true,
 			id=102342,
             iconId=572025,
-			cooldown=70,    -- talent: 90 > 70
-			duration=12,    -- talent: 12 > 16 but maybe wont be taken
+			cooldown=90,
+			duration=12,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
@@ -372,9 +408,9 @@ ns.AbilityDb = {
 			id=264735,
             iconId=136094,
 			cooldown=90,
-			duration=8,                -- talent: 6 > 8
+			duration=6,                -- talent: 6 > 8
 			duration_variable=ns.DURATION_FIXED,
-			charges=2,                 -- talent: 2 charges
+			charges=1,                 -- talent: 2 charges
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
@@ -387,10 +423,10 @@ ns.AbilityDb = {
             isBuff=true,
 			id=288613,
             iconId=132329,
-			cooldown=90,    -- talent -30s
-			duration=15,                -- hero talent: +4
+			cooldown=120,
+			duration=15,
 			duration_variable=ns.DURATION_FIXED,
-			charges=2,
+			charges=1,
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
@@ -537,7 +573,7 @@ ns.AbilityDb = {
             isBuff=true,
 			id=116849,
             iconId=627485,
-			cooldown=75,   -- base 120, talent -45
+			cooldown=120,
 			duration=12,
 			duration_variable=ns.DURATION_LTE,
 			charges=1,
@@ -962,7 +998,7 @@ ns.AbilityDb = {
             isBuff=true,
 			id=108271,
             iconId=538565,
-			cooldown=90,   -- talent: 120 > 90
+			cooldown=120,
 			duration=12,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
@@ -1001,7 +1037,7 @@ ns.AbilityDb = {
             isBuff=true,
 			id=104773,
             iconId=136150,
-			cooldown=135,   -- talent: 180 > 135
+			cooldown=180,
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
@@ -1028,6 +1064,7 @@ ns.AbilityDb = {
             -- concurrentDebuff=false,
             -- certainOnFirstInference=true
 		-- },
+        -- XXX: TODO: another IMPORTANT is Summon Darkglare, but as above no UNIT_AURA
 	},
 
 
