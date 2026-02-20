@@ -391,6 +391,9 @@ function ns:inferAbility(slot, buff, useDuration, cdTracker)
     if abilityMatch and not PetesDefensiveHistoryOptionsDb.disableInference then
         buff.name = abilityMatch.name
         buff.cooldown = abilityMatch.cooldown
+        buff.cdr = abilityMatch.cdr
+        buff.charges = abilityMatch.charges
+        buff.duration_variable = abilityMatch.duration_variable
         buff.spellId = abilityMatch.id
         -- XXX: TODO: fairly sure this is dead, remove later
         --buff.external = abilityMatch.external
