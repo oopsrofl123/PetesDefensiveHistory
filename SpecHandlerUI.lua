@@ -1,29 +1,27 @@
 -- get addon namespace
 local addonName, ns = ...
 
--- more of this file should be local and exported through a reasonable set of functions
-
--- eventually make this all settable (via options), but this is not important enough right now
-local UI_ICON_SIZE = 48
-local UI_ICON_PADDING = 16
-local UI_TITLE_PADDING = 15
-
 -- Very different from the MAX_HISTORY size. This must be large enough to show
 -- all abilities for a character AND all externals across the group that could
 -- be applied to that character.
 local UI_MAX_ABILITIES_PER_SLOT = 12
 
+-- eventually make this all settable (via options), but this is not important enough right now
+local UI_ICON_SIZE = 48
+local UI_ICON_PADDING = 16
+local UI_TITLE_PADDING = 15
 local UI_ROW_HEIGHT = UI_ICON_SIZE + 36
-
 local UI_CLOSE_BUTTON_HEIGHT = 28
-
 local UI_WIDTH = 200 + (UI_ICON_SIZE+UI_ICON_PADDING) * UI_MAX_ABILITIES_PER_SLOT
-local UI_HEIGHT = 10 + UI_TITLE_PADDING + 20 + UI_CLOSE_BUTTON_HEIGHT + 20 + UI_ROW_HEIGHT * 5   -- #allSlots this is 0 and i'm not sure why
-
+-- Can't take length of keyed tables with #. Have to loop through.
+local numPlayers = 0
+for k, v in pairs(ns.allSlots) do
+    numPlayers = numPlayers + 1
+end
+local UI_HEIGHT = 10 + UI_TITLE_PADDING + 20 + UI_CLOSE_BUTTON_HEIGHT + 20 + UI_ROW_HEIGHT*numPlayers
 
 
 function ns:updateGroupSolutionRow(row)
-    -- Fill in icons from left to right..obviously
     for i=1,UI_MAX_ABILITIES_PER_SLOT do
         local item = row.items[i]
         local ability = ns.groupCDs[row.slot].abilities[i]
@@ -35,9 +33,7 @@ function ns:updateGroupSolutionRow(row)
             else
                 item.icon:SetTexture(C_Spell.GetSpellInfo(ability.id).iconID)
             end
-            if not ability.solved then
-                item.icon:SetDesaturated(true)
-            end
+            item.icon:SetDesaturated(not ability.solved)
             item.icon:Show()
 
             item.cooldownLabel:SetText(ability.cooldown .. "s")
@@ -46,7 +42,6 @@ function ns:updateGroupSolutionRow(row)
             item.durationLabel:SetText(ability.duration .. "s")
             item.durationLabel:Show()
 
-            -- XXX: TODO: line below bugs on offline players
             if #ability.conflicts > 0 then
                 item.conflictsLabel:SetText(table.concat(ability.conflicts, ' '))
                 item.conflictsLabel:SetTextColor(1,0,0)
@@ -82,6 +77,10 @@ function ns:updateGroupSolutionRow(row)
     else
         -- not unusual. happens when not in group
         row.roleIcon:Hide()
+    end
+
+    if not UnitExists(row.slot) then
+        row:Hide()
     end
 end
 
