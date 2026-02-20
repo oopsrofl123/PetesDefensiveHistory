@@ -30,8 +30,8 @@ ns.AbilityDb = {
             isBuff=true,
 			id=48707,
             iconId=136120,
-			cooldown=40, -- talent: 60 > 40
-			duration=7,  -- talent: 5 > 7 (+40%)
+			cooldown=60,
+			duration=5,
 			duration_variable=ns.DURATION_LTE,
 			charges=1,
 			cdr=false,
@@ -63,10 +63,10 @@ ns.AbilityDb = {
 			id=55233,
             iconId=136168,
 			cooldown=90,
-			duration=10,  -- talent +2: 10 > 12
+			duration=10,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
-			cdr=true,   -- talent CDR
+			cdr=false,   -- talent CDR
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
             -- adds Coagulating Blood (id=463730), which is not harmful but is
@@ -557,7 +557,7 @@ ns.AbilityDb = {
             isBuff=true,
 			id=6940,
             iconId=135966,
-			cooldown=105,   -- talent: -15s 120s > 105s  -- yes, holy's sac is worse than other specs
+			cooldown=120,
 			duration=12,
 			duration_variable=ns.DURATION_LTE,   -- cancels if caster falls < 20% health
 			charges=1,
@@ -574,7 +574,7 @@ ns.AbilityDb = {
             isBuff=true,
 			id=498,
             iconId=524353,
-			cooldown=42,      -- talent: -30% (60 > 42)
+			cooldown=60,
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
@@ -590,7 +590,7 @@ ns.AbilityDb = {
             isBuff=true,
 			id=642,
             iconId=524354,
-			cooldown=210,  -- talent1: 300 > 210 (-30%)
+			cooldown=300,
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
@@ -609,7 +609,7 @@ ns.AbilityDb = {
             isBuff=true,
 			id=1022,
             iconId=135964,
-			cooldown=240,   -- base: 300, talent1: -60s, talent2: -15% (=45s)
+			cooldown=300,
 			duration=10,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
@@ -635,25 +635,48 @@ ns.AbilityDb = {
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
-        -- such a mess. so many talents. wrath and crusader are affected differently too
-        -- applies several other buffs simultaneously, maybe those could distinguish wing
-        -- from divine protection (only other 10000-flagged spell for holy)
-        -- RET: -------
-        -- wake of ashes+radiant glory triggers wings when wake of ashes is used.
-        -- (cd=30s, wings dur=12). this combo replaces wings.
-        -- luckily, when wake of ashes is used this way, a wings buff with (different
-        -- duration) is put on the caster so it can be detected as normal
-        -- crusade does not replace wings, it just gives wings extra haste
-        -- XXX: TODO: for now, guessing radiant glory will be the standard
+        -- Ret talent removes wings and attaches it to wake of ashes. The
+        -- buff given is the avenging wrath buff, so copy its flags.
+        {
+            name='Wake of Ashes',
+            buttonPress=true,
+            isBuff=true,
+			id=255937,
+            iconId=1112939,
+			cooldown=30,
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+        },
+        {
+            name='Avenging Crusader',
+            buttonPress=true,
+            isBuff=true,
+			id=216331,
+            iconId=589117,
+			cooldown=60,
+			duration=15,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            concurrentDebuff=false,
+            certainOnFirstInference=true
+        },
 		{
 			name="Avenging Wrath",
             buttonPress=true,
             isBuff=true,
 			id=31884,
             iconId=135875,
-			cooldown=90,  -- WRATH: base 120, talent (2pts) -30s; CRUSADER: base 60, talent (2pts) -15s
-			duration=18,  -- WRATH: base 20s, talent (2p) -8s; CRUSADER base 15s, talent (2p) -5s
-                          -- on top of all of this, +50% duration talent
+			cooldown=120,
+			duration=20,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
@@ -668,7 +691,7 @@ ns.AbilityDb = {
             isBuff=true,
 			id=31850,
             iconId=135870,
-			cooldown=90, --63,  -- talent 90 > 63 (-30%)
+			cooldown=90,
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
@@ -718,16 +741,14 @@ ns.AbilityDb = {
             isBuff=true,
 			id=204018,
             iconId=135880,
-			--cooldown=195,   -- base: 300, talent1: -60s, talent2: -15% (=45s)
-            -- in game testing shows 205s cd, not the above expected
-			cooldown=300, --205,   -- base: 300, talent1: -60s, talent2: -15% (=45s)
+			cooldown=300,
 			duration=10,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=true, raidFlag=true, raidInCombatFlag=false,
 			external=ns.EXTERNAL_ANY,
-            concurrentDebuff=false,  -- applies forbearance, but the debuff isn't in the same payload
+            concurrentDebuff=false,  -- applies forbearance, but the debuff isn't in the same payload ON OTHERS
             certainOnFirstInference=true
 		},
 		{
