@@ -4,54 +4,99 @@ NEEDS TESTING
 	- libspecialization updates during m+ runs. need to figure out why
 
 
-IMPORTANT FEATURES
+V1.0 RELEASE FEATURES
 ===========================================================================
-- better handling/inference for abilities with charges
-    - tanks are very charge heavy, so will be important
 - talent handling 
-    - requires extracting talent selections from talent string. apparently
-      WA has code to do this.
-    - need support for removing alternative spells from talent list when only
+    IN PROGRESS
+    - how to deal with hero talents always being active?
+        - the root talent is always selected=T, purchased=F
+        - other talents are always selected=T, purchased=T if the player has ever
+          filled out that talent tree
+        - good test case is marks hunter: 2s trueshot duration applies no matter what
+          hero talent is active
+            * better test case would be a hero talent with a choice node
+    - FULL PASS ACROSS TALENTS AND SPECS: migrate to AbilityDb from SpecAbilityDb
+        - recapitulate the old spec structure of the database through hasAbility
+          talents attached to class- or spec-specific talents
+    - extracting talent selections from talent string
+    DONE
+    - support removing alternative spells from talent list when only
       one of two can be chosen (e.g., balance druid celestial alignment and incarn)
+    - accumulate additive and mult modifiers so that they can be
+      applied to base values
+
+- better handling/inference for abilities with charges
+
+- spellwarding doesn't work when cast on self due to the concurrentDebuff issue
+- bubble doesn't work when forbearance is already on the player (e.g. spellwarding
+  into bubble)
+
+- test rider of the apocalypse AMS proc. does it give the same AMS buff? if so
+  we might need to catch it. has 45s cd. might have identical duration? might
+  not be able to differentiate except by isButtonPress
+
+- update github/curseforge readmes
+
 - options panel
+    TODO ------------------------------
+    - font options for cooldown numbers
+        - outlines, size, font
+    - show offensives on right
+    - colored class names
+    - max history tray size
+    - maybe add tooltips for confusing abilities like the DH apex talent
+    - disable externals (this thought was more along the lines of not cluttering up
+      the history tray with paladin freedoms/bops/sacs/etc)
+    - support directional layouts other than horizontal+left of frame
+    - options for centerdefensivebuff icon: takeover (could be useful: some buffs
+      like bubble/evasion aren't shown, we could do better)? hide?
+        * IMPORTANT! don't remove it entirely. some defensives that can't be instant
+          identified (AMS and IBF are a good example) are displayed in the center
+          defensive icon.
+    - "omnicd mode" - moving the center debuff out of the frame
+    - add reset button to panel, have /pdh open options panel rather than reset
+    DONE --------------------------------
+    - disable history tray
     - disable all inference (@Aryella WoWUIDev)
     - text sizes
-    - text outlines
-    - font probably
-    - direction
-    - options for what to do with the centerdefensivebuff icon
-    - "omnicd mode" - moving the center debuff out of the frame
-    - max history size
     - icon size
     - icon padding
-    - add reset button to panel, have /pdh open options panel rather than reset
-    - spell categories to track
-        - important
-        - big defensive
-        - external
-        - special (RAID_IN_COMBAT + at least one of the above, blessing of freedom
-          might be the only one of these)
-- [maybe] add CCs/stops if the blizzard CC flags cause uniquely identifiable events
-- add feature to take over the CenterDefensiveBuff frame job. some buffs aren't
-  flagged as big defensives but make sense to show as such (e.g., bubble, evasion, etc.)
-    - show offensives on right
+
 
 
 NICE-TO-HAVE FEATURES
 ===========================================================================
+- could hunter exhil be detected by the idea that they only have one
+  self-cast heal that requires a button press (i.e., isn't a proc) and also
+  applies a hot? how to distinguish from health pot?
+    - buttonPress
+    - UNIT_COMBAT heal where the caster=target=a hunter
+    - UNIT_AURA applied a HoT (basically required talent)
+    - is SPELL_UPDATE_COOLDOWN sent to party? or only fires in the player's client
+- more work to distinguish divine protection from wings
+    - maybe this can work by adding inference on update? some of the wings versions
+      fire update events and the ability can then be identified
+    - however, for that to make DP show up as a center defensive the update inference
+      logic would be that updates _MUST_ occur for the spell. how would DP know that
+      it didn't receive an update and therefore should fire?
+- [maybe] add CCs/stops if the blizzard CC flags cause uniquely identifiable events
+- consolidate specialization/class/player info into a GetSlotInfo() function and
+  stop delegating data management to the icon rows.  logic is all duplicated due
+  to the tray+cd bars.
 - visual on solver for abilities that can't be solved under ideal zero knowledge
   conditions (e.g., arcane mage surge and mirror images have identical flags
   and durations).
     - highlight these icons red
-* re-examine catalog of spells
-    - fiery brand is not picked up in the dump even though it is displayed by
-      blizzard's big defensive buff frames. maybe brand is unique since it is
-      actually a debuff on mobs that helps the player, but the point is looping
-      through all spell IDs and dumping any with BIG, IMPORTANT or EXTERNAL flags
-      is not exhaustive.
+* ability database completeness is questionable
+    - is looping through all spell IDs and dumping any with BIG, IMPORTANT or
+      EXTERNAL flags exhaustive?
+    - i only looked at all C_Spell.IsSpellHelpful()=true spells that were either
+      BIG|IMP|EXT. there is a not_helpful_spells dump that needs a pass.  e.g.,
+      fiery brand is only in the not_helpful list since it's a debuff.
 - associate player ID token with rows so that on GROUP_ROSTER_UPDATEs we can
   potentially preserve data. very low priority - just clearing and resetting
   all data should be fine for real world use.
+    - currently using player name from libspec
 - add logic layer to detect when all possible CDs have been cast
     - how useful is this? suppose at time X we know every ability is on
       cooldown. then when the next ability is used, can assume the best case
@@ -67,9 +112,14 @@ NICE-TO-HAVE FEATURES
 - look into required debuffs - the current code does not actually find debuffs,
   it finds things not flagged as HELPFUL. vampiric blood is an example of where
   this doesn't behave as expected
-    - could be why bop and spellwarding didn't detect forbearance? even though it worked for bubble..
-- on death: at least clear active cooldown glows for all static icons
-    - i guess a UNIT_AURA that removes all auras doesn't fire on death?
+    - could be why bop and spellwarding didn't detect forbearance? even though it
+      worked for bubble..
+    - [UPDATE] bop/spellwarding: the forbearance aura comes in a different UNIT_AURA
+      even. could it be caused casting on other units vs self? YEP, when cast on self
+      BoP and forbearance arrive in the same UNIT_AURA
+- confidence network: handle death
+    - on death all auras are removed with a UNIT_AURA call, but all duration rules
+      need to be treated as DURATION_LTE.
 - inferAbility() - save the conflicting spells/casters for UI elements
 - would be nice to firm up two object classes: Buff and HistoryItem, where Buff represents
   the aura itself and HistoryItem only handles tracking and display duties.
@@ -92,18 +142,10 @@ NICE-TO-HAVE FEATURES
 - consider aurasUpdated logic layer
     - turns out almost everything about fiery brand is bugged so can't work on this
     - can be useful for fiery brand, sentinel (due to buff stacks ticking down)
-- support for detecting death?
-    - UNIT_DIED exists, but surprisingly is secret. could we guess someone died
-      if a ton of auras were removed in one batch and a UNIT_DIED fired sometime
-      recently? PLAYER_TARGET_DIED fired in a follower dungeon when the NPC tank died
 - better handle CDR
     - can compute upper bounds (or averages) on the amount of CDR gained. e.g., throwing
       avenger's shield on CD at 5 targets = 5s CDR per 12s (though procs reduce this
       and so does divine toll).:
-- updateRow
-    - e.g., when specText or cpfMapping change, update the associated
-      text widgets rather than forcing the functions that update those
-      values to do it.
 - consider a different event than OnUpdate for cooldown timers since this
   fires every frame.
 
@@ -172,6 +214,16 @@ https://github.com/WeakAuras/WeakAuras2/blob/cabde3e6c9419516889cd0305b358c749f9
 
 DONE
 ===========================================================================
+- add tooltips for chubb
+- updateRow
+    - e.g., when specText or cpfMapping change, update the associated
+      text widgets rather than forcing the functions that update those
+      values to do it.
+- on death: clear active cooldown glows for all static icons
+- ensure history tray is not broken after adding options for icon sizes
+    - specifically, make sure anchor point on bottom right is updated with
+      icon size and that size/anchoring is separate from alloc
+- curseforge build hook
 - add iconId for all database spells for static tracker
 - for instant tracking: flag spells as static icons when they're identified
   by the 0-knowledge system and use that flag to decide where to send the cooldown
