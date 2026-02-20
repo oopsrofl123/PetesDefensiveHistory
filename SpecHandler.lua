@@ -153,6 +153,7 @@ local function updateGroupData(slot, playerName, specId, classFile, talentExport
         end
     end
 
+    -- XXX: TODO: a separate loop for this no longer seems necessary..
     -- add externals to the full ability list for each player
     -- for each target, the possible set of abilities are:
     --   1. the target's own (cast on self) abilities
