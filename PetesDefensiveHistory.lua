@@ -163,7 +163,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         local imp, big, ext, raid, ric = getFilterFlagsForAuraInstanceId(unitTarget, v.auraInstanceID)
         local harm = isAuraHarmful(unitTarget, v.auraInstanceID)
 
-        ns:printDebug("ADDED ABILITY (not filtered imp|big|ext): " ..
+        ns:printDebug("ADDED BUFF (not filtered imp|big|ext): " ..
             v.auraInstanceID, imp, big, ext, raid, ric, harm)
         -- the abilities we handle are helpfuls that are either important, big or externals
         if not harm and (imp or big or ext) then
