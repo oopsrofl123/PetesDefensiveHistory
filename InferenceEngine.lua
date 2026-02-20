@@ -258,7 +258,15 @@ end
 
 
 local function confidenceLayerOnlyOnePossible(possibleSolutions)
-    return #possibleSolutions == 1 and possibleSolutions[1] or nil
+    if #possibleSolutions == 1 then
+        traceConfidence('onlyOnePossible', 'success: #possibleSolutions=%d',
+            #possibleSolutions)
+        return possibleSolutions[1]
+    else
+        traceConfidence('onlyOnePossible', 'failure: #possibleSolutions=%d',
+            #possibleSolutions)
+        return nil
+    end
 end
 
 
@@ -349,6 +357,7 @@ end
 -- XXX: TODO: Would be nice to do a consistency check across confidence layers to
 -- make sure the confident ones agree with each other.
 local function getConfidentMatch(possibleSolutions)
+    ns:printDebug("getConfidentMatch("..#possibleSolutions..")")
     match = confidenceLayerOnlyOnePossible(possibleSolutions) or
         confidenceLayerCastTime(possibleSolutions) or
         confidenceLayerDuration(possibleSolutions) or
@@ -448,6 +457,7 @@ function ns:zeroKnowledgeSolve()
                 blankCDs[slot] = {}
             end
 
+            ns:printDebug("simulating ability=["..ability.name.."]")
             ns:inferAbility(slot, buff, false, blankCDs)
             ability.solved = ns:isAbilityInferred(buff)
             -- would be nice if inferAbility would return the conflicting spell/caster combos
