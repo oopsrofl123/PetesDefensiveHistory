@@ -36,11 +36,27 @@ function ns:updateGroupSolutionRow(row)
             item.icon:SetDesaturated(not ability.solved)
             item.icon:Show()
 
-            item.cooldownLabel:SetText(ability.cooldown .. "s")
+            local cooldown = ability.cooldown .. "s"
+            if ability.cdr then
+                cooldown = "<" .. cooldown
+            end
+            item.cooldownLabel:SetText(cooldown)
             item.cooldownLabel:Show()
 
-            item.durationLabel:SetText(ability.duration .. "s")
+            local duration = ability.duration .. "s"
+            if ability.duration_variable == ns.DURATION_LTE then
+                duration = "<" .. duration
+            elseif ability.duration_variable == ns.DURATION_GTE then
+                duration = ">" .. duration
+            end
+            item.durationLabel:SetText(duration)
             item.durationLabel:Show()
+
+            -- Only show charges if the ability has charges
+            item.chargesLabel:SetText(ability.charges)
+            if ability.charges > 1 then
+                item.chargesLabel:Show()
+            end
 
             if #ability.conflicts > 0 then
                 item.conflictsLabel:SetText(table.concat(ability.conflicts, ' '))
@@ -52,6 +68,7 @@ function ns:updateGroupSolutionRow(row)
             item.conflictsLabel:Hide()
             item.cooldownLabel:Hide()
             item.durationLabel:Hide()
+            item.chargesLabel:Hide()
         end
     end
 
@@ -104,6 +121,13 @@ local function allocSolutionItem(row)
     item.durationLabel:SetTextColor(1,1,1)
     item.durationLabel:SetPoint("TOP", item.icon, "BOTTOM", 0, -3)
     item.durationLabel:Hide()
+
+    item.chargesLabel = row:CreateFontString(nil, 'OVERLAY', 'GameFontNormalLarge')
+    font, height, flags = item.chargesLabel:GetFont()
+    item.chargesLabel:SetFont(font, height-1, "THICKOUTLINE")  -- make slightly smaller than the cd font
+    item.chargesLabel:SetTextColor(1,1,1)
+    item.chargesLabel:SetPoint("BOTTOMRIGHT", item.icon, "BOTTOMRIGHT", 0, 2)
+    item.chargesLabel:Hide()
 
     item.conflictsLabel = row:CreateFontString(nil, 'OVERLAY', 'GameFontNormal')
     item.conflictsLabel:SetPoint("TOP", item.durationLabel, 'BOTTOM', 0, -3)
