@@ -166,7 +166,9 @@ function ns:getTalentRanks(specId, talentExportString)
     for _, talentId in ipairs(C_Traits.GetTreeNodes(C_ClassTalents.GetTraitTreeForSpec(specId))) do
         local selected, purchased, _, rank, _, choiceIndex = decodeTalent(stream)
         local spell = talentIdToSpellMap[talentId .. "_" .. choiceIndex]
-        local debugRecord = { spell ~= nil, spell and spell.spellId or 0,
+        local debugRecord = {
+            spell ~= nil,   -- in the database?
+            spell and spell.spellId or -1,  -- set spell ID=-1 if not in db
             talentId, selected, purchased, rank, choiceIndex }
         table.insert(forDebugging, debugRecord)
         if spell then
@@ -175,7 +177,7 @@ function ns:getTalentRanks(specId, talentExportString)
     end
 
     -- all debugging below
-    --table.sort(forDebugging, function(a, b) return a[3] <= b[3] end)
+    table.sort(forDebugging, function(a, b) return a[2] < b[2] end)
     ns:printDebug(string.format("%5s %10s %10s %5s %5s %3s %3s",
         "found", "spellId", "talentId", "sel", "pur", "rank", "choice"))
     for _, v in pairs(forDebugging) do
