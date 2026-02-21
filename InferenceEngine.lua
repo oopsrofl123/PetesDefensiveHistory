@@ -465,9 +465,6 @@ function ns:zeroKnowledgeSolve()
         abilities = ns.groupCDs[slot].abilities
         for _, ability in pairs(abilities) do
             -- make the buff we would expect to see if this ability got used.
-            -- for abilities with isBuff=false, the buff payload needs to match the
-            -- buff the ability applied. E.g., cheat death on prot paladin triggers
-            -- GoAK, but we want to track the cheat death cooldown as a separate ability
             local buff = {
                 inference = 0,
                 slot = slot,
