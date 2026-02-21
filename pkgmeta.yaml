@@ -10,13 +10,13 @@ ignore:
     - utils/*
     - README.md
 
-#externals:
+externals:
     #libs/LibStub:
         #url: https://repos.curseforge.com/wow/libstub/trunk
         #tag: latest
-    #libs/LibSpecialization:
-        #url: https://github.com/BigWigsMods/LibSpecialization
-        #tag: latest
+    libs/LibSpecialization:
+        url: https://github.com/BigWigsMods/LibSpecialization
+        tag: latest
     #libs/LibPrettyPrint:
         #url: https://repos.curseforge.com/wow/libprettyprint/trunk
         #tag: latest
