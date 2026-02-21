@@ -31,46 +31,16 @@ local addonName, ns = ...
 
 
 
--- If any historyItem in row matches auraName, return its index. Returns
--- the oldest such index, needs updating to handle abilities with charges.
-local function findAuraIndex(row, auraName)
-    for i=1,ns.MAX_HISTORY do
-        item = row.historyItems[i]
-        if item.auraName and item.auraName == auraName then
-            return i
-        end
-    end
-
-    return nil
-end
-
-
-
 -- Copy history item in from into to, clobbering the original contents of to.
 local function shiftHistoryItem(from, to)
     to.startTime = from.startTime
-    to.endTime = from.endTime
-    to.auraName = from.auraName
-    to.duration = from.duration
-    to.cooldown = from.cooldown
-    to.numUpdates = from.numUpdates
+    to.maxCD = from.maxCD
     to.icon:SetTexture(from.icon:GetTexture())
 
     -- Preserve visibility of each visual element
     ns:showIfShown(from, to)
     ns:showIfShown(from.timer, to.timer)
     ns:showIfShown(from.icon, to.icon)
-
-    -- XXX: TODO: after the tray/cooldown row split, i think this is all dead code
-    -- swipe texture animations have to be restarted in addition to preserving
-    -- visibility.
-    --ns:showIfShown(from.swipeTexture, to.swipeTexture)
-    ---- if the swipe texture is shown, then all of the relevant data is present
-    --if from.swipeTexture:IsShown() then
-        --to.swipeTexture:SetCooldown(to.startTime, to.cooldown)
-    --end
-    to.inferredCD:SetText(to.cooldown)
-    ns:showIfShown(from.inferredCD, to.inferredCD)
 end
 
 
@@ -80,12 +50,7 @@ end
 local function clearHistoryItem(item)
     -- Local data per historyItem
     item.startTime = nil
-    item.endTime = nil
-    -- For when auras can be guessed
-    item.auraName = nil
-    item.duration = nil
-    item.cooldown = nil
-    item.numUpdates = nil
+    item.maxCD = nil
 
     -- Initialize visuals
     item.icon:SetTexture(ns.DEFAULT_ICON)
@@ -97,9 +62,6 @@ local function clearHistoryItem(item)
     else
         item.swipeTexture:Hide()
     end
-
-    item.inferredCD:SetText(tostring(item.cooldown))
-    ns:showDebugVisual(item.inferredCD)
 
     ns:showDebugVisual(item)
 
@@ -135,18 +97,13 @@ end
 
 
 function ns:addBuffToHistory(slot, buff)
+    local row = ns.historyRows[slot]
+
     -- Don't do anything if the user disabled the history tray
     if PetesDefensiveHistoryOptionsDb.disableHistoryTray then return end
 
     ns:printDebug("aura instance ID " .. buff.auraInstanceID ..
         " added to history tray " .. slot .. " after " .. buff.duration .. "s")
-
-    if ns:isAbilityInferred(buff) then
-        ns:printDebug("ERROR: adding inferred ability to history tray, should go to static tracker")
-    end
-
-    slot = buff.caster  -- for externals, might be updated by identify
-    local row = ns.historyRows[slot]
 
     -- Empty the youngest history slot
     shiftHistoryLeftFrom(row.historyItems)
@@ -154,30 +111,11 @@ function ns:addBuffToHistory(slot, buff)
     -- Now that space has been made, add this ability to the tracker
     item = row.historyItems[ns.MAX_HISTORY]
     item.startTime = buff.startTime
-    item.endTime = buff.endTime
-    item.auraName = buff.auraName
-    item.duration = buff.duration
-    item.cooldown = buff.cooldown
-    item.numUpdates = buff.numUpdates
+    item.maxCD = buff.maxCD
     item.icon:SetTexture(buff.secretTexture)
     item.icon:Show()
     item.timer:Show()
     item:Show()
-end
-
-
-
--- showRow() is called when a player in position `slot` exists in the party
-function ns:showRow(row)
-    local slot = row.slot
-
-    ns:updateSlotToFrameMapping(slot)
-	row:SetPoint("BOTTOMRIGHT", ns:slotToPartyFrame(slot), "BOTTOMLEFT", -2, 0)
-
-    for key, item in pairs(row.historyItems) do
-        item:Show()
-    end
-    row:Show()
 end
 
 
@@ -207,9 +145,9 @@ function allocHistoryItem(row, slot, index, countUp)
         f.timer:SetFont(f.timer:GetFont(), textSize, "THICKOUTLINE")
         -- XXX: TODO: is there a better event than OnUpdate? This runs every frame
         f:SetScript("OnUpdate", function(self)
-            if self.startTime and self.cooldown then
+            if self.startTime and self.maxCD then
                 local elapsed = GetTime() - self.startTime
-                if elapsed <= self.cooldown then
+                if elapsed <= self.maxCD then
                     self.timer:SetFormattedText("%.0f", elapsed)
                 else
                     self.timer:SetText("")
@@ -256,11 +194,6 @@ function allocHistoryItem(row, slot, index, countUp)
         end)
     end
 
-    -- For debugging
-    f.inferredCD = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    f.inferredCD:SetPoint("TOP", f, "BOTTOM", 0, 0)
-    f.inferredCD:SetFont(f.inferredCD:GetFont(), 15, "OUTLINE")
-
     return clearHistoryItem(f)
 end
 
@@ -300,7 +233,6 @@ function ns:clearRow(row)
 	row.cpfMappingText:SetText(tostring(row.cpfMapping))
 	ns:showDebugVisual(row.cpfMappingText)
 
-    --ns:showDebugVisual(row)
     row:Show()
 
     for i, item in pairs(row.historyItems) do
@@ -351,7 +283,6 @@ function ns:updateStaticRow(slot)
             -- since frames cannot be deallocated.
             row.items[name]:ClearAllPoints()
             row.items[name]:Hide()
-            --row.items[name] = nil
         end
     end
 
@@ -487,22 +418,4 @@ function ns:allocHistoryGrid()
         -- Inferred abilities: omniCD-like cooldown tracking
         ns.staticRows[slot] = allocStaticRow(slot)
     end
-end
-
-
-
--- XXX: TODO: This was meant to reset tracking data. Haven't used it in forever,
--- probably very broken.
-function ns:reset()
-    ns:printDebug("resetting")
-    for slot, row in pairs(ns.historyRows) do
-        ns:clearRow(row)
-        if UnitExists(slot) then
-            ns:printDebug("showing row for slot " .. slot)
-            ns:showRow(row)
-        else
-            ns:printDebug("hiding row for slot " .. slot)
-        end
-    end
-    ns:printDebug("done resetting")
 end
