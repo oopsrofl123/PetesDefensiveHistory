@@ -49,9 +49,20 @@ ns.CASTTIME_CONFIDENT_DIFFERENCE = 0.150
 
 
 
-function ns:isAbilityInferred(buff)
-    return buff.name ~= nil
+-- Return a 2-tuple:
+--     (inferred ability or nil, certain: true|false)
+--
+-- It is legal to return an ability that is not assigned with certainty, however
+-- certain will never be true if ability is nil (no ability was assigned). This
+-- allows us to return "working guesses" when it's useful. E.g., multiple abilities
+-- can cause the metamorphosis buff and it is useful to know that the meta buff is
+-- active until we can determine with certainty which ability applied the meta buff.
+--
+-- buff always has a slot property: it's who the buff appeared on in UNIT_AURA.
+function ns:getAbility(buff)
+    return buff.ability, buff.certain
 end
+
 
 
 local function traceLogic(buff, ability, message, ...)
@@ -64,22 +75,23 @@ end
 
 -- Do Blizzard's aura flags match?
 local function logicLayerBuffFlags(buff, ability)
-    if buff.isImportant ~= ability.importantFlag or
-       buff.isBigDefensive ~= ability.bigFlag or
-       buff.isExternal ~= ability.externalFlag or
-       buff.isRaid ~= ability.raidFlag or
-       buff.isRaidInCombat ~= ability.raidInCombatFlag then
-        traceLogic(buff, ability, "excluded (flag mismatch): buff=(%d,%d,%d,%d,%d), ability=(%d,%d,%d,%d,%d)",
+    if buff.isImportant ~= ability.IMPORTANT or
+       buff.isBigDefensive ~= ability.BIG or
+       buff.isExternal ~= ability.EXTERNAL or
+       buff.isRaid ~= ability.RAID or
+       buff.isRaidInCombat ~= ability.RAIDINCOMBAT then
+        traceLogic(buff, ability,
+            "excluded (flags): buff=(%d,%d,%d,%d,%d), ability=(%d,%d,%d,%d,%d)",
             buff.isImportant and 1 or 0,
             buff.isBigDefensive and 1 or 0,
             buff.isExternal and 1 or 0,
             buff.isRaid and 1 or 0,
             buff.isRaidInCombat and 1 or 0,
-            ability.importantFlag and 1 or 0,
-            ability.bigFlag and 1 or 0,
-            ability.externalFlag and 1 or 0,
-            ability.raidFlag and 1 or 0,
-            ability.raidInCombatFlag and 1 or 0)
+            ability.IMPORTANT and 1 or 0,
+            ability.BIG and 1 or 0,
+            ability.EXTERNAL and 1 or 0,
+            ability.RAID and 1 or 0,
+            ability.RAIDINCOMBAT and 1 or 0)
         return false
     end
     return true
@@ -276,12 +288,19 @@ local function getTopTwo(list, dummy, comparator)
 end
 
 
+----------------------------------------------------------------------------
+-- Confidence layers return one of:
+--   1. nil
+--   2. (ability, certain=true|false)
+----------------------------------------------------------------------------
+
+
 
 local function confidenceLayerOnlyOnePossible(possibleSolutions)
     if #possibleSolutions == 1 then
         traceConfidence('onlyOnePossible', 'success: #possibleSolutions=%d',
             #possibleSolutions)
-        return possibleSolutions[1]
+        return { possibleSolutions[1], true }
     else
         traceConfidence('onlyOnePossible', 'failure: #possibleSolutions=%d',
             #possibleSolutions)
@@ -299,7 +318,7 @@ local function confidenceLayerDuration(possibleSolutions)
     if second.durationDiff - best.durationDiff >= ns.DURATION_CONFIDENT_DIFFERENCE then
         traceConfidence('duration', 'success: best=%0.3f, second=%0.3f, required diff=%0.3f',
             best.durationDiff, second.durationDiff, ns.DURATION_CONFIDENT_DIFFERENCE)
-        return best
+        return { best, true }
     else
         traceConfidence('duration', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
             best.durationDiff, second.durationDiff, ns.DURATION_CONFIDENT_DIFFERENCE)
@@ -315,7 +334,7 @@ local function confidenceLayerCastTime(possibleSolutions)
         function(a, b) return a.castTimeDiff <= b.castTimeDiff end)
 
     if second.castTimeDiff - best.castTimeDiff >= ns.CASTTIME_CONFIDENT_DIFFERENCE then
-        return best
+        return { best, true }
     else
         traceConfidence('castTime', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
             best.castTimeDiff, second.castTimeDiff, ns.CASTTIME_CONFIDENT_DIFFERENCE)
@@ -338,7 +357,7 @@ local function confidenceLayerMetamorphosis(possibleSolutions)
         local s2 = possibleSolutions[2]
         if (s1.name == "Metamorphosis" and s2.name == "Untethered Rage") or
            (s2.name == "Metamorphosis" and s1.name == "Untethered Rage") then
-            return s1.name == "Metamorphosis" and s1 or s2
+            return { (s1.name == "Metamorphosis" and s1 or s2), false }
         end
         traceConfidence('Metamorphosis', 'failure: not the two correct possible solutions s1=[%s], s2=[%s]',
             s1.name, s2.name)
@@ -383,7 +402,12 @@ local function getConfidentMatch(possibleSolutions)
         confidenceLayerDuration(possibleSolutions) or
         confidenceLayerMetamorphosis(possibleSolutions)
 
-    return match
+    -- for convenience: unpack the 2 tuple
+    if match then
+        return match[1], match[2]
+    else
+        return nil
+    end
 end
 
 
@@ -394,6 +418,9 @@ end
 -- Will always produce some non-nil value for buff.cooldown - the worst it
 -- could be is the maximum across all possible abilities that can target this player.
 function ns:inferAbility(slot, buff, useDuration, cdTracker)
+    -- track how many times we've tried to infer this ability
+    buff.inference = buff.inference + 1
+
     ns:printDebug(string.format(
         "|cffD8B87CStarting inference(slot=[%s], time=%0.3f) ------------------------------|r",
         slot, GetTime()))
@@ -406,27 +433,23 @@ function ns:inferAbility(slot, buff, useDuration, cdTracker)
 
     -- all logic and ranking is performed in these two lines
     possibleSolutions, maxCD = getPossibleSolutions(buff, slot, useDuration, cdTracker)
+    -- maxCD is a property of the observation because it depends on the time of
+    -- the final inference. e.g., the CD tracker state could've changed, removing
+    -- some CDs from consideration.
+    buff.maxCD = maxCD
 
-    abilityMatch = getConfidentMatch(possibleSolutions)
+    -- assignments can be uncertain. e.g., multiple abilities with different CDs
+    -- can apply the same buff. it can be useful to know what buff is
+    -- present even if it can't be pinned to an ability.
+    abilityMatch, certain = getConfidentMatch(possibleSolutions)
     if abilityMatch and not PetesDefensiveHistoryOptionsDb.disableInference then
-        buff.name = abilityMatch.name
-        buff.cooldown = abilityMatch.cooldown
-        buff.cdr = abilityMatch.cdr
-        buff.charges = abilityMatch.charges
-        buff.duration_variable = abilityMatch.duration_variable
-        buff.spellId = abilityMatch.id
-        -- XXX: TODO: fairly sure this is dead, remove later
-        --buff.external = abilityMatch.external
-        buff.iconId = abilityMatch.iconId
-        buff.caster = abilityMatch.caster
-        buff.certainOnFirstInference = abilityMatch.certainOnFirstInference
-        buff.activeBuff = abilityMatch.activeBuff
+        buff.ability = abilityMatch
+        buff.certain = certain
     else
-        buff.cooldown = maxCD
         ns:printDebug("couldn't infer ability")
     end
 
-    return ns:isAbilityInferred(buff)
+    return ns:getAbility(buff)
 end
 
 
@@ -446,15 +469,16 @@ function ns:zeroKnowledgeSolve()
             -- buff the ability applied. E.g., cheat death on prot paladin triggers
             -- GoAK, but we want to track the cheat death cooldown as a separate ability
             local buff = {
+                inference = 0,
                 slot = slot,
                 startTime = GetTime(),
                 endTime = GetTime() + ability.duration,
                 duration = ability.duration,
-                isImportant = ability.importantFlag,
-                isBigDefensive = ability.bigFlag,
-                isExternal = ability.externalFlag,
-                isRaid = ability.raidFlag,
-                isRaidInCombat = ability.raidInCombatFlag,
+                isImportant = ability.IMPORTANT,
+                isBigDefensive = ability.BIG,
+                isExternal = ability.EXTERNAL,
+                isRaid = ability.RAID,
+                isRaidInCombat = ability.RAIDINCOMBAT,
                 numUpdates = 0,
                 concurrentBuffs = {},
                 concurrentDebuffs = {},
@@ -487,8 +511,8 @@ function ns:zeroKnowledgeSolve()
             end
 
             ns:printDebug("simulating ability=["..ability.name.."]")
-            ns:inferAbility(slot, buff, false, blankCDs)
-            ability.solved = ns:isAbilityInferred(buff)
+            local _, certain = ns:inferAbility(slot, buff, false, blankCDs)
+            ability.solved = certain
             -- would be nice if inferAbility would return the conflicting spell/caster combos
             ability.conflicts = {}
         end
