@@ -57,6 +57,9 @@ ns.ClassTalentModifiers = {
 
     -- Demon hunter class tree -----------------------------------------------------------------
     ["DEMONHUNTER"] = {
+        [1266307] = {
+            { { id=198589, modifies=charges, amount=1 } },
+        },
     },
 
 
@@ -75,6 +78,12 @@ ns.ClassTalentModifiers = {
 
     -- Evoker class tree ----------------------------------------------------------------------
     ["EVOKER"] = {
+        [363916] = {
+            { { id=363916, modifies=hasAbility, amount=true } },
+        },
+        [375406] = {
+            { { id=363916, modifies=charges, amount=1 } },
+        },
     },
 
 
@@ -164,9 +173,11 @@ ns.ClassTalentModifiers = {
               { id=204018, modifies=cooldown, amount=-60 } }
         },
         [114154] = {
-            { { id=642, modifies=cooldown, amount=-30, mult=true },
-              { id=31850, modifies=cooldown, amount=-30, mult=true },
-              { id=135928, modifies=cooldown, amount=-30, mult=true } }
+            { { id=642, modifies=cooldown, amount=-30, mult=true },      -- bubble
+              { id=498, modifies=cooldown, amount=-30, mult=true },      -- divine protection
+              { id=31850, modifies=cooldown, amount=-30, mult=true },    -- ardent defender
+              { id=403876, modifies=cooldown, amount=-30, mult=true } }
+              -- { id=135928, modifies=cooldown, amount=-30, mult=true } }  -- what is this?
         },
     },
 
@@ -243,6 +254,55 @@ ns.SpecTalentModifiers = {
     },
     -- Unholy death knight ------------------------------------------------------------------------
     [252] = {
+    },
+
+
+    -- Havoc demon hunter -------------------------------------------------------------------------
+    [577] = {
+        [198013] = {   -- root havoc talent
+            { { id=198589, modifies=hasAbility, amount=true } },
+        },
+    },
+    -- Vengeance demon hunter ---------------------------------------------------------------------
+    [581] = {
+        [212084] = {    -- root vengeance talent
+            { { id=187827, modifies=hasAbility, amount=true } },
+        },
+        [1256353] = {   -- reduces meta cd by 10s every 3rd voidfall meteor
+            { { id=187827, modifies=cdr, amount=true } },
+        },
+        [209258] = {
+            { { id=209258, modifies=hasAbility, amount=true } },
+        },
+        [1265818] = {
+            { { id=187827, modifies=duration, amount=5 } },
+        },
+        [1270444] = {  -- vengeance apex talents
+            { { id=1270444, modifies=hasAbility, amount=true } },    -- rank 1
+            { { id=1270444, modifies=hasAbility, amount=true } },    -- rank 2
+            { { id=1270444, modifies=hasAbility, amount=true } },    -- rank 3
+            { { id=1270444, modifies=hasAbility, amount=true } },    -- rank 4
+        },
+        [204021] = {
+            { { id=204021, modifies=hasAbility, amount=true } },
+        },
+        [207739] = {   -- burning alive. fiery brand spreads, causing updates and adding dur
+            { { id=204021, modifies=duration_variable, amount=ns.DURATION_GTE } },
+        },
+        [336639] = {   -- immo aura ticking extends brand
+            { { id=204021, modifies=duration_variable, amount=ns.DURATION_GTE } },
+            { { id=204021, modifies=duration_variable, amount=ns.DURATION_GTE } },
+        },
+        [389732] = {
+            { { id=204021, modifies=cooldown, amount=-12 },
+              { id=204021, modifies=charges, amount=1 } },
+        },
+    },
+    -- Devourer demon hunter ----------------------------------------------------------------------
+    [1480] = {
+        [473728] = {   -- root devourer talent
+            { { id=198589, modifies=hasAbility, amount=true } },
+        },
     },
 
 
@@ -333,6 +393,53 @@ ns.SpecTalentModifiers = {
         },
         [392116] = {
             { { id=102342, modifies=duration, amount=4 } },
+        },
+    },
+
+    -- Devastation evoker -------------------------------------------------------------------
+    [1467] = {
+        [375087] = {
+            { { id=375087, modifies=hasAbility, amount=true } },
+        },
+        [375797] = {  -- extends dur by 5s for each emp cast. reduces by 25% each time
+            { { id=375087, modifies=duration_variable, amount=ns.DURATION_GTE } },
+        },
+    },
+    -- Preservation evoker ------------------------------------------------------------------
+    [1468] = {
+        [357170] = {
+            { { id=357170, modifies=hasAbility, amount=true } },
+        },
+        [376204] = {
+            { { id=357170, modifies=charges, amount=1 },
+              { id=357170, modifies=cooldown, amount=-10 } },
+        },
+        [376240] = {
+            { { id=357170, modifies=duration, amount=15, mult=true } },   -- rank 1
+            { { id=357170, modifies=duration, amount=30, mult=true } },   -- rank 2
+        },
+        -- XXX: [362874] temporal compression affects time dilation, giving it a concurrent buff
+    },
+    -- Augmentation evoker ------------------------------------------------------------------
+    [1473] = {
+        [395152] = {   -- augmentation root talent
+            -- seems aug's obsidian scales are 0.5s longer than others. there must be a
+            -- talent somewhere but i can't find it.
+            { { id=363916, modifies=duration, amount=0.5 } }
+        },
+        -- XXX: this ability does add a buff, but it is not in the same UNIT_AURA event
+        --[407243] = {
+            --{ { id=363916, modifies=requireConcurrentBuff, amount=true } },  -- rank 1
+            --{ { id=363916, modifies=requireConcurrentBuff, amount=true } },  -- rank 2
+        --},
+        [404977] = { -- -20s CDR for ALL spells
+            { { id=363916, modifies=cdr, amount=true } }
+        },
+        [412723] = { -- -30s CDR for ALL spells
+            { { id=363916, modifies=cdr, amount=true } }
+        },
+        [412713] = { -- reduces ALL spell cooldowns permanently
+            { { id=363916, modifies=cooldown, amount=-10, mult=true } }
         },
     },
 
@@ -504,8 +611,9 @@ ns.SpecTalentModifiers = {
     -- Ret Paladin ------------------------------------------------------------------------
     [70] = {
         [184575] = { -- 1st spec talent. put ret spec stuff here
-            { { id=31884, modifies=cooldown, amount=-60 },   -- ret gets -60s on wings
-              { id=498, modifies=hasAbility, amount=true } }   -- ret gets divine protection
+            { { id=31884, modifies=cooldown, amount=-60 },    -- ret gets -60s on wings
+              { id=498, modifies=hasAbility, amount=true },   -- ret gets divine protection
+              { id=498, modifies=cooldown, amount=30 } }      -- but ret DP is a 90s cd
         },
         [1261562] = {
             { { id=498, modifies=requireConcurrentBuff, amount=true } }
