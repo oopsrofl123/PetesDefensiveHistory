@@ -108,8 +108,6 @@ end
 -- Is called every time LibSpec identifies a spec, so must loop over the
 -- whole group each time.
 local function updateGroupData(slot, playerName, specId, classFile, talentExportString)
-    local externals = {}   -- key=caster, value=ability info
-
     ns:printDebug(string.format("updateGroupData(%s=[%s], spec ID=%d)\nTalent string=[%s]",
         playerName, slot, specId, talentExportString))
 
@@ -118,56 +116,49 @@ local function updateGroupData(slot, playerName, specId, classFile, talentExport
     talentRanks = ns:getTalentRanks(specId, talentExportString)
 
     ns.groupCDs[slot].playerName = playerName
+    ns.groupCDs[slot].classFile = classFile
     ns.groupCDs[slot].specId = specId
+    ns.groupCDs[slot].talentRanks = talentRanks
 
-    ns.possibleCasters = {}  -- rebuild from scratch every time
-
-    -- find all externals (i.e., spells where target might not equal caster) and
-    -- build the table of non-externals for each player.
+    -- wipe all previous abilities. need to do this for all units before the main
+    -- loop because of externals
     for slot, _ in pairs(ns.allSlots) do
-        externals[slot] = {}
-        local specId = ns.groupCDs[slot].specId
-        ns.groupCDs[slot].abilities = {}          -- things that can be CAST ON this slot
-        ns.groupCDs[slot].castableAbilities = {}  -- things that can be CAST by this slot
-        if specId then
-            baseAbilities = ns.AbilityDb[classFile]
-            for _, baseAbility in pairs(baseAbilities) do
-                local ability = applyTalentModifiers(classFile, specId, baseAbility, talentRanks)
+        ns.groupCDs[slot].abilities = {}          -- things that can be cast ON this slot
+        ns.groupCDs[slot].castableAbilities = {}  -- things that can be cast BY this slot
+    end
+
+    for slot, _ in pairs(ns.allSlots) do
+        local thisSpecId = ns.groupCDs[slot].specId
+        local thisClassFile = ns.groupCDs[slot].classFile
+        local thisTalentRanks = ns.groupCDs[slot].talentRanks
+        if thisSpecId and thisClassFile and thisTalentRanks then
+            for _, baseAbility in pairs(ns.AbilityDb[thisClassFile]) do
+                -- returns a copy
+                local ability = applyTalentModifiers(thisClassFile, thisSpecId, baseAbility, thisTalentRanks)
                 if ability.hasAbility then
                     ability.caster = slot
                     ns.groupCDs[slot].castableAbilities[ability.name] = ability
-                    -- Record the fact that this slot can cast this ability
-                    if ns.possibleCasters[ability.name] then
-                        table.insert(ns.possibleCasters[ability.name], slot)
-                    else
-                        ns.possibleCasters[ability.name] = { slot }
-                    end
 
-                    if ability.external == ns.NOT_EXTERNAL then
-                        table.insert(ns.groupCDs[slot].abilities, ns:shallowcopy(ability))
-                    else
-                        table.insert(externals[slot], ns:shallowcopy(ability))
+                    local targets = ability.targets
+                    if targets == ns.TARGET_SELF or targets == ns.TARGET_ANY then
+                        table.insert(ns.groupCDs[slot].abilities, ability)
+                    end
+                    if targets == ns.TARGET_OTHERS or targets == ns.TARGET_ANY then
+                        for target, _ in pairs(ns.allSlots) do
+                            if targets == TARGET_ANY or target ~= slot then
+                                table.insert(ns.groupCDs[target].abilities or {}, ability)
+                            end
+                        end
                     end
                 end
             end
         end
     end
 
-    -- XXX: TODO: a separate loop for this no longer seems necessary..
-    -- add externals to the full ability list for each player
-    -- for each target, the possible set of abilities are:
-    --   1. the target's own (cast on self) abilities
-    --   2. another caster's external, assuming there are no rules preventing this
-    --      (e.g., blessing of sac can't be cast on self).
+    -- Sort the externals to the end. Just nicer visualization.
     for slot, _ in pairs(ns.allSlots) do
-        for caster, abilities in pairs(externals) do
-            for _, ability in pairs(abilities) do
-                -- the only rule I know of is no self casting
-                if not (caster == slot and ability.external == ns.EXTERNAL_NOT_SELF) then
-                    table.insert(ns.groupCDs[slot].abilities, ns:shallowcopy(ability))
-                end
-            end
-        end
+        table.sort(ns.groupCDs[slot].abilities,
+            function(a, b) return (a.EXTERNAL and 1 or 0) < (b.EXTERNAL and 1 or 0) end)
     end
 end
 
