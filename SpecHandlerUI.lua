@@ -56,6 +56,8 @@ function ns:updateGroupSolutionRow(row)
             item.chargesLabel:SetText(ability.charges)
             if ability.charges > 1 then
                 item.chargesLabel:Show()
+            else
+                item.chargesLabel:Hide()
             end
 
             if #ability.conflicts > 0 then
