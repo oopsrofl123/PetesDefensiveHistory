@@ -10,7 +10,6 @@ ignore:
     - utils/*
     - README.md
 
-# comment
 externals:
     libs/LibStub:
         url: https://github.com/lua-wow/LibStub/
@@ -18,6 +17,6 @@ externals:
     libs/LibSpecialization:
         url: https://github.com/BigWigsMods/LibSpecialization
         tag: latest
-    #libs/LibPrettyPrint:
-        #url: https://repos.curseforge.com/wow/libprettyprint/trunk
-        #tag: latest
+    libs/LibPrettyPrint:
+        url: https://github.com/kapresoft/wow-addon-LibPrettyPrint
+        tag: latest
