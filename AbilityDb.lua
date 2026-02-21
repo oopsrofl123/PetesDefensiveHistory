@@ -37,6 +37,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -53,6 +54,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -71,6 +73,7 @@ ns.AbilityDb = {
 			external=ns.NOT_EXTERNAL,
             -- adds Coagulating Blood (id=463730), which is not harmful but is
             -- not returned by the aura filter HELPFUL
+            requireConcurrentBuff=false,
             concurrentDebuff=true,
             certainOnFirstInference=true
 		},
@@ -87,6 +90,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -107,6 +111,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -125,6 +130,7 @@ ns.AbilityDb = {
 			cdr=false,           -- true for annihilator
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=false -- can't track Meta because of the apex talent. however, if meta and the apex talent are the only things that could have happened, we do know what buff as applied (meta) but not which coodown to track (meta or apex)
 		},
@@ -143,6 +149,7 @@ ns.AbilityDb = {
 			cdr=false,           -- true for annihilator
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=true,
             certainOnFirstInference=true
 		},
@@ -162,6 +169,7 @@ ns.AbilityDb = {
 			cdr=false,           -- true for annihilator
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             -- confusingly, although this ability is why meta can't be inferred instantly,
             -- this flag should be false here.
@@ -183,6 +191,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=false, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -204,6 +213,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -221,6 +231,7 @@ ns.AbilityDb = {
 			cdr=false,  -- there is a weird CDR hero talent in hero talents keeper of the grove
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -238,6 +249,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -255,6 +267,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
         },
@@ -271,6 +284,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -288,6 +302,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
         },
@@ -304,6 +319,7 @@ ns.AbilityDb = {
 			cdr=true,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -338,6 +354,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=false, bigFlag=true, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
 			external=ns.EXTERNAL_ANY,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -358,6 +375,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -378,6 +396,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=true, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -394,6 +413,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=false, bigFlag=true, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
 			external=ns.EXTERNAL_ANY,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -414,6 +434,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -430,6 +451,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -457,8 +479,11 @@ ns.AbilityDb = {
 
 	----------------------------------------------------------------------------------------
     ["MAGE"] = {
-        -- XXX: TODO: arcane surge always comes with several other buffs. maybe
-        -- can use that to identify.
+        -- XXX: TODO: arcane surge always triggers the arcane missiles buff. this is
+        -- slightly different from other cases because you can get the arcane missiles
+        -- buff in other ways, so this is an add OR update buff situation.
+        -- important to disambiguate this one because it can't be distinguished from
+        -- mirror images by duration.
 		{
 			name="Arcane Surge",
             buttonPress=true,
@@ -472,23 +497,43 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
+        -- XXX: use cancellation to help detect?
+		{
+			name="Ice Block",
+            buttonPress=true,
+            isBuff=true,
+			id=45438,
+            iconId=135841,
+			cooldown=240,
+			duration=10,
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=false,
+            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
+			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
+            concurrentDebuff=true,
+            certainOnFirstInference=true
+        },
 		-- XXX: any way to use hypothermia as extra info?
 		{
 			name="Ice Cold",
             buttonPress=true,
             isBuff=true,
-			id=414658,
+			id=414659,
             iconId=135777,
-			cooldown=240,   -- base: 240 3 talents each give -30s
+			cooldown=240,
 			duration=6,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=true,
             certainOnFirstInference=true
 		},
@@ -498,13 +543,14 @@ ns.AbilityDb = {
             isBuff=true,
 			id=55342,
             iconId=135994,
-			cooldown=120,   -- base 120, talent -30
+			cooldown=120,
 			duration=15,
 			duration_variable=ns.DURATION_LTE,
 			charges=1,
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -522,10 +568,9 @@ ns.AbilityDb = {
             -- this disagrees with C_Spell.IsSpellImportant and C_UnitAuras.AuraIsBigDefensive
             -- but this is what happens in game. There are other Alter Time spell IDs, but this
             -- spell ID is the one shown by idTip in game.
-            importantFlag=true,   -- false
-            bigFlag=false,        -- true
-            externalFlag=false, raidFlag=false, raidInCombatFlag=false,
+            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -535,13 +580,14 @@ ns.AbilityDb = {
             isBuff=true,
 			id=190319,
             iconId=135824,
-			cooldown=60,   -- several talents
+			cooldown=120,
 			duration=12,
-			duration_variable=ns.DURATION_GTE,
+			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -580,6 +626,7 @@ ns.AbilityDb = {
 			cdr=true,
             importantFlag=false, bigFlag=false, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
 			external=ns.EXTERNAL_ANY,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -600,6 +647,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=false, bigFlag=true, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
 			external=ns.EXTERNAL_NOT_SELF,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -617,6 +665,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -633,6 +682,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=true,
             certainOnFirstInference=true
 		},
@@ -652,6 +702,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=false, bigFlag=false, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
 			external=ns.EXTERNAL_ANY,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,    -- applies forbearance, but the debuff isn't in the same payload
             certainOnFirstInference=true
 		},
@@ -668,6 +719,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=true, raidInCombatFlag=false,
 			external=ns.EXTERNAL_ANY,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -686,6 +738,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
         },
@@ -702,6 +755,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
         },
@@ -718,6 +772,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -734,6 +789,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -750,6 +806,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=false, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -768,6 +825,7 @@ ns.AbilityDb = {
             -- match GoAK - cheat death procs a shorter GoAK that is not flagged BIG_DEFENSIVE
             importantFlag=false, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=true,
             certainOnFirstInference=true
 		},
@@ -784,6 +842,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=true, raidFlag=true, raidInCombatFlag=false,
 			external=ns.EXTERNAL_ANY,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,  -- applies forbearance, but the debuff isn't in the same payload ON OTHERS
             certainOnFirstInference=true
 		},
@@ -800,6 +859,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -821,6 +881,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -837,6 +898,7 @@ ns.AbilityDb = {
 			cdr=true,
             importantFlag=false, bigFlag=true, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
 			external=ns.EXTERNAL_ANY,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -856,6 +918,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -872,6 +935,7 @@ ns.AbilityDb = {
 			cdr=true,       -- talent: -60s on CD if the target dies. should rarely trigger
             importantFlag=false, bigFlag=false, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
 			external=ns.EXTERNAL_ANY,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -889,6 +953,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		}
@@ -903,13 +968,14 @@ ns.AbilityDb = {
             isBuff=true,
 			id=31224,
             iconId=136177,
-			cooldown=120,   -- talent: 120 > 90
-			duration=5,     -- hero talent: 5 > 7
+			cooldown=120,
+			duration=5,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
             importantFlag=false, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -926,6 +992,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -940,12 +1007,13 @@ ns.AbilityDb = {
 			id=13750,
             iconId=136206,
 			cooldown=180,
-			duration=19,   -- talent: 15 > 19 (+4s)
+			duration=15,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -954,6 +1022,7 @@ ns.AbilityDb = {
         -- also: causes several dance-specific buffs: symbolic victory (457167), danse macabre (393969), 
         -- master of shadows (196980, not dance-specific), fade to nothing (386237, not dance-specific)
         -- could add logic layer that says at least 3 buffs total?
+        -- many of those buffs are talents. would need to detect them to count concurrent buffs
 		{
 			name="Shadow Dance",
             buttonPress=true,
@@ -961,12 +1030,13 @@ ns.AbilityDb = {
 			id=185313,
             iconId=236279,
 			cooldown=20,
-			duration=7.2,
+			duration=6,
 			duration_variable=ns.DURATION_FIXED,
-			charges=2,
+			charges=1,
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=true,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -980,10 +1050,11 @@ ns.AbilityDb = {
 			cooldown=90,
 			duration=16,
 			duration_variable=ns.DURATION_FIXED,
-			charges=2,
+			charges=1,
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -1005,6 +1076,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -1044,6 +1116,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -1083,6 +1156,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -1103,6 +1177,7 @@ ns.AbilityDb = {
 			cdr=true,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -1120,6 +1195,7 @@ ns.AbilityDb = {
 			cdr=false,
             importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
 		},
@@ -1138,6 +1214,7 @@ ns.AbilityDb = {
 			cdr=true,       -- talent 1: 20 rage=1s, talent 2: shield slam=6s
             importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=true,
 			external=ns.NOT_EXTERNAL,
+            requireConcurrentBuff=false,
             concurrentDebuff=false,
             certainOnFirstInference=true
         },

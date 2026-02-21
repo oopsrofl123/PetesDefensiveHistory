@@ -7,7 +7,7 @@ local cooldown = "cooldown"
 local duration = "duration"
 local duration_variable = "duration_variable"
 local hasAbility = "hasAbility"
-local concurrentBuff = "concurrentBuff"
+local requireConcurrentBuff = "requireConcurrentBuff"
 
 -- The Class and Spec tables are *NOT* exactly the same thing as the class and
 -- spec talent trees. Some talents that live in the class tree are represented
@@ -54,6 +54,12 @@ ns.ClassTalentModifiers = {
         --},
     },
 
+
+    -- Demon hunter class tree -----------------------------------------------------------------
+    ["DEMONHUNTER"] = {
+    },
+
+
     -- Druid class tree ------------------------------------------------------------------------
     ["DRUID"] = {
         [327993] = {
@@ -61,10 +67,16 @@ ns.ClassTalentModifiers = {
         },
         [385786] = {  -- adds a shield buff to barkskin. rank 2's shield is bigger but
                       -- that's irrelevant.
-            { { id=22812, modifies=concurrentBuff, amount=true } },   -- rank 1
-            { { id=22812, modifies=concurrentBuff, amount=true } },   -- rank 2
+            { { id=22812, modifies=requireConcurrentBuff, amount=true } },   -- rank 1
+            { { id=22812, modifies=requireConcurrentBuff, amount=true } },   -- rank 2
         }
     },
+
+
+    -- Evoker class tree ----------------------------------------------------------------------
+    ["EVOKER"] = {
+    },
+
 
     -- Hunter class tree ----------------------------------------------------------------------
     ["HUNTER"] = {
@@ -77,6 +89,41 @@ ns.ClassTalentModifiers = {
         [388039] = {
             { { id=264735, modifies=duration, amount=2 } }
         },
+    },
+
+
+    -- Mage class tree -------------------------------------------------------------------------
+    ["MAGE"] = {
+        [45438] = {   -- ice block
+            { { id=45438, modifies=hasAbility, amount=true } },
+        },
+        [382424] = {
+            { { id=45438, modifies=cooldown, amount=-30 },      -- rank 1
+              { id=414659, modifies=cooldown, amount=-30 } },   -- rank 1
+            { { id=45438, modifies=cooldown, amount=-60 },      -- rank 2
+              { id=414659, modifies=cooldown, amount=-60 } },   -- rank 2
+        },
+        [1265517] = {
+            { { id=45438, modifies=cooldown, amount=-30 },
+              { id=414659, modifies=cooldown, amount=-30 } },
+        },
+        [342245] = {   -- alter time
+            { { id=342245, modifies=hasAbility, amount=true } },
+        },
+        [55342] = {   -- mirror image
+            { { id=55342, modifies=hasAbility, amount=true } },
+        },
+        [1244025] = {   -- mirror image
+            { { id=55342, modifies=cooldown, amount=-30 } },    -- rank 1
+            { { id=55342, modifies=cooldown, amount=-60 } },    -- rank 2
+        },
+        [414659] = {   -- ice cold
+            { { id=414659, modifies=hasAbility, amount=true },
+              { id=45438, modifies=hasAbility, amount=false } },
+        },
+        [1255166] = {
+            { { id=342245, modifies=cooldown, amount=-10 } },
+        }
     },
 
 
@@ -98,10 +145,10 @@ ns.ClassTalentModifiers = {
         -- wrath buff concurrently, perhaps helping to distinguish wings from
         -- other (10000)-flagged auras.
         [1241288] = {
-            { { id=255937, modifies=concurrentBuff, amount=true },
-              { id=216331, modifies=concurrentBuff, amount=true },
-              { id=31884, modifies=concurrentBuff, amount=true },
-              { id=389539, modifies=concurrentBuff, amount=true } } 
+            { { id=255937, modifies=requireConcurrentBuff, amount=true },
+              { id=216331, modifies=requireConcurrentBuff, amount=true },
+              { id=31884, modifies=requireConcurrentBuff, amount=true },
+              { id=389539, modifies=requireConcurrentBuff, amount=true } } 
         },
         [1044] = {
             { { id=1044, modifies=hasAbility, amount=true } }
@@ -123,6 +170,27 @@ ns.ClassTalentModifiers = {
         },
     },
 
+
+    -- Priest class tree -----------------------------------------------------------------------
+    ["PRIEST"] = {
+    },
+
+
+    -- Rogue class tree -----------------------------------------------------------------------
+    ["ROGUE"] = {
+        [31224] = {
+            { { id=31224, modifies=hasAbility, amount=true } }
+        },
+        [5277] = {
+            { { id=5277, modifies=hasAbility, amount=true } }
+        },
+        [457022] = {
+            { { id=31224, modifies=duration, amount=2 } }
+        },
+    },
+
+
+    -- Shaman class tree -----------------------------------------------------------------------
     ["SHAMAN"] = {
         [108271] = {
             { { id=108271, modifies=hasAbility, amount=true } }
@@ -132,10 +200,17 @@ ns.ClassTalentModifiers = {
         },
     },
 
+
+    -- Warlock class tree ----------------------------------------------------------------------
     ["WARLOCK"] = {
         [386659] = {
             { { id=104773, modifies=cooldown, amount=-45 } }
         },
+    },
+
+
+    -- Warrior class tree ----------------------------------------------------------------------
+    ["WARRIOR"] = {
     },
 }
 
@@ -282,6 +357,46 @@ ns.SpecTalentModifiers = {
     },
 
 
+    -- Arcane mage ----------------------------------------------------------------------------
+    [62] = {
+        [365350] = {
+            { { id=365350, modifies=hasAbility, amount=true } },
+        },
+    },
+    -- Fire mage ------------------------------------------------------------------------------
+    [63] = {
+        [190319] = {
+            { { id=190319, modifies=hasAbility, amount=true } },
+        },
+        [1254194] = {
+            { { id=190319, modifies=cooldown, amount=-60 } },
+        },
+        [449412] = {
+            { { id=190319, modifies=duration_variable, amount=ns.DURATION_GTE } },
+        },
+        [383634] = { -- adds a buff (Fiery Rush) to combustion
+            { { id=190319, modifies=requireConcurrentBuff, amount=true } },
+        },
+        [1257443] = {  -- apex talent r4 extends combustion duration
+            { { } },    -- rank 1
+            { { } },    -- rank 2
+            { { } },    -- rank 3
+            { { id=190319, modifies=duration_variable, amount=ns.DURATION_GTE } },    -- rank 4
+        },
+    },
+    -- Frost mage -----------------------------------------------------------------------------
+    [64] = {
+        [235219] = {  -- XXX: TODO: cold snap reset. just model as CDR for now.
+            { { id=45438, modifies=cdr, amount=true },
+              { id=414659, modifies=cdr, amount=true } },
+        },
+        [1244110] = {
+            { { id=45438, modifies=charges, amount=1 },
+              { id=414659, modifies=charges, amount=1 } },
+        }
+    },
+
+
     -- Brewmaster monk ------------------------------------------------------------------------
     [268] = {
     },
@@ -393,7 +508,7 @@ ns.SpecTalentModifiers = {
               { id=498, modifies=hasAbility, amount=true } }   -- ret gets divine protection
         },
         [1261562] = {
-            { { id=498, modifies=concurrentBuff, amount=true } }
+            { { id=498, modifies=requireConcurrentBuff, amount=true } }
         },
         [384820] = {
             { { id=6940, modifies=cooldown, amount=-60 } }
@@ -414,6 +529,49 @@ ns.SpecTalentModifiers = {
             { { id=255937, modifies=hasAbility, amount=true },
               { id=31884, modifies=hasAbility, amount=false } }
         }
+    },
+
+
+    -- Assassination rogue ---------------------------------------------------------------------
+    [259] = {
+    },
+    -- Outlaw rogue ---------------------------------------------------------------------
+    [260] = {
+        [13750] = {
+            { { id=13750, modifies=hasAbility, amount=true } },
+        },
+        [1259465] = {
+            { { id=13750, modifies=duration, amount=4 } },
+        },
+        [1277933] = {
+            -- preparation: resets the cd of adrenaline rush. for now, just model
+            -- as CDR
+            -- XXX: TODO: better handle abilities that reset cooldowns
+            { { id=13750, modifies=cdr, amount=true } },
+        }
+    },
+    -- Subtlety rogue ---------------------------------------------------------------------
+    [261] = {
+        [91023] = {   -- root sub talent
+            { { id=185313, modifies=hasAbility, amount=true } },   -- give shadow dance
+        },
+        [394930] = {
+            { { id=185313, modifies=charges, amount=1 } },
+        },
+        -- two shadow dance duration talents that are hard to deal with
+        [382505] = {
+            -- give +3s dur to shadow dance if rogue remains out of combat for 6s
+            -- let's just model it as DURATION_GTE
+            { { id=185313, modifies=duration_variable, amount=ns.DURATION_GTE } },
+        },
+        [185314] = {
+            -- even worse: shadow dance +duration based on haste stat, presumably
+            -- meaning haste procs increase duration. again, approximate with DURATION_GTE
+            { { id=185313, modifies=duration_variable, amount=ns.DURATION_GTE } },
+        },
+        [121471] = {
+            { { id=121471, modifies=hasAbility, amount=true } }
+        },
     },
 
 
