@@ -27,7 +27,6 @@ ns.AbilityDb = {
 		{
 			name="Anti-Magic Shell",
             buttonPress=true,
-            isBuff=true,
 			id=48707,
             iconId=136120,
 			cooldown=60,
@@ -43,7 +42,6 @@ ns.AbilityDb = {
 		{
 			name="Icebound Fortitude",
             buttonPress=true,
-            isBuff=true,
 			id=48792,
             iconId=237525,
 			cooldown=120,
@@ -59,7 +57,6 @@ ns.AbilityDb = {
 		{
 			name="Vampiric Blood",
             buttonPress=true,
-            isBuff=true,
 			id=55233,
             iconId=136168,
 			cooldown=90,
@@ -77,7 +74,6 @@ ns.AbilityDb = {
 		{
 			name="Pillar of Frost",
             buttonPress=true,
-            isBuff=true,
 			id=51271,
             iconId=458718,
 			cooldown=45,
@@ -97,7 +93,6 @@ ns.AbilityDb = {
 		{
 			name="Blur",
             buttonPress=true,
-            isBuff=true,
 			id=198589,
             iconId=1305150,
 			cooldown=60,
@@ -117,7 +112,6 @@ ns.AbilityDb = {
 		{
 			name="Metamorphosis",
             buttonPress=true,
-            isBuff=true,
 			id=187827,
             iconId=1247263,
 			cooldown=120,
@@ -136,7 +130,6 @@ ns.AbilityDb = {
 			name="Last Resort",
             -- any meta that happens without a button press is cheat death
             buttonPress=false,
-            isBuff=false,
 			id=209258,
             iconId=1348655,
 			cooldown=480,
@@ -155,7 +148,6 @@ ns.AbilityDb = {
 		{
 			name="Untethered Rage",
             buttonPress=true,
-            isBuff=false,
 			id=1270444,
             iconId=7636527,
 			cooldown=1,
@@ -171,7 +163,6 @@ ns.AbilityDb = {
 		{
 			name="Fiery Brand",
             buttonPress=true,
-            isBuff=true,
 			id=204021,
             iconId=1344647,
 			cooldown=60,
@@ -192,7 +183,6 @@ ns.AbilityDb = {
 		{
 			name="Barkskin",
             buttonPress=true,
-            isBuff=true,
 			id=22812,
             iconId=136097,
 			cooldown=60,
@@ -208,7 +198,6 @@ ns.AbilityDb = {
 		{
 			name="Celestial Alignment",
             buttonPress=true,
-            isBuff=true,
 			--id=383410,  -- this is the celestial alignment buff in-game
             id=194223,
             iconId=136060,
@@ -225,7 +214,6 @@ ns.AbilityDb = {
 		{
 			name="Incarnation: Chosen of Elune",
             buttonPress=true,
-            isBuff=true,
 			id=102560,
             --id=390414   -- this is the in-game incarn buff spell ID
             iconId=571586,
@@ -243,7 +231,6 @@ ns.AbilityDb = {
 		{
 			name="Berserk",
             buttonPress=true,
-            isBuff=true,
             id=106951,
             iconId=236149,
 			cooldown=180,
@@ -259,7 +246,6 @@ ns.AbilityDb = {
 		{
 			name="Incarnation: Avatar of Ashamane",
             buttonPress=true,
-            isBuff=true,
 			id=102543,
             iconId=571586,
 			cooldown=180,
@@ -276,7 +262,6 @@ ns.AbilityDb = {
 		{
 			name="Berserk",
             buttonPress=true,
-            isBuff=true,
             id=50334,
             iconId=236149,
 			cooldown=180,
@@ -292,7 +277,6 @@ ns.AbilityDb = {
 		{
 			name="Incarnation: Guardian of Ursoc",
             buttonPress=true,
-            isBuff=true,
 			id=102558,
             iconId=571586,
 			cooldown=180,
@@ -310,7 +294,6 @@ ns.AbilityDb = {
 		-- {
 			-- name="Survival Instincts",
             -- buttonPress=true,
-            -- isBuff=true,
 			-- id=61336,
             -- iconId=236169,
 			-- cooldown=180,
@@ -325,7 +308,6 @@ ns.AbilityDb = {
 		{
 			name="Ironbark",
             buttonPress=true,
-            isBuff=true,
 			id=102342,
             iconId=572025,
 			cooldown=90,
@@ -345,7 +327,6 @@ ns.AbilityDb = {
 		{
 			name="Dragonrage",
             buttonPress=true,
-            isBuff=true,
 			id=375087,
             iconId=4622452,
 			cooldown=120,
@@ -365,7 +346,6 @@ ns.AbilityDb = {
 		{
 			name="Obsidian Scales",
             buttonPress=true,
-            isBuff=true,
 			id=363916,
             iconId=1394891,
 			cooldown=90,
@@ -381,7 +361,6 @@ ns.AbilityDb = {
 		{
 			name="Time Dilation",
             buttonPress=true,
-            isBuff=true,
 			id=357170,
             iconId=4622478,
 			cooldown=60,
@@ -401,7 +380,6 @@ ns.AbilityDb = {
 		{
 			name="Survival of the Fittest",
             buttonPress=true,
-            isBuff=true,
 			id=264735,
             iconId=136094,
 			cooldown=90,
@@ -417,7 +395,6 @@ ns.AbilityDb = {
 		{
 			name="Trueshot",
             buttonPress=true,
-            isBuff=true,
 			id=288613,
             iconId=132329,
 			cooldown=120,
@@ -436,7 +413,6 @@ ns.AbilityDb = {
 		-- {
 			-- name="Exhilaration"
             -- buttonPress=true,
-            -- isBuff=true,
 			-- id=109304,
             -- iconId=461117,
 			-- cooldown=60,   -- talent: 2pts -60s
@@ -461,7 +437,6 @@ ns.AbilityDb = {
 		{
 			name="Arcane Surge",
             buttonPress=true,
-            isBuff=true,
 			id=365350,
             iconId=4667417,
 			cooldown=90,
@@ -478,7 +453,6 @@ ns.AbilityDb = {
 		{
 			name="Ice Block",
             buttonPress=true,
-            isBuff=true,
 			id=45438,
             iconId=135841,
 			cooldown=240,
@@ -495,7 +469,6 @@ ns.AbilityDb = {
 		{
 			name="Ice Cold",
             buttonPress=true,
-            isBuff=true,
 			id=414659,
             iconId=135777,
 			cooldown=240,
@@ -511,7 +484,6 @@ ns.AbilityDb = {
 		{
 			name="Mirror Image",
             buttonPress=true,
-            isBuff=true,
 			id=55342,
             iconId=135994,
 			cooldown=120,
@@ -527,7 +499,6 @@ ns.AbilityDb = {
 		{
 			name="Alter Time",
             buttonPress=true,
-            isBuff=true,
 			id=342245,
             iconId=609811,
 			cooldown=50,   -- hero talent -40s 50>40
@@ -543,7 +514,6 @@ ns.AbilityDb = {
 		{
 			name="Combustion",
             buttonPress=true,
-            isBuff=true,
 			id=190319,
             iconId=135824,
 			cooldown=120,
@@ -565,7 +535,6 @@ ns.AbilityDb = {
 		-- {
 	   	    -- name="Fortifying Brew",
             -- buttonPress=true,
-            -- isBuff=true,
 			-- id=115203,
             -- iconId=615341,
 		    --	cooldown=360   -- talent: 360 > 240 base is really 6min for brew
@@ -580,7 +549,6 @@ ns.AbilityDb = {
         {
 			name="Life Cocoon",
             buttonPress=true,
-            isBuff=true,
 			id=116849,
             iconId=627485,
 			cooldown=120,
@@ -600,7 +568,6 @@ ns.AbilityDb = {
 		{
 			name="Blessing of Sacrifice",
             buttonPress=true,
-            isBuff=true,
 			id=6940,
             iconId=135966,
 			cooldown=120,
@@ -616,7 +583,6 @@ ns.AbilityDb = {
 		{
 			name="Divine Protection",
             buttonPress=true,
-            isBuff=true,
 			id=498,
             iconId=524353,
 			cooldown=60,
@@ -632,7 +598,6 @@ ns.AbilityDb = {
 		{
 			name="Divine Shield",
             buttonPress=true,
-            isBuff=true,
 			id=642,
             iconId=524354,
 			cooldown=300,
@@ -651,7 +616,6 @@ ns.AbilityDb = {
 		{
 			name="Blessing of Protection",
             buttonPress=true,
-            isBuff=true,
 			id=1022,
             iconId=135964,
 			cooldown=300,
@@ -667,7 +631,6 @@ ns.AbilityDb = {
 		{
 			name="Blessing of Freedom",
             buttonPress=true,
-            isBuff=true,
 			id=1044,
             iconId=135968,
 			cooldown=25,
@@ -685,7 +648,6 @@ ns.AbilityDb = {
         {
             name='Wake of Ashes',
             buttonPress=true,
-            isBuff=true,
 			id=255937,
             iconId=1112939,
 			cooldown=30,
@@ -701,7 +663,6 @@ ns.AbilityDb = {
         {
             name='Avenging Crusader',
             buttonPress=true,
-            isBuff=true,
 			id=216331,
             iconId=589117,
 			cooldown=60,
@@ -717,7 +678,6 @@ ns.AbilityDb = {
 		{
 			name="Avenging Wrath",
             buttonPress=true,
-            isBuff=true,
 			id=31884,
             iconId=135875,
 			cooldown=120,
@@ -733,7 +693,6 @@ ns.AbilityDb = {
 		{
 			name="Ardent Defender",
             buttonPress=true,
-            isBuff=true,
 			id=31850,
             iconId=135870,
 			cooldown=90,
@@ -749,7 +708,6 @@ ns.AbilityDb = {
 		{
 			name="Guardian of Ancient Kings",
             buttonPress=true,
-            isBuff=true,
 			id=86659,
             iconId=135919,
 			cooldown=180,
@@ -766,7 +724,6 @@ ns.AbilityDb = {
 		{
 			name="Gift of the Golden Valkyr",
             buttonPress=false,    -- does not require the player to press a button, don't check cast history
-            isBuff=false,
 			id=393108,
             iconId=1349535,   -- blizzard shows the GoAK icon on bigdefensives. show the talent instead
 			cooldown=45,
@@ -783,7 +740,6 @@ ns.AbilityDb = {
 		{
 			name="Blessing of Spellwarding",
             buttonPress=true,
-            isBuff=true,
 			id=204018,
             iconId=135880,
 			cooldown=300,
@@ -799,7 +755,6 @@ ns.AbilityDb = {
 		{
 			name="Sentinel",
             buttonPress=true,
-            isBuff=true,
 			id=389539,
             iconId=135922,
 			cooldown=120,
@@ -820,11 +775,10 @@ ns.AbilityDb = {
 		{
 			name="Desperate Prayer",
             buttonPress=true,
-            isBuff=true,
 			id=19236,
             iconId=237550,
-			cooldown=70,   -- talent: 90>70
-			duration=10,   -- optional oracle hero talent gives +10s 
+			cooldown=90,
+			duration=10,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
@@ -836,14 +790,13 @@ ns.AbilityDb = {
 		{
 			name="Pain Suppression",
             buttonPress=true,
-            isBuff=true,
 			id=33206,
             iconId=135936,
 			cooldown=180,
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
-			charges=2,    -- talent +1 charge also gives -3s CD per PW:shield cast
-			cdr=true,
+			charges=1,
+			cdr=false,
             IMPORTANT=false, BIG=true, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
 			targets=ns.TARGET_ANY,
             requireConcurrentBuff=false,
@@ -855,11 +808,10 @@ ns.AbilityDb = {
 		{
 			name="Divine Hymn",
             buttonPress=true,
-            isBuff=true,
 			id=64843,
             iconId=237540,
-			cooldown=120,   -- talent: 180>120
-			duration=5,     -- this is the cast (channel) time of divine hymn. cancelled as usual
+			cooldown=180,
+			duration=5,    -- the channel time of divine hymn. cancels will be common
 			duration_variable=ns.DURATION_LTE,
 			charges=1,
 			cdr=false,
@@ -871,14 +823,13 @@ ns.AbilityDb = {
 		{
 			name="Guardian Spirit",
             buttonPress=true,
-            isBuff=true,
 			id=47788,
             iconId=237542,
 			cooldown=180,
-			duration=12,    -- 10 base +2s hero (orcale, mandatory) talent
+			duration=10,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
-			cdr=true,       -- talent: -60s on CD if the target dies. should rarely trigger
+			cdr=false,
             IMPORTANT=false, BIG=false, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
 			targets=ns.TARGET_ANY,
             requireConcurrentBuff=false,
@@ -887,13 +838,11 @@ ns.AbilityDb = {
 		{
 			name="Voidform",
             buttonPress=true,
-            isBuff=true,
 			id=228260,
             iconId=1386548,
 			cooldown=120,
 			duration=20,
-            -- also a hero talent that adds dynamic duration
-			duration_variable=ns.DURATION_GTE,  -- talent: +3s dur dynamic per cast of SW: madness
+			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
@@ -909,7 +858,6 @@ ns.AbilityDb = {
 		{
 			name="Cloak of Shadows",
             buttonPress=true,
-            isBuff=true,
 			id=31224,
             iconId=136177,
 			cooldown=120,
@@ -925,7 +873,6 @@ ns.AbilityDb = {
 		{
 			name="Evasion",
             buttonPress=true,
-            isBuff=true,
 			id=5277,
             iconId=136205,
 			cooldown=120,
@@ -945,7 +892,6 @@ ns.AbilityDb = {
 		{
 			name="Adrenaline Rush",
             buttonPress=true,
-            isBuff=true,
 			id=13750,
             iconId=136206,
 			cooldown=180,
@@ -967,7 +913,6 @@ ns.AbilityDb = {
 		{
 			name="Shadow Dance",
             buttonPress=true,
-            isBuff=true,
 			id=185313,
             iconId=236279,
 			cooldown=20,
@@ -984,7 +929,6 @@ ns.AbilityDb = {
 		{
 			name="Shadow Blades",
             buttonPress=true,
-            isBuff=true,
 			id=121471,
             iconId=376022,
 			cooldown=90,
@@ -1005,7 +949,6 @@ ns.AbilityDb = {
 		{
 			name="Astral Shift",
             buttonPress=true,
-            isBuff=true,
 			id=108271,
             iconId=538565,
 			cooldown=120,
@@ -1023,7 +966,6 @@ ns.AbilityDb = {
 		-- {
 			-- name="Healing Tide Totem",
             -- buttonPress=true,
-            -- isBuff=true,
 			-- id=108280,
             -- iconId=538569,
 			-- cooldown=120,   -- talent: 180 > 120
@@ -1043,7 +985,6 @@ ns.AbilityDb = {
 		{
 			name="Unending Resolve",
             buttonPress=true,
-            isBuff=true,
 			id=104773,
             iconId=136150,
 			cooldown=180,
@@ -1060,7 +1001,6 @@ ns.AbilityDb = {
 		-- {
 			-- name="Summon Demon Tyrant",
             -- buttonPress=true,
-            -- isBuff=true,
 			-- id=265187,
             -- iconId=2065628,
 			-- cooldown=60,
@@ -1081,10 +1021,9 @@ ns.AbilityDb = {
 		{
 			name="Die by the Sword",
             buttonPress=true,
-            isBuff=true,
 			id=118038,
             iconId=132336,
-			cooldown=108,   -- talent: 120 > 108
+			cooldown=120,
 			duration=8,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
@@ -1094,35 +1033,15 @@ ns.AbilityDb = {
             requireConcurrentBuff=false,
             concurrentDebuff=false,
 		},
-        -- XXX: TODO: heavily modified by mountain thane hero spec (dur extension, random procs)
-        -- proc support needs a separate isBuff=false entry
-        -- for mountain thane, also applies thunder blast, could be used to distinguish from
+        -- for mountain thane: applies thunder blast, could be used to distinguish from
         -- enraged regen
 		{
 			name="Avatar",
             buttonPress=true,
-            isBuff=true,
 			id=107574,
             iconId=613534,
 			cooldown=90,
 			duration=20,
-			duration_variable=ns.DURATION_FIXED,
-			charges=1,
-			cdr=true,
-            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
-			targets=ns.TARGET_SELF,
-            requireConcurrentBuff=false,
-            concurrentDebuff=false,
-		},
-        -- no extra auras with enraged regen
-		{
-			name="Enraged Regeneration",
-            buttonPress=true,
-            isBuff=true,
-			id=184364,
-            iconId=132345,
-			cooldown=108,    -- talent: 120>108 (-10%)
-			duration=8,      -- talent: +3s 8>11
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
@@ -1131,19 +1050,47 @@ ns.AbilityDb = {
             requireConcurrentBuff=false,
             concurrentDebuff=false,
 		},
-        -- There are so many talents that affect shield wall
-        -- last stand talent adds a concurrent buff to shield wall. could be useful
+        -- hero talent proc that grants avatar, but does not trigger avatar's CD
+        {
+			name="Avatar of the Storm",
+            buttonPress=true,
+			id=437134,
+            iconId=432002,
+			cooldown=1,
+			duration=4,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireConcurrentBuff=false,
+            concurrentDebuff=false,
+        },
+		{
+			name="Enraged Regeneration",
+            buttonPress=true,
+			id=184364,
+            iconId=132345,
+			cooldown=120,
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireConcurrentBuff=false,
+            concurrentDebuff=false,
+		},
         {
 			name="Shield Wall",
             buttonPress=true,
-            isBuff=true,
 			id=871,
             iconId=132362,
-			cooldown=108,   -- base 180: talent 1: -10%, talent 2: -60s. seems -10% applies after -60s
-			duration=8,     -- luckily duration is never affected
+			cooldown=180,
+			duration=8,
 			duration_variable=ns.DURATION_FIXED,
-			charges=2,      -- +1 charge talent (same as -60s CD talent)
-			cdr=true,       -- talent 1: 20 rage=1s, talent 2: shield slam=6s
+			charges=1,
+			cdr=true,
             IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=true,
 			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,

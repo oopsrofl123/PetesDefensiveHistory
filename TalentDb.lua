@@ -184,6 +184,18 @@ ns.ClassTalentModifiers = {
 
     -- Priest class tree -----------------------------------------------------------------------
     ["PRIEST"] = {
+        [19236] = {
+            { { id=19236, modifies=hasAbility, amount=true } },
+        },
+        [238100] = {
+            { { id=19236, modifies=cooldown, amount=-20 } },
+        },
+        [458718] = {
+            { { id=19236, modifies=duration, amount=10 } },
+        },
+        [440738] = {  -- hero talent
+            { { id=47788, modifies=duration, amount=2 } },
+        },
     },
 
 
@@ -222,6 +234,25 @@ ns.ClassTalentModifiers = {
 
     -- Warrior class tree ----------------------------------------------------------------------
     ["WARRIOR"] = {
+        [391271] = {
+            { { id=118038, modifies=cooldown, amount=-10, mult=true },
+              { id=184364, modifies=cooldown, amount=-10, mult=true },
+              { id=871, modifies=cooldown, amount=-10, mult=true } },
+        },
+        [152278] = {
+            { { id=107574, modifies=cdr, amount=true },
+              { id=871, modifies=cdr, amount=true } },
+        },
+        [1243659] = {  -- last stand adds a buff to shield wall
+            { { id=871, modifies=requireConcurrentBuff, amount=true } },
+        },
+        [397103] = {
+            { { id=871, modifies=cooldown, amount=-60 },
+              { id=871, modifies=charges, amount=1 } },
+        },
+        [384072] = {
+            { { id=871, modifies=cdr, amount=true } },
+        },
     },
 }
 
@@ -640,10 +671,54 @@ ns.SpecTalentModifiers = {
     },
 
 
-    -- Assassination rogue ---------------------------------------------------------------------
+    -- Discipline priest -------------------------------------------------------------------
+    [256] = {
+        [33206] = {
+            { { id=33206, modifies=hasAbility, amount=true } },
+        },
+        [373035] = {
+            { { id=33206, modifies=charges, amount=1 },
+              { id=33206, modifies=cdr, amount=true } },
+        },
+    },
+    -- Holy priest -------------------------------------------------------------------------
+    [257] = {
+        [47788] = {
+            { { id=47788, modifies=hasAbility, amount=true } },
+        },
+        [200209] = {
+            -- weird talent: if guardian spirit doesn't trigger the cheat death,
+            -- then the cooldown is reduced TO (not by) 60s. if most GS uses don't cheat,
+            -- it could be more useful to model this as a 60s cooldown because it's so
+            -- far off from the 180s cd.
+            -- XXX: TODO: does cheat fire a UNIT_DIED?
+            { { id=47788, modifies=cdr, amount=true } },
+        },
+        [64843] = {
+            { { id=64843, modifies=hasAbility, amount=true } },
+        },
+        [419110] = {
+            { { id=64843, modifies=cooldown, amount=-60 } },
+        },
+    },
+    -- Shadow priest -----------------------------------------------------------------------
+    [258] = {
+        [228260] = {
+            { { id=228260, modifies=hasAbility, amount=true } },
+        },
+        [1231346] = { -- extend duration on SW:madness
+            { { id=228260, modifies=duration_variable, amount=ns.DURATION_GTE } },
+        },
+        [454001] = {  -- hero talent that extends duration
+            { { id=228260, modifies=duration_variable, amount=ns.DURATION_GTE } },
+        }
+    },
+
+
+    -- Assassination rogue -----------------------------------------------------------------
     [259] = {
     },
-    -- Outlaw rogue ---------------------------------------------------------------------
+    -- Outlaw rogue ------------------------------------------------------------------------
     [260] = {
         [13750] = {
             { { id=13750, modifies=hasAbility, amount=true } },
@@ -710,6 +785,56 @@ ns.SpecTalentModifiers = {
     [267] = {
         [116858] = {  -- root destro talent
             { { id=104773, modifies=hasAbility, amount=true } }
+        },
+    },
+
+
+    -- Arms warrior ------------------------------------------------------------------------
+    [71] = {
+        [118038] = {
+            { { id=118038, modifies=hasAbility, amount=true } },
+        },
+        [107574] = {
+            { { id=107574, modifies=hasAbility, amount=true } },
+        },
+    },
+    -- Fury warrior ------------------------------------------------------------------------
+    [72] = {
+        [184364] = {
+            { { id=184364, modifies=hasAbility, amount=true } },
+        },
+        [107574] = {
+            { { id=107574, modifies=hasAbility, amount=true } },
+        },
+        [383468] = {
+            { { id=184364, modifies=duration, amount=8 } },
+        },
+        [1270724] = {  -- thunder blast extends dur +2
+            { { id=107574, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=437134, modifies=duration_variable, amount=ns.DURATION_GTE } },
+        },
+        [437134] = {   -- hero talent procs avatar for 4s and gives 2 thunder blasts
+            -- XXX: TODO: the 2 thunder blasts are concurrent buffs, but they could be
+            -- updated rather than new. need to support this
+            { { id=437134, modifies=hasAbility, amount=true } },
+        },
+    },
+    -- Prot warrior ------------------------------------------------------------------------
+    [73] = {
+        [107574] = {
+            { { id=107574, modifies=hasAbility, amount=true } },
+        },
+        [1270724] = {  -- thunder blast extends dur +2
+            { { id=107574, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=437134, modifies=duration_variable, amount=ns.DURATION_GTE } },
+        },
+        [437134] = {   -- hero talent procs avatar for 4s
+            -- XXX: TODO: the 2 thunder blasts are concurrent buffs, but they could be
+            -- updated rather than new. need to support this
+            { { id=437134, modifies=hasAbility, amount=true } },
+        },
+        [871] = {
+            { { id=871, modifies=hasAbility, amount=true } },
         },
     },
 }
