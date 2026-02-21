@@ -69,7 +69,7 @@ local function logicLayerBuffFlags(buff, ability)
        buff.isExternal ~= ability.externalFlag or
        buff.isRaid ~= ability.raidFlag or
        buff.isRaidInCombat ~= ability.raidInCombatFlag then
-        traceLogic(buff, ability, "excluding due to flag mismatch buff=(%d,%d,%d,%d,%d), ability=(%d,%d,%d,%d,%d)",
+        traceLogic(buff, ability, "excluded (flag mismatch): buff=(%d,%d,%d,%d,%d), ability=(%d,%d,%d,%d,%d)",
             buff.isImportant and 1 or 0,
             buff.isBigDefensive and 1 or 0,
             buff.isExternal and 1 or 0,
@@ -104,7 +104,7 @@ local function logicLayerAbilityOffCooldown(buff, ability, cdTracker)
         -- coldown CD+DUR seconds ago, not just CD seconds ago.
         if time_since < ability.cooldown + buff.duration - ns.DURATION_TOLERANCE then
             traceLogic(buff, ability,
-                "excluding (not off cd): last seen %0.3fs ago, cd=%ds, duration=%0.3fs, reject interval < %0.3fs",
+                "excluded (not off cd): last seen %0.3fs ago, cd=%ds, duration=%0.3fs, reject interval < %0.3fs",
                 time_since, ability.cooldown, buff.duration,
                 ability.cooldown + buff.duration - ns.DURATION_TOLERANCE)
             return false
@@ -132,7 +132,9 @@ local function logicLayerDurationMatches(buff, ability, useDuration)
         if (dv == ns.DURATION_FIXED and diff > tol) or
            (dv == ns.DURATION_LTE and diff > tol and buff.duration > ability.duration) or
            (dv == ns.DURATION_GTE and diff > tol and buff.duration < ability.duration) then
-            traceLogic(buff, ability, "excluding: duration not within tolerance (buff=%0.3f, ability=%03f, duration type=%d, diff=%0.3f)", buff.duration, ability.duration, dv, diff)
+            traceLogic(buff, ability,
+                "excluded (incorrect duration): buff=%0.3f, ability=%03f, duration type=%d, diff=%0.3f",
+                buff.duration, ability.duration, dv, diff)
             return false
         end
     end
@@ -152,15 +154,32 @@ local function logicLayerCheckConcurrentDebuffs(buff, ability)
     if ability.concurrentDebuff then
         if #buff.concurrentDebuffs == 0 then
             traceLogic(buff, ability,
-                "excluding: requires concurrent debuff but %d debuffs observed",
+                "excluded (concurrent debuff required): %d debuffs observed",
                 #buff.concurrentDebuffs)
             return false
         end
     else
         if #buff.concurrentDebuffs > 0 then
             traceLogic(buff, ability,
-                "excluding: does not create concurrent debuff but %d debuffs observed",
+                "excluded (concurrent debuff not allowed): %d debuffs observed",
                 #buff.concurrentDebuffs)
+            return false
+        end
+    end
+    return true
+end
+
+
+
+-- Similar to above, but for concurrent buffs
+-- Changed the language to make it clearer that if the ability does not *require*
+-- current debuffs, then this logic layer doesn't do anything.
+local function logicLayerRequireConcurrentBuffs(buff, ability)
+    if ability.requireConcurrentBuff then
+        if #buff.concurrentBuffs == 0 then
+            traceLogic(buff, ability,
+                "excluded (concurrent buff required): %d other buffs observed",
+                #buff.concurrentBuffs)
             return false
         end
     end
@@ -186,7 +205,7 @@ local function logicLayerCasterDidCast(buff, ability)
     -- mechanics like last resort and golden valkyr proc without an action
     if ability.buttonPress and diff > ns.DURATION_TOLERANCE then
         traceLogic(buff, ability,
-            "excluding: caster's closest cast=%0.3f, buff applied=%0.3f (diff=%0.3f)",
+            "excluded: caster's closest cast=%0.3f, buff applied=%0.3f (diff=%0.3f)",
             closest, buffApplied, diff)
         return false
     end
@@ -217,6 +236,7 @@ local function getPossibleSolutions(buff, slot, useDuration, cdTracker)
            logicLayerAbilityOffCooldown(buff, ability, cdTracker) and
            logicLayerDurationMatches(buff, ability, useDuration) and
            logicLayerCheckConcurrentDebuffs(buff, ability) and
+           logicLayerRequireConcurrentBuffs(buff, ability) and
            logicLayerCasterDidCast(buff, ability) then
             traceLogic(buff, ability, "is a possible solution")
             -- All rules have passed, this ability is a possible match
@@ -436,10 +456,16 @@ function ns:zeroKnowledgeSolve()
                 isRaid = ability.raidFlag,
                 isRaidInCombat = ability.raidInCombatFlag,
                 numUpdates = 0,
+                concurrentBuffs = {},
                 concurrentDebuffs = {},
                 closestCasts = {}
             }
 
+            -- if the ability *must* come with a concurrent buff, give it one.
+            -- doesn't matter what the auraInstanceId is.
+            if ability.requireConcurrentBuff then
+                table.insert(buff.concurrentBuffs, 1)
+            end
             -- if the ability is supposed to come with a concurrent debuff, give it a
             -- dummy aura. It doesn't matter what the auraInstanceId is.
             if ability.concurrentDebuff then

@@ -26,7 +26,7 @@ end
 --
 -- IMPORTANT! Save the icon's texture at the instant the aura is applied
 -- in case another buff overwrites it later.
-local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentDebuffs)
+local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentBuffs, concurrentDebuffs)
     local isImportant, isBigDefensive, isExternal, isRaid, isRaidInCombat =
         getFilterFlagsForAuraInstanceId(slot, auraInstanceID)
 
@@ -67,6 +67,7 @@ local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentDebuffs)
         isRaid = isRaid,
         isRaidInCombat = isRaidInCombat,
         numUpdates = 0,                 -- how many times has this aura been in the aurasUpdated list?
+        concurrentBuffs = concurrentBuffs or {},
         concurrentDebuffs = concurrentDebuffs or {},
         closestCasts = closestCasts,
         buffCertainOnFirstInference = false
@@ -167,15 +168,20 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             v.auraInstanceID, imp, big, ext, raid, ric, harm)
         -- the abilities we handle are helpfuls that are either important, big or externals
         if not harm and (imp or big or ext) then
-            -- get all of the debuff auras added in this event
+            -- get all of the buff and debuff auras added in this event
+            local buffs = {}
             local debuffs = {}
-            for _, v in pairs(aurasAdded) do
-                if isAuraHarmful(unitTarget, v.auraInstanceID) then
-                    table.insert(debuffs, v.auraInstanceID)
+            for _, x in pairs(aurasAdded) do
+                if x.auraInstanceID ~= v.auraInstanceID then
+                    if isAuraHarmful(unitTarget, x.auraInstanceID) then
+                        table.insert(debuffs, x.auraInstanceID)
+                    else
+                        table.insert(buffs, x.auraInstanceID)
+                    end
                 end
             end
 
-            local buff = trackActiveBuff(unitTarget, v.auraInstanceID, v.icon, debuffs)
+            local buff = trackActiveBuff(unitTarget, v.auraInstanceID, v.icon, buffs, debuffs)
             -- attempt instant identification
             if ns:inferAbility(unitTarget, buff, false) then
                 if buff.certainOnFirstInference then
