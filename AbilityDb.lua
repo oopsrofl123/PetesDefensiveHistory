@@ -13,9 +13,9 @@ ns.DURATION_GTE = 2    -- greaer than or equal to
 
 -- Necessary because of blessing of sacrifice, which is the only defensive so
 -- far that cannot be cast on self.
-ns.NOT_EXTERNAL = 0
-ns.EXTERNAL_ANY = 1
-ns.EXTERNAL_NOT_SELF = 2
+ns.TARGET_SELF = 0
+ns.TARGET_OTHERS = 1
+ns.TARGET_ANY = 2
 
 
 -- The unique key in this database is spell ID. It is structured by class, not by spec.
@@ -35,11 +35,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_LTE,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Icebound Fortitude",
@@ -52,11 +51,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Vampiric Blood",
@@ -69,13 +67,12 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,   -- talent CDR
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             -- adds Coagulating Blood (id=463730), which is not harmful but is
             -- not returned by the aura filter HELPFUL
             requireConcurrentBuff=false,
             concurrentDebuff=true,
-            certainOnFirstInference=true
 		},
 		{
 			name="Pillar of Frost",
@@ -88,11 +85,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 	},
 
@@ -109,14 +105,15 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- VDH meta is a different spell from Havoc (191427) and Devourer (void meta - 1217605).
         -- Only the VDH version is flagged IMPORTANT.
+        -- The apex talent for vengeance makes it impossible to know whether a proc was used
+        -- to get a meta buff or if the actual cooldown as used.
 		{
 			name="Metamorphosis",
             buttonPress=true,
@@ -124,34 +121,33 @@ ns.AbilityDb = {
 			id=187827,
             iconId=1247263,
 			cooldown=120,
-			duration=20,         -- talent: 15 > 20, req for cheat death talent, so maybe safe to assume
+			duration=15,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
-			cdr=false,           -- true for annihilator
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=false -- can't track Meta because of the apex talent. however, if meta and the apex talent are the only things that could have happened, we do know what buff as applied (meta) but not which coodown to track (meta or apex)
 		},
         -- Cheat death from meta. Gives a full duration meta, so only way to differentiate
         -- is through concurrent debuff (Uncontained Fel, spellID=209261),
 		{
 			name="Last Resort",
-            buttonPress=false,   -- fires on its own, without the player pressing a button, so do not check the cast history
+            -- any meta that happens without a button press is cheat death
+            buttonPress=false,
             isBuff=false,
 			id=209258,
             iconId=1348655,
 			cooldown=480,
-			duration=20,         -- talent: 15 > 20, req for cheat death talent, so maybe safe to assume
+			duration=15,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
-			cdr=false,           -- true for annihilator
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=true,
-            certainOnFirstInference=true
 		},
         -- Apex talent: allows meta to be cast but it only lasts 10s. So we can't ever
         -- know which meta is cast (and whether it incurred a cooldown) until after the
@@ -162,38 +158,31 @@ ns.AbilityDb = {
             isBuff=false,
 			id=1270444,
             iconId=7636527,
-			cooldown=0,
-			duration=10,         -- talent: 15 > 20, req for cheat death talent, so maybe safe to assume
+			cooldown=1,
+			duration=10,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
-			cdr=false,           -- true for annihilator
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
-            concurrentDebuff=false,
-            -- confusingly, although this ability is why meta can't be inferred instantly,
-            -- this flag should be false here.
-            certainOnFirstInference=true,
-            -- Only for active buff tracking
-            activeBuff="Metamorphosis"
+            concurrentDebuff=false
 		},
-		-- lot of talents affect brand
 		{
 			name="Fiery Brand",
             buttonPress=true,
             isBuff=true,
-			id=207771,
+			id=204021,
             iconId=1344647,
-			cooldown=60,             -- talent: 60 > 48
+			cooldown=60,
 			duration=12,
-			duration_variable=ns.DURATION_GTE, -- talent: spreading in multi-target and +0.25s duration on immo ticks
-			charges=1,               -- talent: +1 charge, same talent that affects cd
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
 			cdr=false,
-            importantFlag=false, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=false, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 	},
 
@@ -211,11 +200,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Celestial Alignment",
@@ -229,11 +217,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,  -- there is a weird CDR hero talent in hero talents keeper of the grove
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Incarnation: Chosen of Elune",
@@ -247,11 +234,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- Feral berserk
 		{
@@ -265,11 +251,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
         },
 		{
 			name="Incarnation: Avatar of Ashamane",
@@ -282,11 +267,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- Guardian berserk
 		{
@@ -300,11 +284,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
         },
 		{
 			name="Incarnation: Guardian of Ursoc",
@@ -317,11 +300,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=true,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- there is a spell called Survival Insticts marked as BIG_DEFENSIVE, but it's
         -- the wrong spell ID (=50322), so it is not tracked.
@@ -336,10 +318,9 @@ ns.AbilityDb = {
 			-- duration_variable=ns.DURATION_FIXED,
 			-- charges=2,
 			-- cdr=false,
-            -- importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			-- external=ns.NOT_EXTERNAL,
+            -- IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			-- targets=ns.TARGET_SELF,
             -- concurrentDebuff=false,
-            -- certainOnFirstInference=true
 		-- }
 		{
 			name="Ironbark",
@@ -352,11 +333,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=false, bigFlag=true, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
-			external=ns.EXTERNAL_ANY,
+            IMPORTANT=false, BIG=true, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
+			targets=ns.TARGET_ANY,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 	},
 
@@ -370,14 +350,13 @@ ns.AbilityDb = {
             iconId=4622452,
 			cooldown=120,
 			duration=18,
-			duration_variable=ns.DURATION_GTE,  -- talent: +5s per empowered spell
-			charges=2,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- hero talent: applies to your target or a random nearby injured ally at 50%.
         -- turns scales into an external.
@@ -392,13 +371,12 @@ ns.AbilityDb = {
 			cooldown=90,
 			duration=12,
 			duration_variable=ns.DURATION_FIXED,
-			charges=2,       -- talent: 2 charges
+			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=true, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=true, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Time Dilation",
@@ -406,16 +384,15 @@ ns.AbilityDb = {
             isBuff=true,
 			id=357170,
             iconId=4622478,
-			cooldown=60,               -- talent: -10s 60>50
-			duration=8,                -- talent: +15% 8>9.2
+			cooldown=60,
+			duration=8,
 			duration_variable=ns.DURATION_FIXED,
-			charges=2,                 -- talent: +1 charge
+			charges=1,
 			cdr=false,
-            importantFlag=false, bigFlag=true, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
-			external=ns.EXTERNAL_ANY,
+            IMPORTANT=false, BIG=true, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
+			targets=ns.TARGET_ANY,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 	},
 	
@@ -432,11 +409,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,                 -- talent: 2 charges
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Trueshot",
@@ -449,11 +425,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- Although marked IMPORTANT, exhilaration isn't a buff. It causes a short
         -- HoT buff if talented, but that HoT is not important. Haven't figured out
@@ -469,10 +444,9 @@ ns.AbilityDb = {
 			-- duration_variable=ns.DURATION_FIXED,
 			-- charges=1,
 			-- cdr=false,
-            -- importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			-- external=ns.NOT_EXTERNAL,
+            -- IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			-- targets=ns.TARGET_SELF,
             -- concurrentDebuff=false,
-            -- certainOnFirstInference=true
 		-- },
 	},
 
@@ -495,11 +469,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- XXX: use cancellation to help detect?
 		{
@@ -513,11 +486,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_LTE,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=true,
-            certainOnFirstInference=true
         },
 		-- XXX: any way to use hypothermia as extra info?
 		{
@@ -531,11 +503,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=true,
-            certainOnFirstInference=true
 		},
 		{
 			name="Mirror Image",
@@ -548,11 +519,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_LTE,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Alter Time",
@@ -565,14 +535,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_LTE,
 			charges=1,
 			cdr=false,
-            -- this disagrees with C_Spell.IsSpellImportant and C_UnitAuras.AuraIsBigDefensive
-            -- but this is what happens in game. There are other Alter Time spell IDs, but this
-            -- spell ID is the one shown by idTip in game.
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Combustion",
@@ -585,11 +551,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 	},
 
@@ -608,10 +573,9 @@ ns.AbilityDb = {
 			-- duration_variable=ns.DURATION_FIXED,
 			-- charges=1,
 			-- cdr=false,
-            -- importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			-- external=ns.NOT_EXTERNAL,
+            -- IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			-- targets=ns.TARGET_SELF,
             -- concurrentDebuff=false,
-            -- certainOnFirstInference=true
 		-- },
         {
 			name="Life Cocoon",
@@ -624,11 +588,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_LTE,
 			charges=1,
 			cdr=true,
-            importantFlag=false, bigFlag=false, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
-			external=ns.EXTERNAL_ANY,
+            IMPORTANT=false, BIG=false, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
+			targets=ns.TARGET_ANY,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 	},
 
@@ -645,13 +608,11 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_LTE,   -- cancels if caster falls < 20% health
 			charges=1,
 			cdr=false,
-            importantFlag=false, bigFlag=true, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
-			external=ns.EXTERNAL_NOT_SELF,
+            IMPORTANT=false, BIG=true, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
+			targets=ns.TARGET_OTHERS,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
-        -- XXX: TODO: for ret, casts concurrent buff shield of vengeance
 		{
 			name="Divine Protection",
             buttonPress=true,
@@ -663,11 +624,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Divine Shield",
@@ -680,11 +640,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=true,
-            certainOnFirstInference=true
 		},
         -- XXX: TODO: forbearance: when applied to someone else, forbearance is applied in
         -- a separate, immediately following UNIT_AURA call. good example of where a delayed
@@ -700,11 +659,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=false, bigFlag=false, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
-			external=ns.EXTERNAL_ANY,
+            IMPORTANT=false, BIG=false, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
+			targets=ns.TARGET_ANY,
             requireConcurrentBuff=false,
             concurrentDebuff=false,    -- applies forbearance, but the debuff isn't in the same payload
-            certainOnFirstInference=true
 		},
 		{
 			name="Blessing of Freedom",
@@ -717,11 +675,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=true, raidInCombatFlag=false,
-			external=ns.EXTERNAL_ANY,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=true, RAIDINCOMBAT=false,
+			targets=ns.TARGET_ANY,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- Ret talent removes wings and attaches it to wake of ashes. The
         -- buff given is the avenging wrath buff, so copy its flags.
@@ -736,11 +693,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
         },
         {
             name='Avenging Crusader',
@@ -753,11 +709,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
         },
 		{
 			name="Avenging Wrath",
@@ -770,11 +725,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Ardent Defender",
@@ -787,11 +741,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Guardian of Ancient Kings",
@@ -804,11 +757,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=false, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=false, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		-- GoAK from cheat death talent
 		{
@@ -823,11 +775,10 @@ ns.AbilityDb = {
 			charges=1,
 			cdr=false,
             -- match GoAK - cheat death procs a shorter GoAK that is not flagged BIG_DEFENSIVE
-            importantFlag=false, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=false, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=true,
-            certainOnFirstInference=true
 		},
 		{
 			name="Blessing of Spellwarding",
@@ -840,11 +791,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=true, raidFlag=true, raidInCombatFlag=false,
-			external=ns.EXTERNAL_ANY,
+            IMPORTANT=true, BIG=false, EXTERNAL=true, RAID=true, RAIDINCOMBAT=false,
+			targets=ns.TARGET_ANY,
             requireConcurrentBuff=false,
             concurrentDebuff=false,  -- applies forbearance, but the debuff isn't in the same payload ON OTHERS
-            certainOnFirstInference=true
 		},
 		{
 			name="Sentinel",
@@ -857,11 +807,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 	},
 
@@ -879,11 +828,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Pain Suppression",
@@ -896,11 +844,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=2,    -- talent +1 charge also gives -3s CD per PW:shield cast
 			cdr=true,
-            importantFlag=false, bigFlag=true, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
-			external=ns.EXTERNAL_ANY,
+            IMPORTANT=false, BIG=true, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
+			targets=ns.TARGET_ANY,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- Divine Hymn creates multiple buffs. The one that is flagged such that UNIT_AURA
         -- would detect it (flag=10000) is the channel, which I think has a 4.5s base
@@ -916,11 +863,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_LTE,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Guardian Spirit",
@@ -933,11 +879,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=true,       -- talent: -60s on CD if the target dies. should rarely trigger
-            importantFlag=false, bigFlag=false, externalFlag=true, raidFlag=true, raidInCombatFlag=true,
-			external=ns.EXTERNAL_ANY,
+            IMPORTANT=false, BIG=false, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
+			targets=ns.TARGET_ANY,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Voidform",
@@ -951,11 +896,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_GTE,  -- talent: +3s dur dynamic per cast of SW: madness
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		}
 	},
 
@@ -973,11 +917,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=false, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=false, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 		{
 			name="Evasion",
@@ -990,11 +933,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- XXX: TODO: adrenaline rush has a weird application where it both adds and updates
         -- itself in the same UNIT_AURA event. should allow instant ID.
@@ -1011,11 +953,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- XXX: TODO: switches to stealth bar, so maybe there's some updated character
         -- state that can be used to guess dance?
@@ -1034,11 +975,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=true,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- XXX: TODO: to differentiate from dance, blades doesn't apply any other auras in the same event, 
 		{
@@ -1052,11 +992,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
 	},
 
@@ -1074,11 +1013,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- XXX: TODO: marked as important, but no event fires when it's used
         -- have to choose between healing tide and ascendance
@@ -1093,10 +1031,9 @@ ns.AbilityDb = {
 			-- duration_variable=ns.DURATION_FIXED,
 			-- charges=1,
 			-- cdr=false,
-            -- importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			-- external=ns.NOT_EXTERNAL,
+            -- IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			-- targets=ns.TARGET_SELF,
             -- concurrentDebuff=false,
-            -- certainOnFirstInference=true
 		-- },
 	},
 
@@ -1114,11 +1051,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- marked as IMPORTANT but fires no UNIT_AURA
 		-- {
@@ -1132,10 +1068,9 @@ ns.AbilityDb = {
 			-- duration_variable=ns.DURATION_FIXED,
 			-- charges=1,
 			-- cdr=false,
-            -- importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			-- external=ns.NOT_EXTERNAL,
+            -- IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			-- targets=ns.TARGET_SELF,
             -- concurrentDebuff=false,
-            -- certainOnFirstInference=true
 		-- },
         -- XXX: TODO: another IMPORTANT is Summon Darkglare, but as above no UNIT_AURA
 	},
@@ -1154,11 +1089,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- XXX: TODO: heavily modified by mountain thane hero spec (dur extension, random procs)
         -- proc support needs a separate isBuff=false entry
@@ -1175,11 +1109,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=true,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- no extra auras with enraged regen
 		{
@@ -1193,11 +1126,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            importantFlag=true, bigFlag=false, externalFlag=false, raidFlag=false, raidInCombatFlag=false,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
 		},
         -- There are so many talents that affect shield wall
         -- last stand talent adds a concurrent buff to shield wall. could be useful
@@ -1212,11 +1144,10 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=2,      -- +1 charge talent (same as -60s CD talent)
 			cdr=true,       -- talent 1: 20 rage=1s, talent 2: shield slam=6s
-            importantFlag=true, bigFlag=true, externalFlag=false, raidFlag=false, raidInCombatFlag=true,
-			external=ns.NOT_EXTERNAL,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=true,
+			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=false,
-            certainOnFirstInference=true
         },
         -- XXX: TODO: recklessness is listed as important but generates no UNIT_AURA event
 	},
