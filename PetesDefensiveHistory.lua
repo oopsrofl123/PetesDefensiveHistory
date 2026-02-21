@@ -33,7 +33,7 @@ local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentBuffs, co
     local timeNow = GetTime()
 
     ns:printDebug(string.format(
-        'auraInstanceID=%d (imp=%d, big=%d, ext=%d, raid=%d, ric=%d) added to %s: currently tracking %d other active defensives',
+        'auraInstanceID=%d (imp=%d, big=%d, ext=%d, raid=%d, ric=%d) added to %s: currently tracking %d other active abilities',
         auraInstanceID, isImportant and 1 or 0,
         isBigDefensive and 1 or 0, isExternal and 1 or 0,
         isRaid and 1 or 0, isRaidInCombat and 1 or 0,
@@ -52,11 +52,12 @@ local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentBuffs, co
         closestCasts[slot] = closest
     end
 
-    local defensive = {
-        slot = slot,      -- this is the buff's target (which is the unit frame position it was witnessed on, hence slot
-        caster = slot,    -- this is the buff's unknown caster. best guess for now: same as the slot
+    local buff = {
+        inference = 0,    -- counter tracking how many times this buff has been through inferAbility()
+        ability = nil,    -- the ability that created this buff
+        certain = false,  -- is the buff <-> ability assignment certain?
+        slot = slot,      -- this is the buff's target (which is the unit frame position it was witnessed on, hence slot)
         auraInstanceID = auraInstanceID,
-        --secretTexture = defensiveIcon:GetTexture(),
         secretTexture = iconId,
         startTime = timeNow,
         duration = 0,
@@ -69,25 +70,30 @@ local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentBuffs, co
         numUpdates = 0,                 -- how many times has this aura been in the aurasUpdated list?
         concurrentBuffs = concurrentBuffs or {},
         concurrentDebuffs = concurrentDebuffs or {},
-        closestCasts = closestCasts,
-        buffCertainOnFirstInference = false
+        closestCasts = closestCasts
     }
 
-    ns.activeDefensives[slot][auraInstanceID] = defensive
+    ns.activeDefensives[slot][auraInstanceID] = buff
 
-    return defensive
+    return buff
 end
 
 
 
 -- Call this function when we are ready to fully accept whatever the best
 -- inference was.
-local function finalizeInference(buff, attempt)
+local function finalizeInference(buff, ability)
+    if not buff.certain then
+        print(string.format(
+            "WARNING: finalizing an uncertain inference (ability=[%s], caster=[%s], target=[%s])!",
+            ability.name, ability.caster, buff.slot))
+    end
+
     ns:printDebug(string.format(
         "|cff00CDCDFINAL INFERENCE (attempt=%d, time=%0.3f): [%s] cast [%s] at time [%0.3f]!|r",
-            attempt, GetTime(), buff.caster, buff.name, buff.startTime))
+            buff.inference, GetTime(), ability.caster, ability.name, buff.startTime))
 
-    ns.cdTracker[buff.caster][buff.name] = buff.startTime
+    ns.cdTracker[ability.caster][ability.name] = buff.startTime
 end
 
 
@@ -109,11 +115,7 @@ castHandler:SetScript("OnEvent", function(self, event, unitTarget, castGUID, spe
     ns:printDebug(string.format("UNIT_SPELLCAST_SUCCEEDED(%s, %s, %s, %s, %0.3f)",
         unitTarget, tostring(castGUID), tostring(spellID), tostring(castBarID), GetTime()))
         
-    -- loathe to use spellId since it's secret for all party members except the
-    -- person who cast it. don't want to get into debugging behavior that changes
-    -- between group members.. there is already enough of that in the different
-    -- times that the same event is handled on different clients.
-    ns.castHistory[unitTarget]:push({ time=GetTime() }) --, spellId=issecretvalue(spellId) and -1 or spellId })
+    ns.castHistory[unitTarget]:push({ time=GetTime() })
 end)
 
 
@@ -182,13 +184,14 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             end
 
             local buff = trackActiveBuff(unitTarget, v.auraInstanceID, v.icon, buffs, debuffs)
+
             -- attempt instant identification
-            if ns:inferAbility(unitTarget, buff, false) then
-                if buff.certainOnFirstInference then
-                    finalizeInference(buff, 1)
-                end
-                -- IDable abilities go to the static tracker
-                local cd = ns.staticRows[buff.caster].items[buff.name]
+            ability, certain = ns:inferAbility(unitTarget, buff, false)
+            if certain then
+                finalizeInference(buff, ability)
+            end
+            if ability then 
+                local cd = ns.staticRows[ability.caster].items[ability.name]
                 cd.swipeTexture:Hide()
                 LibButtonGlow.ShowOverlayGlow(cd)
             end
@@ -210,36 +213,42 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         -- and is now over. Insert it into the history tracker.
         buff = actives[auraInstanceID]
         if buff then
+            local ability, certain = ns:getAbility(buff)
+
+            -- 1. no matter what happens below, turn off any glow that may have been
+            --    enabled on previous inferences.
+            if certain or ability then
+                local cd = ns.staticRows[ability.caster].items[ability.name]
+                LibButtonGlow.HideOverlayGlow(cd)
+            end
+
+            -- 2. gather some information and take a final swing at inference
             buff.endTime = GetTime()
             buff.duration = buff.endTime - buff.startTime
-
-            -- Try inference at expiration if it failed before or if the ability is
-            -- flagged as uncertain on the first inference. The latter allows some
-            -- interesting logic/confidence layers.
-            if not ns:isAbilityInferred(buff) or not buff.certainOnFirstInference then
-                if ns:inferAbility(unitTarget, buff, true) then
-                    finalizeInference(buff, 2)
+            if not ability or not certain then -- [infer=false|uncertain] then
+                ability, certain = ns:inferAbility(unitTarget, buff, true)
+                if certain then
+                    finalizeInference(buff, ability)
                 end
             end
 
-            if ns:isAbilityInferred(buff) then
-                -- IDable abilities go to the static tracker
-                local cd = ns.staticRows[buff.caster].items[buff.name]
-                cd.swipeTexture:SetCooldown(buff.startTime, buff.cooldown)
+            -- 3. The buff is over, so have to make a choice about how to display it.
+            --    If there was a certain inference, track in the static cooldown row,
+            --    otherwise dump it in the history tray.
+            if ability and certain then --if [infer=true] then
+                local cd = ns.staticRows[ability.caster].items[ability.name]
+                cd.swipeTexture:SetCooldown(buff.startTime, ability.cooldown) --buff.cooldown)
                 cd.swipeTexture:Show()
+                -- Have to store start/cooldown info because the text on Blizzard's
+                -- cooldown swipe can't be controlled (i.e., font size). So we have
+                -- to make our own text.
                 cd.startTime = buff.startTime
-                cd.cooldown = buff.cooldown
-                -- Support the activated buff being different from the cooldown tracker
-                cd = ns.staticRows[buff.caster].items[buff.activeBuff or buff.name]
-                LibButtonGlow.HideOverlayGlow(cd)
+                cd.cooldown = ability.cooldown -- buff.cooldown
             else
-                -- This was the last chance at IDing. So if it's still non-IDable,
-                -- go to the fallback history tray
                 ns:addBuffToHistory(unitTarget, buff)
             end
 
-            -- allow garbage collection
-            actives[auraInstanceID] = nil
+            actives[auraInstanceID] = nil    -- allow garbage collection
         end
     end
 end)
@@ -265,6 +274,9 @@ loader:SetScript("OnEvent", function(self, event)
     -- handled by the LibSpec callback when spec is detected.
     for slot, _ in pairs(ns.allSlots) do
         local row = ns.historyRows[slot]
+
+        -- Figure out which CompactPartyFrameMemberX corresponds to player, party1, etc.
+        ns:updateSlotToFrameMapping(slot)
 
         -- account for the fact that LibSpec also fires on GROUP_ROSTER_UPDATE
         -- and can either come before or after this event.
