@@ -1,13 +1,33 @@
+BUGS
+===========================================================================
+- handle shared cooldown between BoP and spellwarding
+    - amusingly, which is cast can be differentiated 
+- gift of the golden valkyr doesn't track if occurs during goak
+    - because this is recorded as an update to the previous goak
+- check bop as well
+- spellwarding doesn't work when cast on self due to the concurrentDebuff issue
+- bubble doesn't work when forbearance is already on the player (e.g. spellwarding
+  into bubble)
+
+
 NEEDS TESTING
 ===========================================================================
 - better handling of spec querying
 	- libspecialization updates during m+ runs. need to figure out why
+- groups with sac and ironbark
 
 
 V1.0 RELEASE FEATURES
 ===========================================================================
+- group update seems to be broken again (see: follower dungeons)
+
 - talent handling 
     IN PROGRESS
+    - FULL PASS ACROSS TALENTS AND SPECS: migrate to AbilityDb from SpecAbilityDb
+        - recapitulate the old spec structure of the database through hasAbility
+          talents attached to class- or spec-specific talents
+        - priest
+        - warrior
     - how to deal with hero talents always being active?
         - the root talent is always selected=T, purchased=F
         - other talents are always selected=T, purchased=T if the player has ever
@@ -15,21 +35,14 @@ V1.0 RELEASE FEATURES
         - good test case is marks hunter: 2s trueshot duration applies no matter what
           hero talent is active
             * better test case would be a hero talent with a choice node
-    - FULL PASS ACROSS TALENTS AND SPECS: migrate to AbilityDb from SpecAbilityDb
-        - recapitulate the old spec structure of the database through hasAbility
-          talents attached to class- or spec-specific talents
-    - extracting talent selections from talent string
     DONE
+    - extracting talent selections from talent string
     - support removing alternative spells from talent list when only
       one of two can be chosen (e.g., balance druid celestial alignment and incarn)
     - accumulate additive and mult modifiers so that they can be
       applied to base values
 
 - better handling/inference for abilities with charges
-
-- spellwarding doesn't work when cast on self due to the concurrentDebuff issue
-- bubble doesn't work when forbearance is already on the player (e.g. spellwarding
-  into bubble)
 
 - test rider of the apocalypse AMS proc. does it give the same AMS buff? if so
   we might need to catch it. has 45s cd. might have identical duration? might
@@ -66,6 +79,14 @@ V1.0 RELEASE FEATURES
 
 NICE-TO-HAVE FEATURES
 ===========================================================================
+- revisit concurrentDebuffs. does it make sense to move to require, like for buffs?
+- better handle abilities that reset other cooldowns like adrenaline rush and ice block
+    - should not be hard. if the ability has a fixed cooldown (i.e. no CDR),
+      then seeing that ability before it is available means the reset was used,
+      so infer the reset ability. can track the CD of that.
+        * would not be able to track the reset ability if it was used to reset
+          something else. e.g., if prep was used while adrenaline rush was available,
+          the prep usage would not be noticed. but that's fine.
 - could hunter exhil be detected by the idea that they only have one
   self-cast heal that requires a button press (i.e., isn't a proc) and also
   applies a hot? how to distinguish from health pot?
@@ -133,12 +154,6 @@ NICE-TO-HAVE FEATURES
     - add reset button to the /pdh solution window
 - get data to make better estimates on duration solve tolerance
     - both the "match" epsilon and the minimum difference
-- how to handle sac in "solved" interface? (since its duration is _less than or
-    equal to_ 12s, meaning it clashes with almost every defensive buff
-    - solved interface should perhaps be the most conservative solution, meaning
-      exact duration matches, no advanced inference (CD tracking, variable duration, etc)
-    - turns out there's an external flag on sac, so this is less of a problem
-    - need to figure out ironbark+sac in the same group
 - consider aurasUpdated logic layer
     - turns out almost everything about fiery brand is bugged so can't work on this
     - can be useful for fiery brand, sentinel (due to buff stacks ticking down)
@@ -151,69 +166,55 @@ NICE-TO-HAVE FEATURES
 
 
 
-BUGS
-===========================================================================
-- DOESN'T WORK WHEN SOLO
-    - libspec doesn't fire a second time, so static rows aren't populated
-    - even requires /reload after joining a group
-    - gives this error when it happens
-        PetesDefensiveHistory.lua:194: attempt to index field 'items' (a nil value)
-- handle shared cooldown between BoP and spellwarding
-    - amusingly, which is cast can be differentiated 
-- gift of the golden valkyr doesn't track if occurs during goak
-    - because this is recorded as an update to the previous goak
-
-
 
 LIMITATIONS
 ===========================================================================
 - other players MUST be using some addon that has LibSpec embedded. The
   usual one is big/littlewigs (I guess). Could also say that everyone needs
   to run PetesDefensiveHistory.. :)
-- defensives are identified by appearing in blizzard's center big buff
-  frame. since blizzard shows only a single buff, rules were created to
-  decide which buff to show if several are activated. e.g., for tanks with
-  multiple def buffs (prot pal: ardent defender, goak) or when an external
-  is applied to someone whose own buff is already running (e.g., applying
-  ironbark to a hunter that already popped survival of the fittest).
-
-  if two buffs are applied at the same instant, only one can appear as the
-  icon, so one of the two will not be tracked.
-    - i don't know what this logic is. most of the time it seems to show
-      the latest applied buff.
-
-
-
-TALENT CHECKING
-===========================================================================
-just some notes on using LibSpecialization to check specific talents
-
-The series of functions below seems to be what produces the talent string:
-- activeConfigID = C_ClassTalents_GetActiveConfigID()
-- talentString = C_Traits_GenerateImportString(activeConfigID)
-
-example code on how to traverse the talent tree
-https://warcraft.wiki.gg/wiki/Dragonflight_Talent_System
-
-
-some code about the serialization process
-https://github.com/Gethe/wow-ui-source/blob/live/Interface/AddOns/Blizzard_PlayerSpells/ClassTalents/Blizzard_ClassTalentImportExport.lua
-
-
-just libspec on github. looks like the addon uses chat messages to
-communicate with group members. perhaps it sends them the code as a
-string and asks them to run it? seems insecure.
-https://github.com/BigWigsMods/LibSpecialization/blob/master/LibSpecialization/LibSpecialization.lua
-
-
-weakauras had a decoder library:
-https://github.com/WeakAuras/WeakAuras2/blob/cabde3e6c9419516889cd0305b358c749f90f2ca/WeakAuras/LibSpecializationWrapper.lua#L154
-
 
 
 
 DONE
 ===========================================================================
+- toward multiple inferences (e.g. for spells that update):
+  the stuff below also fixed a corner case where non-certain initial inferences
+  (right now, only metamorphosis) behaved incorrectly if the second inference
+  did not find a confident match.
+  add a "working guess"/uncertain state. isAbilityInferred() does not
+  currently work correctly for !certainOnFirstInference abilities (meta),
+  because it only tests whether the buff is named. this *happens* to work
+  when the second inference is always successful, but in real world use there
+  will be times when this fails. currently, uncertain inference only applies
+  to meta and does:
+    1. turns on meta's active glow when an uncertain inference is made
+    2. at expiration, run inferAbility() again, but even if this fails it
+       accepts the buff and runs finalize() because isAbilityInferred()
+       doesn't check the uncertain status
+    3. sets a cooldown swipe for the cross-ability maxCD on meta
+    4. turns off the active glow on meta
+  how this should work is:
+    1. on apply: run infer()
+        1a. infer=true|uncertain: trigger active glow
+        1b. infer=true: finalize
+        1c. infer=false: do nothing
+    2. on expiry:
+        2a. infer=true|uncertain: remove active glow
+        2b: infer=true and wasn't finalized: finalize
+        2c: infer=true: start cd swipe
+        2d. infer=false: add to history tray
+- DOESN'T WORK WHEN SOLO
+    - libspec doesn't fire a second time, so static rows aren't populated
+    - even requires /reload after joining a group
+    - gives this error when it happens
+        PetesDefensiveHistory.lua:194: attempt to index field 'items' (a nil value)
+- get rid of external=enum { NOT, ANY, NOT_SELF}
+    - can't get rid of this because freedom is not flagged EXTERNAL. instead,
+      generalize the idea to "targets"
+    - the only example of this is sac, which is better handled as a sac-specific
+      logic layer, not a flag on EVERY ability in the database.
+- revisit the comment about separating out externals in updateGroupData
+- get rid of certainOnFirstInference. this is now a confidence layer thing
 - add tooltips for chubb
 - updateRow
     - e.g., when specText or cpfMapping change, update the associated
