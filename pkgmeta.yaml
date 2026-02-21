@@ -11,9 +11,9 @@ ignore:
     - README.md
 
 externals:
-    #libs/LibStub:
-        #url: https://repos.curseforge.com/wow/libstub/trunk
-        #tag: latest
+    libs/LibStub:
+        url: https://github.com/lua-wow/LibStub/
+        tag: latest
     libs/LibSpecialization:
         url: https://github.com/BigWigsMods/LibSpecialization
         tag: latest
