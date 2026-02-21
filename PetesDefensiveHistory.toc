@@ -10,7 +10,6 @@ libs\LibPrettyPrint\LibPrettyPrint.xml
 libs\LibButtonGlowcustom\LibButtonGlowcustom.lua
 libs\LibSpecialization\LibSpecialization\LibSpecialization.lua
 Globals.lua
-SpecAbilityDb.lua
 AbilityDb.lua
 Utils.lua
 Options.lua
