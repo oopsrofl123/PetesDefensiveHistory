@@ -15,32 +15,20 @@ NEEDS TESTING
 - better handling of spec querying
 	- libspecialization updates during m+ runs. need to figure out why
 - groups with sac and ironbark
+- warrior avatar procs
 
 
 V1.0 RELEASE FEATURES
 ===========================================================================
 - group update seems to be broken again (see: follower dungeons)
 
-- talent handling 
-    IN PROGRESS
-    - FULL PASS ACROSS TALENTS AND SPECS: migrate to AbilityDb from SpecAbilityDb
-        - recapitulate the old spec structure of the database through hasAbility
-          talents attached to class- or spec-specific talents
-        - priest
-        - warrior
-    - how to deal with hero talents always being active?
-        - the root talent is always selected=T, purchased=F
-        - other talents are always selected=T, purchased=T if the player has ever
-          filled out that talent tree
-        - good test case is marks hunter: 2s trueshot duration applies no matter what
-          hero talent is active
-            * better test case would be a hero talent with a choice node
-    DONE
-    - extracting talent selections from talent string
-    - support removing alternative spells from talent list when only
-      one of two can be chosen (e.g., balance druid celestial alignment and incarn)
-    - accumulate additive and mult modifiers so that they can be
-      applied to base values
+- how to deal with hero talents always being active?
+    - the root talent is always selected=T, purchased=F
+    - other talents are always selected=T, purchased=T if the player has ever
+      filled out that talent tree
+    - good test case is marks hunter: 2s trueshot duration applies no matter what
+      hero talent is active
+        * better test case would be a hero talent with a choice node
 
 - better handling/inference for abilities with charges
 
@@ -79,6 +67,8 @@ V1.0 RELEASE FEATURES
 
 NICE-TO-HAVE FEATURES
 ===========================================================================
+- concurrentBuffs: handle buffs that might be updated rather than newly applied
+    * e.g., thunder blast from avatar
 - revisit concurrentDebuffs. does it make sense to move to require, like for buffs?
 - better handle abilities that reset other cooldowns like adrenaline rush and ice block
     - should not be hard. if the ability has a fixed cooldown (i.e. no CDR),
@@ -177,6 +167,15 @@ LIMITATIONS
 
 DONE
 ===========================================================================
+- talent handling 
+    - FULL PASS ACROSS TALENTS AND SPECS: migrate to AbilityDb from SpecAbilityDb
+        - recapitulate the old spec structure of the database through hasAbility
+          talents attached to class- or spec-specific talents
+    - extracting talent selections from talent string
+    - support removing alternative spells from talent list when only
+      one of two can be chosen (e.g., balance druid celestial alignment and incarn)
+    - accumulate additive and mult modifiers so that they can be
+      applied to base values
 - toward multiple inferences (e.g. for spells that update):
   the stuff below also fixed a corner case where non-certain initial inferences
   (right now, only metamorphosis) behaved incorrectly if the second inference
