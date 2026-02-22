@@ -25,6 +25,17 @@ local function buildTalentToSpellMap(specId)
             if node and node.ID ~= 0 then    -- node.ID=0 if it isn't visible
                 for choiceIndex, talentId in pairs(node.entryIDs) do
                     local entryInfo = C_Traits.GetEntryInfo(configId, talentId)
+
+                    -- SubTreeSelection is a special node that defines which hero talent
+                    -- tree is selected. It has no associated spell and thus no spell ID, so
+                    -- it needs to be added to the talent map here.
+                    if node.type == Enum.TraitNodeType.SubTreeSelection then
+                        print(node.ID, 'choice', choiceIndex, talentId, entryInfo.subTreeID)
+                        talentmap[node.ID .. "_" .. choiceIndex] = {
+                            spellId=-1, maxRank=-1, type=node.type, subTreeID=entryInfo.subTreeID
+                        }
+                    end
+
                     if entryInfo and entryInfo.definitionID then
                         local definitionInfo = C_Traits.GetDefinitionInfo(entryInfo.definitionID)
                         if definitionInfo.spellID then
@@ -37,7 +48,9 @@ local function buildTalentToSpellMap(specId)
                                 -- compression. If the player has the maximum rank purchased, then
                                 -- the 6 bit integer encoding the number of ranks is skipped.
                                 spellId=definitionInfo.spellID,
-                                maxRank=node.maxRanks
+                                maxRank=node.maxRanks,
+                                type=node.type,
+                                subTreeID=node.subTreeID
                             }
                         end
                     end
@@ -155,8 +168,8 @@ function ns:getTalentRanks(specId, talentExportString)
 
     -- The talent tree must be traversed in a specific order to matching the bits
     -- coming off of the encoded string.
-    local talentRanks = {}
-    local forDebugging = {}
+    local fullRecords = {}
+    local heroChoice
     -- Fun fact: this tree is not completely spec-specific even though these function
     -- names seem to imply it. The tree traversed in buildTalentToSpellMap IS spec
     -- specific. This is why there are many talentIds in this tree that are missing
@@ -166,24 +179,45 @@ function ns:getTalentRanks(specId, talentExportString)
     for _, talentId in ipairs(C_Traits.GetTreeNodes(C_ClassTalents.GetTraitTreeForSpec(specId))) do
         local selected, purchased, _, rank, _, choiceIndex = decodeTalent(stream)
         local spell = talentIdToSpellMap[talentId .. "_" .. choiceIndex]
-        local debugRecord = {
-            spell ~= nil,   -- in the database?
-            spell and spell.spellId or -1,  -- set spell ID=-1 if not in db
-            talentId, selected, purchased, rank, choiceIndex }
-        table.insert(forDebugging, debugRecord)
-        if spell then
-            talentRanks[spell.spellId] = not selected and 0 or rank or spell.maxRank
+        local record = {
+            found=spell ~= nil,   -- in the database?
+            spellId=spell and spell.spellId or -1,  -- set spell ID=-1 if not in db
+            talentId=talentId,
+            selected=selected,
+            purchased=purchased,
+            rank=rank,
+            maxRank=spell and spell.maxRank or nil,
+            choiceIndex=choiceIndex,
+            subTreeId=spell and spell.subTreeID or nil,
+            type=spell and spell.type or nil }
+        table.insert(fullRecords, record)
+        if record.type == Enum.TraitNodeType.SubTreeSelection then
+            heroChoice = spell.subTreeID
         end
     end
 
-    -- all debugging below
-    table.sort(forDebugging, function(a, b) return a[2] < b[2] end)
-    ns:printDebug(string.format("%5s %10s %10s %5s %5s %3s %3s",
-        "found", "spellId", "talentId", "sel", "pur", "rank", "choice"))
-    for _, v in pairs(forDebugging) do
-        ns:printDebug(string.format("%5s %10d %10d %5s %5s %3s %3s",
-            tostring(v[1]), v[2], tostring(v[3]), tostring(v[4]),
-            tostring(v[5]), tostring(v[6]), tostring(v[7])))
+    -- Print the full records for debugging
+    table.sort(fullRecords, function(a, b) return a.spellId < b.spellId end)
+    ns:printDebug(string.format("%5s %10s %10s %5s %5s %3s %3s %5s %5s",
+        "found", "spellId", "talentId", "sel", "pur", "rank", "choice", 'subtree', 'type'))
+    for _, v in pairs(fullRecords) do
+        ns:printDebug(string.format("%5s %10d %10d %5s %5s %3s %3s %5s %5s",
+            tostring(v.found), v.spellId, tostring(v.talentId),
+            tostring(v.selected), tostring(v.purchased), tostring(v.rank),
+            tostring(v.choiceIndex), tostring(v.subTreeId), tostring(v.type)))
+    end
+
+    -- Hero talents: talents selected in the inactive hero talent tree are still marked
+    -- as selected. The active hero talent tree is indicated by a special hidden choice node
+    -- with type=Enum.TraitNodeType.SubTreeSelection and subTreeId equal to the selected
+    -- hero tree.
+    -- To build the final set of talents, keep things with no subtree (class/spec talents)
+    -- or the hero subtree corresponding to the selected tree
+    local talentRanks = {}
+    for _, record in pairs(fullRecords) do
+        if record.subTreeId == nil or record.subTreeId == heroChoice then
+            talentRanks[record.spellId] = not record.selected and 0 or record.rank or record.maxRank
+        end
     end
     return talentRanks
 end
