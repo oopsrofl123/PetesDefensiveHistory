@@ -407,8 +407,8 @@ function ns:inferAbility(slot, buff, useDuration, cdTracker)
     buff.inference = buff.inference + 1
 
     ns:printDebug(string.format(
-        "|cffD8B87CStarting inference(slot=[%s], time=%0.3f) ------------------------------|r",
-        slot, GetTime()))
+        "|cffD8B87CStarting inference(slot=[%s], time=[%0.3f], attempt=[%d]) ---------------------------------|r",
+        slot, GetTime(), buff.inference))
     if useDuration == nil then useDuration = true end
 
     -- allow the caller to override the tracked state of CDs to simulate an
