@@ -25,6 +25,10 @@ ns.castHistory = {}
 
 ns.groupSolutionUI = nil
 
+-- For each unique (caster, ability), this dict tracks the last time that
+-- ability was identified
+ns.cdTracker = {}
+
 for slot, _ in pairs(ns.allSlots) do
     ns.activeDefensives[slot] = {}
     ns.staticRows[slot] = {}
