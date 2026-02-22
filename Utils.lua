@@ -44,6 +44,16 @@ function ns:fixedFIFO(size)
         ns.printer(t)
     end
 
+    -- return the newest item
+    function q:head()
+        return t[head]
+    end
+
+    -- return the oldest item
+    function q:tail()
+        return t[tail]
+    end
+
     return q
 end
 
