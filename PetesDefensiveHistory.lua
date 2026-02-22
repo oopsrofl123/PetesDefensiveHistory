@@ -93,7 +93,26 @@ local function finalizeInference(buff, ability)
         "|cff00CDCDFINAL INFERENCE (attempt=%d, time=%0.3f): [%s] cast [%s] at time [%0.3f]!|r",
             buff.inference, GetTime(), ability.caster, ability.name, buff.startTime))
 
-    ns.cdTracker[ability.caster][ability.name] = buff.startTime
+    
+    -- Determine when an ability began recharging. For #charges=1 abilities, this
+    -- is just the cast time. For N>1 charges, the recharge for charge k depends
+    -- on when charge k-1 finished
+    --     end{k} = max(end{k-1}+cd, cast{k}+cd),   end{0}=-Inf
+    -- where end{.} is the time when charge {.} finishes recharging.
+    --
+    -- To see how this differs from the simple charge=1 case where the recharge
+    -- finishes at time=cast+cd, consider an ability that has N=10 charges and a
+    -- cooldown of cd=10. Use all 10 charges 1s apart, so at times=0, 1, 2, 3, ... 9.
+    -- Charge 1 (t=0) comes off of cooldown at t=10, the same as cast+cd:
+    --      end{1} = max(-Inf+10, 0+10) = 10
+    -- Charge 2 was used at t=1, but it comes off cd at t=20:
+    --      end{2} = max(end{1}+10, cast{2}+10) = max(20, 11) = 20
+    -- Charge 3:
+    --      end{3} = max({end{2}+10, cast{3}+10) = max(30, 12) = 30
+    -- ...
+    --ns.cdTracker[ability.caster][ability.name]:push(buff.startTime)  -- no charge support
+    local cdfifo = ns.cdTracker[ability.caster][ability.name]
+    cdfifo:push(math.max(cdfifo:head() + ability.cooldown, buff.startTime + ability.cooldown))
 end
 
 
@@ -225,7 +244,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- 2. gather some information and take a final swing at inference
             buff.endTime = GetTime()
             buff.duration = buff.endTime - buff.startTime
-            if not ability or not certain then -- [infer=false|uncertain] then
+            if not ability or not certain then
                 ability, certain = ns:inferAbility(unitTarget, buff, true)
                 if certain then
                     finalizeInference(buff, ability)
@@ -235,15 +254,32 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- 3. The buff is over, so have to make a choice about how to display it.
             --    If there was a certain inference, track in the static cooldown row,
             --    otherwise dump it in the history tray.
-            if ability and certain then --if [infer=true] then
+            if ability and certain then
                 local cd = ns.staticRows[ability.caster].items[ability.name]
-                cd.swipeTexture:SetCooldown(buff.startTime, ability.cooldown) --buff.cooldown)
+
+                -- Start a CD swipe if one isn't already going. If one is already in
+                -- progress, then it will propagate itself if there are charges.
+                -- This logic is necessary because of delayed inference. Suppose one
+                -- charge of an ability is on CD and the second charge is used and
+                -- the ability can't be inferred until expiry - for a concrete example,
+                -- say the buff lasts 6s and the cd is 20s. At t=0 and 17 the ability
+                -- is used. At t=20 the first charge finishes its cd, at t=23 the
+                -- second charge's buff ends and the ability is identified. Since the
+                -- cooldown swipe completed at t=20, it did not know that it should
+                -- start a new swipe for the second charge, and numQueued was dropped
+                -- to 0. At t=23, we arrive here and it must be recorded that a charge
+                -- at t=0 prevented CD recovery until t=20. This is exactly what the CD
+                -- tracker provides.
+                if cd.numQueued == 0 then
+                    local cdEndsAt = ns.cdTracker[ability.caster][ability.name]:head()
+                    cd.startTime = cdEndsAt - ability.cooldown
+                    cd.swipeTexture:SetCooldown(cd.startTime, ability.cooldown)
+                end
+                cd.numQueued = cd.numQueued + 1
+                -- If this was the last charge, then draw the dark cooldown swipe.
+                -- Otherwise just show the edge.
+                cd.swipeTexture:SetDrawSwipe(cd.numQueued == ability.charges)
                 cd.swipeTexture:Show()
-                -- Have to store start/cooldown info because the text on Blizzard's
-                -- cooldown swipe can't be controlled (i.e., font size). So we have
-                -- to make our own text.
-                cd.startTime = buff.startTime
-                cd.cooldown = ability.cooldown -- buff.cooldown
             else
                 ns:addBuffToHistory(unitTarget, buff)
             end

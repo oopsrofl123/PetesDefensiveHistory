@@ -159,7 +159,13 @@ function allocHistoryItem(row, slot, index, countUp)
     else
         -- Count-down timer and cooldown swipe. These icons have spellIds, so can
         -- show a tooltip.
-        f.swipeTexture = CreateFrame("Cooldown", frameName .. "_cooldownSwipe", f, "CooldownFrameTemplate")
+        f.swipeTexture = CreateFrame("Cooldown", frameName .. "CDSwipe", f, "CooldownFrameTemplate")
+
+        f.startTime = 0
+        f.cooldown = 0
+        f.numQueued = 0
+        f.charges = 0
+
         f.swipeTexture:SetAllPoints()
         -- Have to hide blizzard's countdown text so we can control the size
         f.swipeTexture:SetHideCountdownNumbers(true)
@@ -167,19 +173,45 @@ function allocHistoryItem(row, slot, index, countUp)
         f.swipeTexture.timer = f.swipeTexture:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         f.swipeTexture.timer:SetPoint("CENTER", f, 0, 0)
         f.swipeTexture.timer:SetFont(f.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
+
+        f.swipeTexture.chargeLabel = f.swipeTexture:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        f.swipeTexture.chargeLabel:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, 0)
+        f.swipeTexture.chargeLabel:SetFont(f.swipeTexture.chargeLabel:GetFont(), textSize-2, "THICKOUTLINE")
+
         -- XXX: TODO: is there a better event than OnUpdate? This runs every frame
+        -- Handle a couple of things:
+        --    1. update cooldown timer text
+        --    2. handle cooldown charges: monitor the cooldown FIFO to catch
+        --       when a cooldown completes. if it does, pop the CD and check
+        --       if the FIFO is empty. if it isn't, start a new swipe with the
+        --       next CD in the queue.
         f:SetScript("OnUpdate", function(self)
-            if self.startTime and self.cooldown then
-                local untilAvailable = self.startTime + self.cooldown - GetTime()
+            local now = GetTime()
+
+            -- 1. update the cooldown timer text
+            if self.numQueued > 0 then
+                local untilAvailable = self.startTime + self.cooldown - now
                 if untilAvailable > 0 then
                     self.swipeTexture.timer:SetFormattedText("%.0f", untilAvailable)
                 else
-                    self.swipeTexture.timer:SetText("")
+                    -- 2. monitor for cooldown completions.  This CD is over. Are there more?
+                    -- a charge just finished, so this cooldown is available. remove the swipe.
+                    self.swipeTexture:SetDrawSwipe(false)
+                    self.numQueued = self.numQueued - 1
+                    if self.numQueued > 0 then
+                        self.startTime = now
+                        self.swipeTexture:SetCooldown(now, self.cooldown)
+                    end
                 end
+                self.swipeTexture.chargeLabel:SetText(self.charges - self.numQueued)
             else
                 self.swipeTexture.timer:SetText("")
             end
+
+            
         end)
+
+        -- Show a spell tooltip on the historyItem
         f:SetScript("OnEnter", function(self)
             if PetesDefensiveHistoryOptionsDb.showTooltips then
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -208,6 +240,7 @@ local function sizeHistoryItem(item)
         item.timer:SetFont(item.timer:GetFont(), textSize, "THICKOUTLINE")
     else
         item.swipeTexture.timer:SetFont(item.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
+        item.swipeTexture.chargeLabel:SetFont(item.swipeTexture.chargeLabel:GetFont(), textSize-2, "THICKOUTLINE")
     end
 end
 
@@ -260,6 +293,18 @@ function ns:updateStaticRow(slot)
             row.items[ability.name] = newItem
             if ability.iconId then
                 newItem.icon:SetTexture(ability.iconId)
+            end
+            newItem.cooldown = ability.cooldown
+            newItem.charges = ability.charges
+            if newItem.charges > 1 then
+                -- XXX: TODO: can't figure out how to get cooldown frames to not hide
+                -- themselves. oh well. i might need a fully separate frame overlay for
+                -- charges if i want them to display when the swipe frame self-hides
+                --newItem.swipeTexture:Show()
+                newItem.swipeTexture.chargeLabel:Show()
+                newItem.swipeTexture.chargeLabel:SetText(newItem.charges)
+            else
+                newItem.swipeTexture.chargeLabel:Hide()
             end
             newItem:Show()
             newItem.icon:Show()
