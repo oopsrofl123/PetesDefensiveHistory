@@ -1,23 +1,6 @@
 local _, ns = ...
 
 
--- This dict is the set of all possible spells that can target each slot
-ns.groupCDs = {}
--- For each unique (caster, ability), this dict tracks the last time that
--- ability was identified
-ns.cdTracker = {}
-for slot, _ in pairs(ns.allSlots) do
-    ns.groupCDs[slot] = {
-        specId = nil,
-        abilities = nil    -- nil for an undetected/unset spec. {} for a spec with no abilities
-    }
-    ns.cdTracker[slot] = {}
-end
-
--- For each ability, what players can possibly cast the ability? This
--- allows redirecting externals to their casters rather than their targets.
-ns.possibleCasters = {}
-
 
 
 -- Aura removal events aren't processed at exactly the moment the buff
@@ -109,16 +92,18 @@ end
 local function logicLayerAbilityOffCooldown(buff, ability, cdTracker)
     if not ability.cdr then
         local caster = ability.caster
-        local time_since = GetTime() - (cdTracker[caster][ability.name] or 0)
+        -- To cast the ability, just need 1 charge to be off cooldown. So check
+        -- the oldest charge - if that one isn't available then no younger charge
+        -- can possibly be available.
+        local offCDat = cdTracker[caster][ability.name]:tail()
 
-        -- ability.cooldown + buff.duration - sometimes abilities are identified
-        -- when the buff expires. for fixed duration buffs, the ability must have been off
-        -- coldown CD+DUR seconds ago, not just CD seconds ago.
-        if time_since < ability.cooldown + buff.duration - ns.DURATION_TOLERANCE then
+        -- if the buff was applied before the oldest charge came off CD, then this
+        -- ability had no charges available to use (was fully on CD).  Allow a small
+        -- tolerance.
+        if buff.startTime + ns.DURATION_TOLERANCE < offCDat then
             traceLogic(buff, ability,
-                "excluded (not off cd): last seen %0.3fs ago, cd=%ds, duration=%0.3fs, reject interval < %0.3fs",
-                time_since, ability.cooldown, buff.duration,
-                ability.cooldown + buff.duration - ns.DURATION_TOLERANCE)
+                "excluded (not off cd): recharging until [%0.3fs], buff applied at [%0.3fs]",
+                offCDat, buff.startTime)
             return false
         end
     end
@@ -502,10 +487,7 @@ function ns:zeroKnowledgeSolve()
 
             -- forget everything the internal CD tracker knows about abilities that are
             -- currently on cooldown (from previous successful inferences).
-            blankCDs = {}
-            for slot, _ in pairs(ns.allSlots) do
-                blankCDs[slot] = {}
-            end
+            blankCDs = ns:initCDTracker()
 
             ns:printDebug("simulating ability=["..ability.name.."]")
             local _, certain = ns:inferAbility(slot, buff, false, blankCDs)
