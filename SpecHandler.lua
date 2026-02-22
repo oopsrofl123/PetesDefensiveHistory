@@ -2,6 +2,14 @@
 
 local _, ns = ...
 
+-- For each slot, track all possible spells that can target the slot
+-- XXX: TODO: The player data shouldn't be here.
+ns.groupCDs = {}
+for slot, _ in pairs(ns.allSlots) do
+    ns.groupCDs[slot] = { playerName=nil, classFile=nil, specId=nil, abilities=nil, talentRanks=nil }
+end
+
+
 local LibSpecialization = LibStub("LibSpecialization")
 local internalGroupSpecs = {}    -- For internal use by LibSpecialization
 
@@ -155,11 +163,38 @@ local function updateGroupData(slot, playerName, specId, classFile, talentExport
         end
     end
 
-    -- Sort the externals to the end. Just nicer visualization.
+    ns.cdTracker = ns.initCDTracker()
+
+    -- Sort the externals to the end. Just for nicer visualization, no functional effect.
     for slot, _ in pairs(ns.allSlots) do
         table.sort(ns.groupCDs[slot].abilities,
             function(a, b) return (a.EXTERNAL and 1 or 0) < (b.EXTERNAL and 1 or 0) end)
     end
+end
+
+
+
+function ns:initCDTracker()
+    local cdTracker = {}
+
+    -- Now that all abilities are determined, initialize this slot's cooldown tracker
+    -- with the correct charge count for each ability. Fill with dummy 0 values that
+    -- mean the last time the CD was used was infinitely long ago.
+    for slot, _ in pairs(ns.allSlots) do
+        cdTracker[slot] = {}
+        for _, ability in pairs(ns.groupCDs[slot].castableAbilities) do
+            ns:printDebug(string.format(
+                "initCDTracker: slot=[%s], ability=[%s], charges=[%d]",
+                slot, ability.name, ability.charges))
+            local fifo = ns:fixedFIFO(ability.charges)
+            for i=1, ability.charges do
+                fifo:push(0)
+            end
+            cdTracker[slot][ability.name] = fifo
+        end
+    end
+
+    return cdTracker
 end
 
 
