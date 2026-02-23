@@ -58,18 +58,18 @@ end
 
 -- Do Blizzard's aura flags match?
 local function logicLayerBuffFlags(buff, ability)
-    if buff.isImportant ~= ability.IMPORTANT or
-       buff.isBigDefensive ~= ability.BIG or
-       buff.isExternal ~= ability.EXTERNAL or
-       buff.isRaid ~= ability.RAID or
-       buff.isRaidInCombat ~= ability.RAIDINCOMBAT then
+    if buff.IMPORTANT ~= ability.IMPORTANT or
+       buff.BIG ~= ability.BIG or
+       buff.EXTERNAL ~= ability.EXTERNAL or
+       buff.RAID ~= ability.RAID or
+       buff.RAIDINCOMBAT ~= ability.RAIDINCOMBAT then
         traceLogic(buff, ability,
             "excluded (flags): buff=(%d,%d,%d,%d,%d), ability=(%d,%d,%d,%d,%d)",
-            buff.isImportant and 1 or 0,
-            buff.isBigDefensive and 1 or 0,
-            buff.isExternal and 1 or 0,
-            buff.isRaid and 1 or 0,
-            buff.isRaidInCombat and 1 or 0,
+            buff.IMPORTANT and 1 or 0,
+            buff.BIG and 1 or 0,
+            buff.EXTERNAL and 1 or 0,
+            buff.RAID and 1 or 0,
+            buff.RAIDINCOMBAT and 1 or 0,
             ability.IMPORTANT and 1 or 0,
             ability.BIG and 1 or 0,
             ability.EXTERNAL and 1 or 0,
@@ -146,7 +146,11 @@ end
 -- false negatives (especially case 2), so need testing to see how reliable this is.
 -- Maybe should remove case 2.
 --   1. requires debuff: maybe UNIT_AURA can be called separately for the buff and debuff portions
+--        * this depends on spell and target, but in general should be addressed
+--          by multiple inference.
 --   2. does not require debuff: maybe another unrelated debuff was applied in the same event
+-- UPDATE: as expected, case 2 was a bad idea. Unrelated buffs (and debuffs) are frequently
+-- present in the same UNIT_AURA event.
 local function logicLayerCheckConcurrentDebuffs(buff, ability)
     if ability.concurrentDebuff then
         if #buff.concurrentDebuffs == 0 then
@@ -155,13 +159,13 @@ local function logicLayerCheckConcurrentDebuffs(buff, ability)
                 #buff.concurrentDebuffs)
             return false
         end
-    else
-        if #buff.concurrentDebuffs > 0 then
-            traceLogic(buff, ability,
-                "excluded (concurrent debuff not allowed): %d debuffs observed",
-                #buff.concurrentDebuffs)
-            return false
-        end
+    --else
+        --if #buff.concurrentDebuffs > 0 then
+            --traceLogic(buff, ability,
+                ----"excluded (concurrent debuff not allowed): %d debuffs observed",
+                --#buff.concurrentDebuffs)
+            --return false
+        --end
     end
     return true
 end
@@ -456,11 +460,11 @@ function ns:zeroKnowledgeSolve()
                 startTime = GetTime(),
                 endTime = GetTime() + ability.duration,
                 duration = ability.duration,
-                isImportant = ability.IMPORTANT,
-                isBigDefensive = ability.BIG,
-                isExternal = ability.EXTERNAL,
-                isRaid = ability.RAID,
-                isRaidInCombat = ability.RAIDINCOMBAT,
+                IMPORTANT = ability.IMPORTANT,
+                BIG = ability.BIG,
+                EXTERNAL = ability.EXTERNAL,
+                RAID = ability.RAID,
+                RAIDINCOMBAT = ability.RAIDINCOMBAT,
                 numUpdates = 0,
                 concurrentBuffs = {},
                 concurrentDebuffs = {},
