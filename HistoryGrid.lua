@@ -140,7 +140,7 @@ function allocHistoryItem(row, slot, index, countUp)
     f.countUp = countUp
     if countUp then
         -- Count-up history mode timer
-        f.timer = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        f.timer = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         f.timer:SetPoint("CENTER", f, 0, 0)
         f.timer:SetFont(f.timer:GetFont(), textSize, "THICKOUTLINE")
         -- XXX: TODO: is there a better event than OnUpdate? This runs every frame
@@ -170,13 +170,13 @@ function allocHistoryItem(row, slot, index, countUp)
         -- Have to hide blizzard's countdown text so we can control the size
         f.swipeTexture:SetHideCountdownNumbers(true)
 
-        f.swipeTexture.timer = f.swipeTexture:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        f.swipeTexture.timer = f.swipeTexture:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         f.swipeTexture.timer:SetPoint("CENTER", f, 0, 0)
         f.swipeTexture.timer:SetFont(f.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
 
-        f.swipeTexture.chargeLabel = f.swipeTexture:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        f.swipeTexture.chargeLabel = f.swipeTexture:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
         f.swipeTexture.chargeLabel:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, 0)
-        f.swipeTexture.chargeLabel:SetFont(f.swipeTexture.chargeLabel:GetFont(), textSize-2, "THICKOUTLINE")
+        f.swipeTexture.chargeLabel:SetFont(f.swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
 
         -- XXX: TODO: is there a better event than OnUpdate? This runs every frame
         -- Handle a couple of things:
@@ -240,7 +240,7 @@ local function sizeHistoryItem(item)
         item.timer:SetFont(item.timer:GetFont(), textSize, "THICKOUTLINE")
     else
         item.swipeTexture.timer:SetFont(item.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
-        item.swipeTexture.chargeLabel:SetFont(item.swipeTexture.chargeLabel:GetFont(), textSize-2, "THICKOUTLINE")
+        item.swipeTexture.chargeLabel:SetFont(item.swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
     end
 end
 
@@ -398,7 +398,9 @@ function ns:updateHistoryTrayRow(slot, specId, playerName)
     row:SetPoint("BOTTOMRIGHT", ns:slotToPartyFrame(slot), "BOTTOMLEFT", -ns.SPACING_FROM_FRAMES, 0)
 
     row.specText:SetPoint("BOTTOMRIGHT", row, "TOPRIGHT", 0, 0)
+    row.specText:SetFont(row.specText:GetFont(), textSize, "OUTLINE")
     row.cpfMappingText:SetPoint("RIGHT", row, "LEFT", 0, 0)
+    row.cpfMappingText:SetFont(row.cpfMappingText:GetFont(), textSize, "OUTLINE")
 
     for i=1,ns.MAX_HISTORY do
         local historyItem = row.historyItems[i]
@@ -431,12 +433,10 @@ local function allocHistoryTrayRow(slot)
     row.bg:SetAllPoints()
 
     -- Debug mode text showing the detected class/spec
-    row.specText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.specText:SetFont(row.specText:GetFont(), 15, "OUTLINE")
+    row.specText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 
     -- Debug mode text showing the CompactPartyFrameMember..i mapping
-    row.cpfMappingText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    row.cpfMappingText:SetFont(row.cpfMappingText:GetFont(), 15, "OUTLINE")
+    row.cpfMappingText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 
     -- Create all historyItems for this row
     -- Do not do this in clearRow() since historyItems contain frames. These will

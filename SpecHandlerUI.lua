@@ -124,9 +124,9 @@ local function allocSolutionItem(row)
     item.durationLabel:SetPoint("TOP", item.icon, "BOTTOM", 0, -3)
     item.durationLabel:Hide()
 
-    item.chargesLabel = row:CreateFontString(nil, 'OVERLAY', 'GameFontNormalLarge')
+    item.chargesLabel = row:CreateFontString(nil, 'OVERLAY', 'NumberFontNormal')
     font, height, flags = item.chargesLabel:GetFont()
-    item.chargesLabel:SetFont(font, height-1, "THICKOUTLINE")  -- make slightly smaller than the cd font
+    item.chargesLabel:SetFont(font, height, "THICKOUTLINE")
     item.chargesLabel:SetTextColor(1,1,1)
     item.chargesLabel:SetPoint("BOTTOMRIGHT", item.icon, "BOTTOMRIGHT", 0, 2)
     item.chargesLabel:Hide()
