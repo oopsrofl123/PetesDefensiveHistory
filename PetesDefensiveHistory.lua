@@ -3,77 +3,71 @@ local addonName, ns = ...
 
 local LibButtonGlow = LibStub("LibButtonGlowcustom")
 
-local function isAuraHarmful(slot, auraInstanceId)
-    -- could also filter for HARMFUL
-    return not ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL"), auraInstanceId)
+-- All active auras on everyone in the group, whether they're the ones
+-- we track or not.
+ns.auras = {}
+for slot, _ in pairs(ns.allSlots) do
+    ns.auras[slot] = {}
 end
 
 
--- Return a tuple of flags for this auraInstanceId:
---   (isImportant, isBigDefensive, isExternalDefensive, isRaidInCombat, isRaid)
-local function getFilterFlagsForAuraInstanceId(slot, auraInstanceId)
+local function fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
+    -- XXX: TODO: weird stuff going on here. an aura filtered by HELPFUL|IMPORTANT
+    -- is not filtered by just IMPORTANT but is filtered by just HELPFUL. maybe
+    -- this will get fixed. for now, just add the seemingly unnecessary HELPFUL|
+    -- in front of every filter.
+        --print('----------------',
+            --C_Spell.IsSpellImportant(1044),
+            --not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|IMPORTANT"),
+            --not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "IMPORTANT"),
+            ----not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL")
+        --)
     return
-        ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|IMPORTANT"), auraInstanceId),
-        ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|BIG_DEFENSIVE"), auraInstanceId),
-        ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|EXTERNAL_DEFENSIVE"), auraInstanceId),
-        ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|RAID"), auraInstanceId),
-        ns:tablecontains(C_UnitAuras.GetUnitAuraInstanceIDs(slot, "HELPFUL|RAID_IN_COMBAT"), auraInstanceId)
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|IMPORTANT"),
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|BIG_DEFENSIVE"),
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|EXTERNAL_DEFENSIVE"),
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|RAID"),
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|RAID_IN_COMBAT"),
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL"),
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HARMFUL")
 end
 
 
 
 -- Add this aura instance to the tracked list of actives on this player.
---
--- IMPORTANT! Save the icon's texture at the instant the aura is applied
--- in case another buff overwrites it later.
-local function trackActiveBuff(slot, auraInstanceID, iconId, concurrentBuffs, concurrentDebuffs)
-    local isImportant, isBigDefensive, isExternal, isRaid, isRaidInCombat =
-        getFilterFlagsForAuraInstanceId(slot, auraInstanceID)
-
-    local timeNow = GetTime()
-
+local function trackBuff(aura, concurrentBuffs, concurrentDebuffs)
     ns:printDebug(string.format(
-        'auraInstanceID=%d (imp=%d, big=%d, ext=%d, raid=%d, ric=%d) added to %s: currently tracking %d other active abilities',
-        auraInstanceID, isImportant and 1 or 0,
-        isBigDefensive and 1 or 0, isExternal and 1 or 0,
-        isRaid and 1 or 0, isRaidInCombat and 1 or 0,
-        slot, #ns.activeDefensives[slot])
+        'trackBuff: auraInstanceID=[%d], slot=[%s], time=[%0.3f], flags=(IMP=%d, BIG=%d, EXT=%d, RAID=%d, RIC=%d, HELP=%d, HARM=%d)',
+        aura.auraInstanceID, aura.slot, aura.startTime,
+        IMPORTANT and 1 or 0,
+        BIG and 1 or 0, EXTERNAL and 1 or 0,
+        RAID and 1 or 0, RAIDINCOMBAT and 1 or 0,
+        HELPFUL and 1 or 0, HARMFUL and 1 or 0)
     )
 
-    ns:printDebug('timeNow='..timeNow..' building list of most recent successful casts for all slots..')
     closestCasts = {}
     for slot, castHistory in pairs(ns.castHistory) do
         closest = ns.INFINITY
         for _, cast in pairs(castHistory:items()) do
-            if math.abs(cast.time - timeNow) < math.abs(closest - timeNow) then
+            if math.abs(cast.time - aura.startTime) < math.abs(closest - aura.startTime) then
                 closest = cast.time
             end
         end
         closestCasts[slot] = closest
     end
 
-    local buff = {
-        inference = 0,    -- counter tracking how many times this buff has been through inferAbility()
-        ability = nil,    -- the ability that created this buff
-        certain = false,  -- is the buff <-> ability assignment certain?
-        slot = slot,      -- this is the buff's target (which is the unit frame position it was witnessed on, hence slot)
-        auraInstanceID = auraInstanceID,
-        secretTexture = iconId,
-        startTime = timeNow,
-        duration = 0,
-        endTime = timeNow + ns.INFINITY,
-        isImportant = isImportant,
-        isBigDefensive = isBigDefensive,
-        isExternal = isExternal,
-        isRaid = isRaid,
-        isRaidInCombat = isRaidInCombat,
-        numUpdates = 0,                 -- how many times has this aura been in the aurasUpdated list?
-        concurrentBuffs = concurrentBuffs or {},
-        concurrentDebuffs = concurrentDebuffs or {},
-        closestCasts = closestCasts
-    }
+    local buff = ns:shallowcopy(aura)
 
-    ns.activeDefensives[slot][auraInstanceID] = buff
+    -- Add fields relevant to inference
+    buff.inference = 0    -- counter tracking how many times this buff has been through inferAbility()
+    buff.ability = nil    -- the ability that created this buff
+    buff.certain = false  -- is the buff <-> ability assignment certain?
+    buff.caster = nil
+    buff.concurrentBuffs = concurrentBuffs or {}
+    buff.concurrentDebuffs = concurrentDebuffs or {}
+    buff.closestCasts = closestCasts
+
+    ns.activeDefensives[aura.slot][aura.auraInstanceId] = buff
 
     return buff
 end
@@ -139,6 +133,29 @@ end)
 
 
 
+local function makeAura(startTime, slot, auraInstanceID, iconId)
+    local IMPORTANT, BIG, EXTERNAL, RAID, RAIDINCOMBAT, HELPFUL, HARMFUL =
+        fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceID)
+    return {
+        slot=slot,      -- the aura's target
+        auraInstanceId=auraInstanceID,
+        secretTexture=iconId,
+        startTime=startTime,
+        duration=0,
+        endTime=startTime + ns.INFINITY,
+        IMPORTANT=IMPORTANT,
+        BIG=BIG,
+        EXTERNAL=EXTERNAL,
+        RAID=RAID,
+        RAIDINCOMBAT=RAIDINCOMBAT,
+        HELPFUL=HELPFUL,
+        HARMFUL=HARMFUL,
+        numUpdates=0
+    }
+end
+
+
+
 --------------------------------------------------------------------------------------
 -- This frame is responsible for handling events about auras being applied, updated
 -- or removed.
@@ -154,13 +171,13 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     local aurasRemoved = updateInfo['removedAuraInstanceIDs'] or {}
     local aurasUpdated = updateInfo['updatedAuraInstanceIDs'] or {}
 
+    local now = GetTime()
+
     -- Currently active defensive buffs for this slot
     local actives = ns.activeDefensives[unitTarget]
 
-    -- Way too verbose even for testing and also not very useful since
-    -- aura instance IDs aren't printed unless we unpack the tables.
-    ns:printDebug(string.format('UNIT_AURA(time=%0.3f, slot=[%s], #aurasAdded=[%d], #aurasUpdated=[%d], #aurasRemoved=[%d])',
-        GetTime(), unitTarget, #aurasAdded, #aurasUpdated, #aurasRemoved))
+    ns:printDebug(string.format('UNIT_AURA(time=%0.3f, slot=[%s], #added=[%d], #updated=[%d], #removed=[%d])',
+        now, unitTarget, #aurasAdded, #aurasUpdated, #aurasRemoved))
 
     -- Convenience mode for collecting data about buff rules. Show all buffs and
     -- debuffs added, including secret data that would not be available in
@@ -182,19 +199,18 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
 
     -- aurasAdded is a list of data structures unlike the other aura sets
     for _, v in pairs(aurasAdded) do
-        local imp, big, ext, raid, ric = getFilterFlagsForAuraInstanceId(unitTarget, v.auraInstanceID)
-        local harm = isAuraHarmful(unitTarget, v.auraInstanceID)
+        local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
+        print(aura.auraInstanceId, aura.IMPORTANT, aura.BIG, aura.EXTERNAL,
+            aura.RAID, aura.RAIDINCOMBAT, aura.HELPFUL, aura.HARMFUL)
 
-        ns:printDebug("ADDED BUFF (not filtered imp|big|ext): " ..
-            v.auraInstanceID, imp, big, ext, raid, ric, harm)
-        -- the abilities we handle are helpfuls that are either important, big or externals
-        if not harm and (imp or big or ext) then
-            -- get all of the buff and debuff auras added in this event
+        -- Is this aura a buff we want to track?
+        if aura.HELPFUL and (aura.IMPORTANT or aura.BIG or aura.EXTERNAL) then
+            -- get all of the other buff and debuff auras added in this event
             local buffs = {}
             local debuffs = {}
             for _, x in pairs(aurasAdded) do
                 if x.auraInstanceID ~= v.auraInstanceID then
-                    if isAuraHarmful(unitTarget, x.auraInstanceID) then
+                    if harm then
                         table.insert(debuffs, x.auraInstanceID)
                     else
                         table.insert(buffs, x.auraInstanceID)
@@ -202,7 +218,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 end
             end
 
-            local buff = trackActiveBuff(unitTarget, v.auraInstanceID, v.icon, buffs, debuffs)
+            local buff = trackBuff(aura, buffs, debuffs)
 
             -- attempt instant identification
             ability, certain = ns:inferAbility(unitTarget, buff, false)
