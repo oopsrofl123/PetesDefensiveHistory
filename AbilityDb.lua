@@ -595,6 +595,17 @@ ns.AbilityDb = {
             requireConcurrentBuff=false,
             concurrentDebuff=false,
 		},
+        ---------------------------------------------------------------------------------------
+        -- Forbearance spells
+        ---------------------------------------------------------------------------------------
+        -- The required application of forbearance helps to identify these abilities.
+        -- However, whether the UNIT_AURA event contains both the buff and the FB
+        -- debuff is complicated. I have observed:
+        --      * Bubble self-cast, buff and FB in same event
+        --      * Bubble self-cast, buff and FB in different events (2/5+1 casts)
+        --          - maybe this is only possible with the cast-bubble-with-FB talent?
+        --      * Bubble self-cast, FB already active, buff and FB(udpate) in different events
+        --      * Spellwarding self-cast, buff and DB in same event (9+1/9+1 casts)
 		{
 			name="Divine Shield",
             buttonPress=true,
@@ -607,12 +618,9 @@ ns.AbilityDb = {
 			cdr=false,
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
-            requireConcurrentBuff=false,
+            requireConcurrentBuff=false,  -- Talent allows bubble with FB active, refreshes it to 20s
             concurrentDebuff=true,
 		},
-        -- XXX: TODO: forbearance: when applied to someone else, forbearance is applied in
-        -- a separate, immediately following UNIT_AURA call. good example of where a delayed
-        -- inference could add support through a new confidence layer.
 		{
 			name="Blessing of Protection",
             buttonPress=true,
@@ -626,8 +634,26 @@ ns.AbilityDb = {
             IMPORTANT=false, BIG=false, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
 			targets=ns.TARGET_ANY,
             requireConcurrentBuff=false,
-            concurrentDebuff=false,    -- applies forbearance, but the debuff isn't in the same payload
+            concurrentDebuff=false,
 		},
+		{
+			name="Blessing of Spellwarding",
+            buttonPress=true,
+			id=204018,
+            iconId=135880,
+			cooldown=300,
+			duration=10,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=true, RAID=true, RAIDINCOMBAT=false,
+			targets=ns.TARGET_ANY,
+            requireConcurrentBuff=false,
+            concurrentDebuff=false,
+		},
+        ---------------------------------------------------------------------------------------
+        -- END Forbearance spells
+        ---------------------------------------------------------------------------------------
 		{
 			name="Blessing of Freedom",
             buttonPress=true,
@@ -736,21 +762,6 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireConcurrentBuff=false,
             concurrentDebuff=true,
-		},
-		{
-			name="Blessing of Spellwarding",
-            buttonPress=true,
-			id=204018,
-            iconId=135880,
-			cooldown=300,
-			duration=10,
-			duration_variable=ns.DURATION_FIXED,
-			charges=1,
-			cdr=false,
-            IMPORTANT=true, BIG=false, EXTERNAL=true, RAID=true, RAIDINCOMBAT=false,
-			targets=ns.TARGET_ANY,
-            requireConcurrentBuff=false,
-            concurrentDebuff=false,  -- applies forbearance, but the debuff isn't in the same payload ON OTHERS
 		},
 		{
 			name="Sentinel",
