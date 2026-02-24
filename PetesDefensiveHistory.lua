@@ -29,7 +29,12 @@ local function fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
         not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|RAID"),
         not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|RAID_IN_COMBAT"),
         not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL"),
-        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HARMFUL")
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HARMFUL"),
+        -- Some buffs we track are not cancelable (like GoAK). Unfortunately this filter
+        -- isn't correct for GoAK, so it isn't useful in that case. But maybe it is for
+        -- some others?
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|CANCELABLE")
+        --not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "CANCELABLE")
 end
 
 
@@ -37,12 +42,13 @@ end
 -- Add this aura instance to the tracked list of actives on this player.
 local function trackBuff(aura, concurrentBuffs, concurrentDebuffs)
     ns:printDebug(string.format(
-        'trackBuff: auraInstanceID=[%d], slot=[%s], time=[%0.3f], flags=(IMP=%d, BIG=%d, EXT=%d, RAID=%d, RIC=%d, HELP=%d, HARM=%d)',
-        aura.auraInstanceID, aura.slot, aura.startTime,
-        IMPORTANT and 1 or 0,
-        BIG and 1 or 0, EXTERNAL and 1 or 0,
-        RAID and 1 or 0, RAIDINCOMBAT and 1 or 0,
-        HELPFUL and 1 or 0, HARMFUL and 1 or 0)
+        'trackBuff: auraInstanceID=[%d], slot=[%s], time=[%0.3f], flags=(IMP=%d, BIG=%d, EXT=%d, RAID=%d, RIC=%d, HELP=%d, HARM=%d, CANCELABLE=%d)',
+        aura.auraInstanceId, aura.slot, aura.startTime,
+        aura.IMPORTANT and 1 or 0,
+        aura.BIG and 1 or 0, aura.EXTERNAL and 1 or 0,
+        aura.RAID and 1 or 0, aura.RAIDINCOMBAT and 1 or 0,
+        aura.HELPFUL and 1 or 0, aura.HARMFUL and 1 or 0,
+        aura.CANCELABLE and 1 or 0)
     )
 
     closestCasts = {}
@@ -134,7 +140,7 @@ end)
 
 
 local function makeAura(startTime, slot, auraInstanceID, iconId)
-    local IMPORTANT, BIG, EXTERNAL, RAID, RAIDINCOMBAT, HELPFUL, HARMFUL =
+    local IMPORTANT, BIG, EXTERNAL, RAID, RAIDINCOMBAT, HELPFUL, HARMFUL, CANCELABLE =
         fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceID)
     return {
         slot=slot,      -- the aura's target
@@ -150,6 +156,7 @@ local function makeAura(startTime, slot, auraInstanceID, iconId)
         RAIDINCOMBAT=RAIDINCOMBAT,
         HELPFUL=HELPFUL,
         HARMFUL=HARMFUL,
+        CANCELABLE=CANCELABLE,
         numUpdates=0
     }
 end
@@ -182,7 +189,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Convenience mode for collecting data about buff rules. Show all buffs and
     -- debuffs added, including secret data that would not be available in
     -- real content
-    if PetesDefensiveHistoryOptionsDb.dataMiningMode and unitTarget == "player" then
+    if ns:GetOption('dataMiningMode') and unitTarget == "player" then
         print(string.format("DATA MINING: %d added, %d updated, %d removed",
             #aurasAdded, #aurasUpdated, #aurasRemoved))
         for _, v in pairs(aurasAdded) do
@@ -201,7 +208,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     for _, v in pairs(aurasAdded) do
         local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
         print(aura.auraInstanceId, aura.IMPORTANT, aura.BIG, aura.EXTERNAL,
-            aura.RAID, aura.RAIDINCOMBAT, aura.HELPFUL, aura.HARMFUL)
+            aura.RAID, aura.RAIDINCOMBAT, aura.HELPFUL, aura.HARMFUL, aura.CANCELABLE)
 
         -- Is this aura a buff we want to track?
         if aura.HELPFUL and (aura.IMPORTANT or aura.BIG or aura.EXTERNAL) then
