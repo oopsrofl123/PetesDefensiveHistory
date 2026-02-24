@@ -95,8 +95,15 @@ end
 -- Updates the global variable allSlots to ensure that slot can be mapped
 -- to the correct i such that slot = CompactPartyFrameMember..i
 function ns:updateSlotToFrameMapping(slot)
+    local frameRoot
+    if DandersFrames then
+        frameRoot = "DandersPartyHeaderUnitButton"
+    else
+        frameRoot = "CompactPartyFrameMember"
+    end
+
 	for i=1,5 do
-		if slot == _G["CompactPartyFrameMember"..i].unit then
+		if slot == _G[frameRoot..i].unit then
 			if i ~= ns.allSlots[slot] then
 				ns:printDebug('updating slot mapping: ' .. slot .. ' -> ' .. i)
 				ns.allSlots[slot] = i
@@ -133,7 +140,11 @@ end
 -- Blizzard party frames are named CompactPartyFrameMember{1,2,3,4,5}, not the
 -- player, party1, party2, ... naming of UnitName(). Map the latter to the former.
 function ns:slotToPartyFrameName(slot)
-    return "CompactPartyFrameMember" .. ns:slotToIndex(slot)
+    if DandersFrames then
+        return "DandersPartyHeaderUnitButton" .. ns:slotToIndex(slot)
+    else
+        return "CompactPartyFrameMember" .. ns:slotToIndex(slot)
+    end
 end
 
 
@@ -146,7 +157,7 @@ end
 
 
 function ns:showDebugVisual(object)
-    if PetesDefensiveHistoryOptionsDb.debugVisuals then
+    if ns:GetOption('debugVisuals') then
         object:Show()
     else
         object:Hide()
@@ -157,8 +168,7 @@ end
 
 function ns:printDebug(string)
     --if ns.DEBUG_MESSAGES then
-    if PetesDefensiveHistoryOptionsDb.debugLogging then
-        --print('|cff00ff00' .. addonName .. ':|r ' .. string)
+    if ns:GetOption('debugLogging') then
         print('|cff00ff00PDH:|r ' .. string)
     end
 end
