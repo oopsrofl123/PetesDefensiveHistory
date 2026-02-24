@@ -431,7 +431,9 @@ function ns:inferAbility(slot, buff, useDuration, cdTracker)
     -- can apply the same buff. it can be useful to know what buff is
     -- present even if it can't be pinned to an ability.
     abilityMatch, certain = getConfidentMatch(possibleSolutions)
-    if abilityMatch and not PetesDefensiveHistoryOptionsDb.disableInference then
+    -- Check for disableInference here, not at function start, so that maxCD can
+    -- be computed for use by the history tray.
+    if abilityMatch and not ns:GetOption('disableInference') then
         buff.ability = abilityMatch
         buff.certain = certain
     else
