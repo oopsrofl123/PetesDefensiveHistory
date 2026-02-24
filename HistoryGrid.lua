@@ -100,9 +100,9 @@ function ns:addBuffToHistory(slot, buff)
     local row = ns.historyRows[slot]
 
     -- Don't do anything if the user disabled the history tray
-    if PetesDefensiveHistoryOptionsDb.disableHistoryTray then return end
+    if ns:GetOption('disableHistoryTray') then return end
 
-    ns:printDebug("aura instance ID " .. buff.auraInstanceID ..
+    ns:printDebug("aura instance ID " .. buff.auraInstanceId ..
         " added to history tray " .. slot .. " after " .. buff.duration .. "s")
 
     -- Empty the youngest history slot
@@ -127,7 +127,7 @@ end
 function allocHistoryItem(row, slot, index, countUp)
     local frameName = addonName .. "_" .. slot .. "_" .. index
     local f = CreateFrame("Frame", frameName, row)
-    local textSize = PetesDefensiveHistoryOptionsDb.textSize
+    local textSize = ns:GetOption('textSize')
     f.slot = slot
 
     f.icon = f:CreateTexture(nil, "ARTWORK")
@@ -142,6 +142,7 @@ function allocHistoryItem(row, slot, index, countUp)
         -- Count-up history mode timer
         f.timer = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         f.timer:SetPoint("CENTER", f, 0, 0)
+        f.timer:SetTextColor(1,1,1)
         f.timer:SetFont(f.timer:GetFont(), textSize, "THICKOUTLINE")
         -- XXX: TODO: is there a better event than OnUpdate? This runs every frame
         f:SetScript("OnUpdate", function(self)
@@ -151,6 +152,7 @@ function allocHistoryItem(row, slot, index, countUp)
                     self.timer:SetFormattedText("%.0f", elapsed)
                 else
                     self.timer:SetText("")
+                    self:Hide()  -- hide the whole icon+timer
                 end
             else
                 self.timer:SetText("")
@@ -171,10 +173,12 @@ function allocHistoryItem(row, slot, index, countUp)
         f.swipeTexture:SetHideCountdownNumbers(true)
 
         f.swipeTexture.timer = f.swipeTexture:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        f.swipeTexture.timer:SetTextColor(1,1,1)
         f.swipeTexture.timer:SetPoint("CENTER", f, 0, 0)
         f.swipeTexture.timer:SetFont(f.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
 
-        f.swipeTexture.chargeLabel = f.swipeTexture:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+        f.swipeTexture.chargeLabel = f.swipeTexture:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+        f.swipeTexture.chargeLabel:SetTextColor(1,1,1)
         f.swipeTexture.chargeLabel:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, 0)
         f.swipeTexture.chargeLabel:SetFont(f.swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
 
@@ -213,14 +217,14 @@ function allocHistoryItem(row, slot, index, countUp)
 
         -- Show a spell tooltip on the historyItem
         f:SetScript("OnEnter", function(self)
-            if PetesDefensiveHistoryOptionsDb.showTooltips then
+            if ns:GetOption('showTooltips') then
                 GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                 GameTooltip:SetSpellByID(self.spellId)
                 GameTooltip:Show()
             end
         end)
         f:SetScript("OnLeave", function(self)
-            if PetesDefensiveHistoryOptionsDb.showTooltips then
+            if ns:GetOption('showTooltips') then
                 GameTooltip:Hide()
             end
         end)
@@ -232,8 +236,8 @@ end
 
 
 local function sizeHistoryItem(item)
-    local iconSize = PetesDefensiveHistoryOptionsDb.iconSize
-    local textSize = PetesDefensiveHistoryOptionsDb.textSize
+    local iconSize = ns:GetOption('iconSize')
+    local textSize = ns:GetOption('textSize')
     item:SetSize(iconSize, iconSize)
 
     if item.countUp then
@@ -313,7 +317,7 @@ function ns:updateStaticRow(slot)
         local item = row.items[ability.name]
         sizeHistoryItem(item)
         -- Did the user opt in to showing this ability?
-        if not PetesDefensiveHistoryOptionsDb["show_"..ability.id] then
+        if not ns:GetOption("show_"..ability.id) then
             item:Hide()
         else
             item:Show()
@@ -333,8 +337,8 @@ function ns:updateStaticRow(slot)
 
     -- Adjust layout based on the icons surviving the previous purge
     local i = 0
-    local iconSize = PetesDefensiveHistoryOptionsDb.iconSize
-    local iconSpacing = PetesDefensiveHistoryOptionsDb.iconSpacing
+    local iconSize = ns:GetOption('iconSize')
+    local iconSpacing = ns:GetOption('iconSpacing')
     row:SetSize(row:GetWidth(), iconSize)
     row:SetPoint("TOPRIGHT", ns:slotToPartyFrame(slot), "TOPLEFT", -ns.SPACING_FROM_FRAMES, 0)
     for name, historyItem in pairs(row.items) do
@@ -344,7 +348,7 @@ function ns:updateStaticRow(slot)
         end
     end
 
-    if PetesDefensiveHistoryOptionsDb.disableInference then
+    if ns:GetOption('disableInference') then
         -- hide the whole row unless visual debugging is turned on
         ns:showDebugVisual(row)
     else
@@ -356,7 +360,7 @@ end
 
 local function allocStaticRow(slot)
     local row = CreateFrame("Frame", addonName .. "StaticRow" .. slot, UIParent)
-    row:SetSize(200, PetesDefensiveHistoryOptionsDb.iconSize+2)
+    row:SetSize(200, ns:GetOption('iconSize')+2)
 
     row.bg = row:CreateTexture(nil, "BACKGROUND")
     row.bg:SetAllPoints()
@@ -389,9 +393,9 @@ function ns:updateHistoryTrayRow(slot, specId, playerName)
     local row = ns.historyRows[slot]
     ns:printDebug("updateHistoryTrayRow(" .. slot .. ")")
 
-    local iconSize = PetesDefensiveHistoryOptionsDb.iconSize
-    local textSize = PetesDefensiveHistoryOptionsDb.textSize
-    local iconSpacing = PetesDefensiveHistoryOptionsDb.iconSpacing
+    local iconSize = ns:GetOption('iconSize')
+    local textSize = ns:GetOption('textSize')
+    local iconSpacing = ns:GetOption('iconSpacing')
 
     -- Position row next to Blizzard frames
     row:SetSize(ns.MAX_HISTORY*iconSize + (ns.MAX_HISTORY-1)*iconSpacing, iconSize)
@@ -412,7 +416,7 @@ function ns:updateHistoryTrayRow(slot, specId, playerName)
         historyItem:SetPoint("LEFT", row, "LEFT", (i-1)*(iconSize + iconSpacing), 0)
     end
 
-    if PetesDefensiveHistoryOptionsDb.disableHistoryTray then
+    if ns:GetOption('disableHistoryTray') then
         -- hide the whole row unless visual debugging is turned on
         ns:showDebugVisual(row)
     else
@@ -434,9 +438,11 @@ local function allocHistoryTrayRow(slot)
 
     -- Debug mode text showing the detected class/spec
     row.specText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    row.specText:SetTextColor(1,1,1)
 
     -- Debug mode text showing the CompactPartyFrameMember..i mapping
     row.cpfMappingText = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    row.cpfMappingText:SetTextColor(1,1,1)
 
     -- Create all historyItems for this row
     -- Do not do this in clearRow() since historyItems contain frames. These will
