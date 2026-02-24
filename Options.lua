@@ -1,16 +1,28 @@
 -- get addon namespace
 local addonName, ns = ...
 
-PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or {
+local optionsDefaults = {
     iconSize = 32,
     iconSpacing = 3,
     textSize = 15,
     disableInference = false,
     disableHistoryTray = false,
+    hideHistoryItemsAtMaxCd = false,
+    showTooltips = true,
 	debugVisuals = false,
 	debugLogging = false,
     dataMiningMode = false
 }
+
+PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or optionsDefaults
+
+
+-- Universal getter. Use this to access settings, not direct keying
+-- into the settings table. No idea why I capitalized this.
+function ns:GetOption(opt)
+    return PetesDefensiveHistoryOptionsDb[opt] or optionsDefaults[opt]
+end
+
 
 
 ns.optionsCategory, layout = Settings.RegisterVerticalLayoutCategory(addonName)
@@ -25,8 +37,8 @@ local setting = Settings.RegisterProxySetting(
     "iconSize",
     Settings.VarType.Number,
     "Icon size",
-    32,
-    function() return PetesDefensiveHistoryOptionsDb.iconSize or 32 end,
+    optionsDefaults['iconSize'],
+    function() return ns:GetOption('iconSize') end,
     function(value)
         PetesDefensiveHistoryOptionsDb.iconSize = value
         for slot, _ in pairs(ns.allSlots) do
@@ -47,8 +59,8 @@ local setting = Settings.RegisterProxySetting(
     "textSize",
     Settings.VarType.Number,
     "Timer text size",
-    15,
-    function() return PetesDefensiveHistoryOptionsDb.textSize or 15 end,
+    optionsDefaults['textSize'],
+    function() return ns:GetOption('textSize') end,
     function(value)
         PetesDefensiveHistoryOptionsDb.textSize = value
         for slot, _ in pairs(ns.allSlots) do
@@ -69,8 +81,8 @@ local setting = Settings.RegisterProxySetting(
     "iconSpacing",
     Settings.VarType.Number,
     "Icon spacing",
-    3,
-    function() return PetesDefensiveHistoryOptionsDb.iconSpacing or 3 end,
+    optionsDefaults['iconSpacing'],
+    function() return ns:GetOption('iconSpacing') end,
     function(value)
         PetesDefensiveHistoryOptionsDb.iconSpacing = value
         for slot, _ in pairs(ns.allSlots) do
@@ -90,8 +102,8 @@ local disableInference = Settings.RegisterProxySetting(
     "pdh.disableInference",
     Settings.VarType.Boolean,
     "Disable inference",
-    false,
-    function() return PetesDefensiveHistoryOptionsDb.disableInference or false end,
+    optionsDefaults['disableInference'],
+    function() return ns:GetOption('disableInference') end,
     function(value)
         PetesDefensiveHistoryOptionsDb.disableInference = value
         for slot, _ in pairs(ns.allSlots) do
@@ -108,8 +120,8 @@ local setting = Settings.RegisterProxySetting(
     "pdh.disableHistoryTray",
     Settings.VarType.Boolean,
     "Disable history tray",
-    false,
-    function() return PetesDefensiveHistoryOptionsDb.disableHistoryTray or false end,
+    optionsDefaults['disableHistoryTray'],
+    function() return ns:GetOption('disableHistoryTray') end,
     function(value)
         PetesDefensiveHistoryOptionsDb.disableHistoryTray = value
         for slot, _ in pairs(ns.allSlots) do
@@ -122,17 +134,24 @@ Settings.CreateCheckbox(ns.optionsCategory, setting,
 
 local setting = Settings.RegisterProxySetting(
     optionsCategory,
+    "pdh.hideHistoryItemsAtMaxCd",
+    Settings.VarType.Boolean,
+    "Hide old history tray items",
+    optionsDefaults['hideHistoryItemsAtMaxCd'],
+    function() return ns:GetOption('hideHistoryItemsAtMaxCd') end,
+    function(value) PetesDefensiveHistoryOptionsDb.hideHistoryItemsAtMaxCd = value end
+)
+Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Hide unidentified abilities in the history tray after the maximum possible cooldown is reached.")
+
+local setting = Settings.RegisterProxySetting(
+    optionsCategory,
     "pdh.showTooltips",
     Settings.VarType.Boolean,
     "Show spell tooltips",
-    true,
-    function() return PetesDefensiveHistoryOptionsDb.showTooltips or false end,
-    function(value)
-        PetesDefensiveHistoryOptionsDb.showTooltips = value
-        --for slot, _ in pairs(ns.allSlots) do
-            --ns:updateHistoryTrayRow(slot)
-        --end
-    end
+    optionsDefaults['showTooltips'],
+    function() return ns:GetOption('showTooltips') end,
+    function(value) PetesDefensiveHistoryOptionsDb.showTooltips = value end
 )
 Settings.CreateCheckbox(ns.optionsCategory, setting,
     "Show spell tooltips for abilities that can be identified. This does not work for abilities in the history tray, since these abilities are not identified.")
@@ -151,8 +170,8 @@ local debugVisuals = Settings.RegisterProxySetting(
     "pdh.debugVisuals",
     Settings.VarType.Boolean,
     "Visual debugging",
-    false,
-    function() return PetesDefensiveHistoryOptionsDb.debugVisuals or false end,
+    optionsDefaults['debugVisuals'],
+    function() return ns:GetOption('debugVisuals') end,
     function(value) PetesDefensiveHistoryOptionsDb.debugVisuals = value  end
 )
 
@@ -167,8 +186,8 @@ local debugLogging = Settings.RegisterProxySetting(
     "pdh.debugLogging",
     Settings.VarType.Boolean,
     "Debugging messages",
-    false,
-    function() return PetesDefensiveHistoryOptionsDb.debugLogging or false end,
+    optionsDefaults['debugLogging'],
+    function() return ns:GetOption('debugLogging') end,
     function(value) PetesDefensiveHistoryOptionsDb.debugLogging = value  end
 )
 
@@ -183,8 +202,8 @@ local dataMiningMode = Settings.RegisterProxySetting(
     "pdh.dataMiningMode",
     Settings.VarType.Boolean,
     "Data mining mode",
-    false,
-    function() return PetesDefensiveHistoryOptionsDb.dataMiningMode or false end,
+    optionsDefaults['dataMiningMode'],
+    function() return ns:GetOption('dataMiningMode') end,
     function(value) PetesDefensiveHistoryOptionsDb.dataMiningMode = value  end
 )
 
