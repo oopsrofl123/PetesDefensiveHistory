@@ -152,7 +152,9 @@ function allocHistoryItem(row, slot, index, countUp)
                     self.timer:SetFormattedText("%.0f", elapsed)
                 else
                     self.timer:SetText("")
-                    self:Hide()  -- hide the whole icon+timer
+                    if ns:GetOption('hideHistoryItemsAtMaxCd') then
+                        self:Hide()  -- hide the whole icon+timer
+                    end
                 end
             else
                 self.timer:SetText("")
