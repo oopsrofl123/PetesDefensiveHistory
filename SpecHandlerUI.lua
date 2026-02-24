@@ -62,7 +62,6 @@ function ns:updateGroupSolutionRow(row)
 
             if #ability.conflicts > 0 then
                 item.conflictsLabel:SetText(table.concat(ability.conflicts, ' '))
-                item.conflictsLabel:SetTextColor(1,0,0)
                 item.conflictsLabel:Show()
             end
         else
@@ -132,6 +131,7 @@ local function allocSolutionItem(row)
     item.chargesLabel:Hide()
 
     item.conflictsLabel = row:CreateFontString(nil, 'OVERLAY', 'GameFontNormal')
+    item.conflictsLabel:SetTextColor(1,0,0)
     item.conflictsLabel:SetPoint("TOP", item.durationLabel, 'BOTTOM', 0, -3)
     item.conflictsLabel:Hide()
 
