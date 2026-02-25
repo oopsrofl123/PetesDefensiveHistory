@@ -18,6 +18,6 @@ TalentDb.lua
 SpecHandler.lua
 SpecHandlerUI.lua
 InferenceEngine.lua
-HistoryGrid.lua
+TrackerUI.lua
 DumpAbilityFlags.lua
 PetesDefensiveHistory.lua
