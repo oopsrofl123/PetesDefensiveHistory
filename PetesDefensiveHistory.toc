@@ -15,7 +15,7 @@ Utils.lua
 Options.lua
 Talents.lua
 TalentDb.lua
-SpecHandler.lua
+GroupData.lua
 SpecHandlerUI.lua
 InferenceEngine.lua
 TrackerUI.lua
