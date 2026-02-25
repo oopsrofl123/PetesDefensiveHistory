@@ -110,9 +110,25 @@ local function finalizeInference(buff, ability)
     -- Charge 3:
     --      end{3} = max({end{2}+10, cast{3}+10) = max(30, 12) = 30
     -- ...
-    --ns.cdTracker[ability.caster][ability.name]:push(buff.startTime)  -- no charge support
     local cdfifo = ns.cdTracker[ability.caster][ability.name]
-    cdfifo:push(math.max(cdfifo:head() + ability.cooldown, buff.startTime + ability.cooldown))
+    if ability.cdr == false then
+        cdfifo:push(math.max(cdfifo:head() + ability.cooldown, buff.startTime + ability.cooldown))
+    else
+        -- For single charge abilities with dynamic CDR, need to ignore the previous
+        -- cooldown in the FIFO. The ability was used, so it was off cooldown even though
+        -- the stored end time in the FIFO may disagree (since it cannot account for CDR).
+        if ability.charges == 1 then
+            cdfifo:push(buff.startTime + ability.cooldown)
+        else
+            -- For a multi-charge CDR ability:
+            --    * 1 charge was available at buff.startTime and it was used (causing
+            --      this inference).
+            --    * It's unknown how much recharge time has gone into the previous charge(s).
+            -- XXX: TODO: we can do better than this, but it's a little complicated. Come back
+            -- to it later. For now, use the worst-case scenario.
+            cdfifo:push(math.max(cdfifo:head() + ability.cooldown, buff.startTime + ability.cooldown))
+        end
+    end
 end
 
 
@@ -280,8 +296,14 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             if ability and certain then
                 local cd = ns.staticRows[ability.caster].items[ability.name]
 
-                -- Start a CD swipe if one isn't already going. If one is already in
-                -- progress, then it will propagate itself if there are charges.
+                -- Support abilities with charges.
+                -- 1. If this is not an ability with charges, then start a swipe no
+                --    matter what. If the ability has CDR, then it could fire before
+                --    we expect.
+                -- 2. If the ability has charges, don't start a CD swipe if one is
+                --    already going. If one is already in
+                --    progress, then it will propagate itself if there are charges.
+                --
                 -- This logic is necessary because of delayed inference. Suppose one
                 -- charge of an ability is on CD and the second charge is used and
                 -- the ability can't be inferred until expiry - for a concrete example,
@@ -293,12 +315,20 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 -- to 0. At t=23, we arrive here and it must be recorded that a charge
                 -- at t=0 prevented CD recovery until t=20. This is exactly what the CD
                 -- tracker provides.
-                if cd.numQueued == 0 then
+                if ability.charges == 1 or cd.numQueued == 0 then
                     local cdEndsAt = ns.cdTracker[ability.caster][ability.name]:head()
+                    -- cd.startTime is the start time of the recharge, not the start time of the
+                    -- buff (=when the ability was cast). These can differ for abilities
+                    -- with charges. Some notes:
+                    --   * Single charge abilities: cdEndsAt = buff.startTime + ability.cooldown,
+                    --     even if there is dynamic CDR
+                    --   * Multi-charge abilities: cdEndsAt accounts for previous recharge completions.
                     cd.startTime = cdEndsAt - ability.cooldown
                     cd.swipeTexture:SetCooldown(cd.startTime, ability.cooldown)
                 end
-                cd.numQueued = cd.numQueued + 1
+                -- CDR abilities will appear to queue a cooldown when they're used before
+                -- their base CD is up.
+                cd.numQueued = math.min(cd.numQueued + 1, ability.charges)
                 -- If this was the last charge, then draw the dark cooldown swipe.
                 -- Otherwise just show the edge.
                 cd.swipeTexture:SetDrawSwipe(cd.numQueued == ability.charges)
