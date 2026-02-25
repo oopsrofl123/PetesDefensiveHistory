@@ -92,70 +92,6 @@ end
 
 
 
--- Updates the global variable allSlots to ensure that slot can be mapped
--- to the correct i such that slot = CompactPartyFrameMember..i
-function ns:updateSlotToFrameMapping(slot)
-    local frameRoot
-    if DandersFrames then
-        frameRoot = "DandersPartyHeaderUnitButton"
-    else
-        frameRoot = "CompactPartyFrameMember"
-    end
-
-	for i=1,5 do
-		if slot == _G[frameRoot..i].unit then
-			if i ~= ns.allSlots[slot] then
-				ns:printDebug('updating slot mapping: ' .. slot .. ' -> ' .. i)
-				ns.allSlots[slot] = i
-                ns.historyRows[slot].cpfMapping = i
-                ns.historyRows[slot].cpfMappingText:SetText(ns.historyRows[slot].cpfMapping)
-				return
-			end
-		end
-	end
-end
-
-
-
-function ns:slotToIndex(slot)
-    return ns.allSlots[slot]
-end
-
-
-
--- Map a character name to a slot name. E.g., "Pete" -> "player"
-function ns:nameToSlot(n)
-    if UnitName("player") == n then
-        return "player"
-    end
-    for i=1,4 do
-        if UnitName("party" .. i) == n then
-            return "party" .. i
-        end
-    end
-end
-
-
-
--- Blizzard party frames are named CompactPartyFrameMember{1,2,3,4,5}, not the
--- player, party1, party2, ... naming of UnitName(). Map the latter to the former.
-function ns:slotToPartyFrameName(slot)
-    if DandersFrames then
-        return "DandersPartyHeaderUnitButton" .. ns:slotToIndex(slot)
-    else
-        return "CompactPartyFrameMember" .. ns:slotToIndex(slot)
-    end
-end
-
-
-
--- Further convenience: return the actual frame
-function ns:slotToPartyFrame(slot)
-    return _G[ns:slotToPartyFrameName(slot)]
-end
-
-
-
 function ns:showDebugVisual(object)
     if ns:GetOption('debugVisuals') then
         object:Show()
@@ -167,7 +103,6 @@ end
 
 
 function ns:printDebug(string)
-    --if ns.DEBUG_MESSAGES then
     if ns:GetOption('debugLogging') then
         print('|cff00ff00PDH:|r ' .. string)
     end

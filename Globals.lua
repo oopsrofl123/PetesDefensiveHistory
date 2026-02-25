@@ -1,9 +1,7 @@
 -- get addon namespace
 local _, ns = ...
 
-
 -- Variables that need to be accessed across lua files
-
 ns.INFINITY = 10*24*3600  -- A much longer time than any reasonble value (10 days)
 ns.MAX_HISTORY = 4
 ns.MAX_CAST_HISTORY = 8  -- must be cycled through on every unit on every cast succeeded. keep low.
@@ -12,13 +10,10 @@ ns.DEFAULT_ICON = 134400 -- question mark
 
 -- All recognized slots for history rows and defensives. Integer mappings
 -- correspond to CompactPartyFrameMember..i, which are the names of
--- Blizzard's frames. This mapping MUST BE KEPT CORRECT because the
--- CenterDefensiveBuff icons are identified by CompactPartyFrameMember..i.
+-- Blizzard's frames. This mapping MUST BE KEPT UP-TO-DATE.
 ns.allSlots = { player=1, party1=2, party2=3, party3=4, party4=5 }
 
-
-ns.historyRows = {}         -- One row per party member. Each row is a frame. Frames cannot be deleted.
-ns.staticRows = {}
+ns.trackerUI = {}
 ns.activeDefensives = {}    -- One list of currently active aura instance IDs per party member
                          -- This IS NOT the history!
 ns.castHistory = {}
@@ -30,8 +25,7 @@ ns.groupSolutionUI = nil
 ns.cdTracker = {}
 
 for slot, _ in pairs(ns.allSlots) do
+    ns.trackerUI[slot] = {}
     ns.activeDefensives[slot] = {}
-    ns.staticRows[slot] = {}
-    ns.historyRows[slot] = {}
     ns.castHistory[slot] = {}
 end

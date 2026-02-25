@@ -249,7 +249,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 finalizeInference(buff, ability)
             end
             if ability then 
-                local cd = ns.staticRows[ability.caster].items[ability.name]
+                local cd = ns.trackerUI[ability.caster].staticRow.items[ability.name]
                 cd.swipeTexture:Hide()
                 LibButtonGlow.ShowOverlayGlow(cd)
             end
@@ -276,7 +276,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- 1. no matter what happens below, turn off any glow that may have been
             --    enabled on previous inferences.
             if certain or ability then
-                local cd = ns.staticRows[ability.caster].items[ability.name]
+                local cd = ns.trackerUI[ability.caster].staticRow.items[ability.name]
                 LibButtonGlow.HideOverlayGlow(cd)
             end
 
@@ -294,7 +294,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             --    If there was a certain inference, track in the static cooldown row,
             --    otherwise dump it in the history tray.
             if ability and certain then
-                local cd = ns.staticRows[ability.caster].items[ability.name]
+                local cd = ns.trackerUI[ability.caster].staticRow.items[ability.name]
 
                 -- Support abilities with charges.
                 -- 1. If this is not an ability with charges, then start a swipe no
@@ -334,7 +334,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 cd.swipeTexture:SetDrawSwipe(cd.numQueued == ability.charges)
                 cd.swipeTexture:Show()
             else
-                ns:addBuffToHistory(unitTarget, buff)
+                ns:addBuffToHistoryTray(unitTarget, buff)
             end
 
             actives[auraInstanceID] = nil    -- allow garbage collection
@@ -352,34 +352,26 @@ loader:RegisterEvent("PLAYER_ENTERING_WORLD")
 loader:RegisterEvent("GROUP_ROSTER_UPDATE")
 loader:SetScript("OnEvent", function(self, event)
     ns:printDebug(event)
-
-    -- PLAYER_ENTERING_WORLD fires when loading into an instance
-    if event == "PLAYER_ENTERING_WORLD" then
-        -- now frame allocation and data structure setup is durig addon readin
-    end
-
-    -- GROUP_ROSTER_UPDATE or PLAYER_ENTERING_WORLD
-    -- Only handle the fallback history tray here. The static cooldown row is
-    -- handled by the LibSpec callback when spec is detected.
     for slot, _ in pairs(ns.allSlots) do
-        local row = ns.historyRows[slot]
+        local tracker = ns.trackerUI[slot]
 
-        -- Figure out which CompactPartyFrameMemberX corresponds to player, party1, etc.
+        -- Which X: CompactPartyFrameMemberX maps to player, party1, etc.?
         ns:updateSlotToFrameMapping(slot)
+        ns:updateTrackerUI(slot)
 
         -- account for the fact that LibSpec also fires on GROUP_ROSTER_UPDATE
         -- and can either come before or after this event.
         if UnitExists(slot) then
-            if UnitName(slot) ~= row.playerName then
+            if UnitName(slot) ~= tracker.playerName then
                 -- this handler was called before LibSpec
-                ns:setDataHistoryTrayRow(slot, nil, UnitName(slot))
-                ns:updateHistoryTrayRow(slot)
+                ns:setTrackerUIData(slot, nil, UnitName(slot))
+                ns:updateTrackerUI(slot)
             else
                 -- this handler was called after LibSpec. nothing to do
             end
         else
-            ns:clearRow(row)
-            ns:showDebugVisual(row)
+            --ns:clearRow(row)
+            ns:showDebugVisual(tracker)
         end
     end
 end)

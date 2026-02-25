@@ -210,14 +210,9 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
         ns:zeroKnowledgeSolve()
 
         -- Update various UI elements:
-        -- 1. Party frames static cooldown row
-        -- XXX: TODO: shows abilities that aren't always inferrable. this could be what we want
-        -- since in some scenarios they could be inferrable.  have to think about this.
-        ns:updateStaticRow(slot)
-
-        -- 2. Party frames fallback history tray
-        ns:setDataHistoryTrayRow(slot, specId, UnitName(slot))
-        ns:updateHistoryTrayRow(slot)
+        -- 1. Party frames tracker UI
+        ns:setTrackerUIData(slot, specId, playerName) -- UnitName(slot)) ???
+        ns:updateTrackerUI(slot)
 
         -- 3. the solutions UI. have to do all rows because each group member affects
         --    other group members unique solves.

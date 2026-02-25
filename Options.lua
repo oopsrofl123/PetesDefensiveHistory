@@ -42,8 +42,7 @@ local setting = Settings.RegisterProxySetting(
     function(value)
         PetesDefensiveHistoryOptionsDb.iconSize = value
         for slot, _ in pairs(ns.allSlots) do
-            ns:updateStaticRow(slot)
-            ns:updateHistoryTrayRow(slot)
+            ns:updateTrackerUI(slot)
         end
     end
 )
@@ -64,8 +63,7 @@ local setting = Settings.RegisterProxySetting(
     function(value)
         PetesDefensiveHistoryOptionsDb.textSize = value
         for slot, _ in pairs(ns.allSlots) do
-            ns:updateStaticRow(slot)
-            ns:updateHistoryTrayRow(slot)
+            ns:updateTrackerUI(slot)
         end
     end
 )
@@ -86,8 +84,7 @@ local setting = Settings.RegisterProxySetting(
     function(value)
         PetesDefensiveHistoryOptionsDb.iconSpacing = value
         for slot, _ in pairs(ns.allSlots) do
-            ns:updateStaticRow(slot)
-            ns:updateHistoryTrayRow(slot)
+            ns:updateTrackerUI(slot)
         end
     end
 )
@@ -107,7 +104,7 @@ local disableInference = Settings.RegisterProxySetting(
     function(value)
         PetesDefensiveHistoryOptionsDb.disableInference = value
         for slot, _ in pairs(ns.allSlots) do
-            ns:updateStaticRow(slot)
+            ns:updateTrackerUI(slot)
         end
     end
 )
@@ -125,7 +122,7 @@ local setting = Settings.RegisterProxySetting(
     function(value)
         PetesDefensiveHistoryOptionsDb.disableHistoryTray = value
         for slot, _ in pairs(ns.allSlots) do
-            ns:updateHistoryTrayRow(slot)
+            ns:updateTrackerUI(slot)
         end
     end
 )
@@ -172,7 +169,12 @@ local debugVisuals = Settings.RegisterProxySetting(
     "Visual debugging",
     optionsDefaults['debugVisuals'],
     function() return ns:GetOption('debugVisuals') end,
-    function(value) PetesDefensiveHistoryOptionsDb.debugVisuals = value  end
+    function(value)
+        PetesDefensiveHistoryOptionsDb.debugVisuals = value
+        for slot, _ in pairs(ns.allSlots) do
+            ns:updateTrackerUI(slot)
+        end
+    end
 )
 
 Settings.CreateCheckbox(ns.optionsCategory, debugVisuals,
@@ -294,7 +296,7 @@ for _, classFile in pairs(orderedClasses) do
         local setter = function(value)
             PetesDefensiveHistoryOptionsDb["show_" .. ability.id] = value
             for slot, _ in pairs(ns.allSlots) do
-                ns:updateStaticRow(slot)
+                ns:updateTrackerUI(slot)
             end
         end
         setting = Settings.RegisterProxySetting(
