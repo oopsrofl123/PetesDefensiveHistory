@@ -1,13 +1,30 @@
 BUGS
 ===========================================================================
+- add option to remove charge+CDR cooldowns from the tracker row and only show
+  them in history tray, due to difficulty in tracking them
+
+- hides chubb's micromenu (bags, character sheet, group finder, etc. buttons)
+    - if it helps: it's from dominos, not the blizz default menu
+
+- in general, what happens for players with no known spec?
+    - history tray items never time out when spec isn't known (i.e. no libspec).
+      should set some maximum
+
+- VDH meta cooldown is forgotten when apex talent gives meta buff
+
 - handle shared cooldown between BoP and spellwarding
-    - amusingly, which is cast can be differentiated 
-- gift of the golden valkyr doesn't track if occurs during goak
-    - because this is recorded as an update to the previous goak
-- check bop as well
-- spellwarding doesn't work when cast on self due to the concurrentDebuff issue
-- bubble doesn't work when forbearance is already on the player (e.g. spellwarding
-  into bubble)
+
+- issues related to concurrent buff/debuff that should be solved by multiple inference:
+    - spamming shadow dance somehow caused dance to be excluded due to (I think)
+      lack of required buffs??
+    - spellwarding doesn't work when cast on self due to the concurrentDebuff issue
+    - bubble doesn't work when forbearance is already on the player (e.g. spellwarding
+      into bubble)
+    - gift of the golden valkyr doesn't track if occurs during goak
+        - because this is recorded as an update to the previous goak
+        - more general problem: does using a second charge of an ability cause an
+         update rather than an add? GoAK charges, obsidian scales, shield wall, ...
+
 
 
 NEEDS TESTING
@@ -16,25 +33,107 @@ NEEDS TESTING
 	- libspecialization updates during m+ runs. need to figure out why
 - groups with sac and ironbark
 - warrior avatar procs
+- charge tracking
+- test rider of the apocalypse AMS proc. does it give the same AMS buff? if so
+  we might need to catch it. has 45s cd. might have identical duration? might
+  not be able to differentiate except by isButtonPress
+
 
 
 V1.0 RELEASE FEATURES
 ===========================================================================
-- group update seems to be broken again (see: follower dungeons)
+- merge the separate history tray/static row/debug labels into a single UI element
+    - many of the frame ordering bugs were caused by only maintaining/updating the
+      history tray in GROUP_ROSTER_UPDATE. rather than fix this oversight, this is
+      a good time to get rid of some technical debt.
+    - upon updateSlotToFrameMapping(), swap tracker UI.
+    - after all update/swaps nuke remaining tracker UIs where UnitExists=F
+    - frame ordering
+        - reproduce a bug: zone into follower instance, anchors will be correct.
+          open edit mode > party frames > sort. change the order. the mapping
+          will change but no GROUP_ROSTER_UPDATE event fires, so it goes unnoticed
+        - when libspec's message comes through, order is corrected
 
-- how to deal with hero talents always being active?
-    - the root talent is always selected=T, purchased=F
-    - other talents are always selected=T, purchased=T if the player has ever
-      filled out that talent tree
-    - good test case is marks hunter: 2s trueshot duration applies no matter what
-      hero talent is active
-        * better test case would be a hero talent with a choice node
+    - group update seems to be broken again (see: follower dungeons)
+        - empty members
+        - reanchor
+        - part of this: consolidate the static row, cooldown tray and debug labels
+          into a single frame rather than two separate rows anchored to opposite
+          corners of the party frames.
 
-- better handling/inference for abilities with charges
+    - the mapping of party1/party2/.. can change when a group roster update occurs.
+      this means objects that store references to who cast them/who they were cast on
+      should not use party1/2/.. IDs. to handle this, add a translation table for
+      slot -> GUID to get unchanging unique IDs. this translation should be used for
+      character data (like casters, talents, names, etc.) but NOT for things that are
+      fundamentally party slot based (like the trackerUI elements).
+      DO RE-ARCHITECT:
+        - generally: need GUID -> slot mapping for printing. e.g., in inferability want
+          to use GUIDs as casters/targets, but when printing want GUID->player/partyX for
+          readability
+        - ns.activeDefensives[slot]
+            -> trackedBuffs or trackedEvents (leave general for later possible extensions)
+                - buffs can either be tracked for inference or supporting data
+                - trackAura
+                - trackCC     ??? maybe the CCs are auras on nameplates?
+                - ns.auras[slot]   <- not used yet, for tracking "supporting data" buffs
+        - ns.castHistory[slot]
+            -> spellCastTracker ?
+                - trackCast
+                - getClosestCast
+            -> ns.closestCasts[slot]: this is derived from castHistory
+        - ns.groupCDs[slot]
+            -> groupData
+                - loop over group
+                - setGroupData (name, GUID, class, classFile, spec, talents)
+                - getGroupData (same as above)
+                - derived data getters:
+                    - getAbilities(castableOnly=true)
+                        - castableAbilities[slot]
+                    - getTalentRanks()
+            -> cdTracker[slot]
+                - should be a separate object from groupData so that we can easily construct
+                  blank ones for the zeroKnowledge solves
+        - ns.allSlots         ???
+            -> Options.lua: always updateTrackerUI(). just add updateAllTrackers()
+            -> InferenceEngine: only in zeroKnowledge
+                - loops over group members for abilities (use translation)
+                - generate blank cast history for members (extend getClosestCast to a dummy nowTime)
+            -> Petes
+                - init ns.auras
+                - event filter (only fire for player/partyX)
+                - event filter (only fire for player/partyX)
+                - update frames on roster/enter world
+                - alloc castHistory
+            -> SpecHandler.lua
+                - init groupCDs: loop over groupData
+                - build derived groupCDs.abilities and groupCDs.castableAbilities
+                - determine if an ability can be cast by X on Y
+                    - does NOT require non-GUID names. only cares about SELF vs. ANY vs. OTHERS,
+                      which can be determined from GUID
+                - cdTracker: loop over group members
+                - loop over slots from groupSolutionUI
+                    - move responsibility to SolutionUI; use slots not GUIDs
+            -> SpecHandlerUI.lua
+                - spec handler is the most slot-reliant module. it is more flexible than just
+                  a mapping from groupData -> party frames on screen
+                - count players in group (not really, counts the number of slots that will
+                  be monitored. done on addon load, always 5.
+                    - needs getSlotsToMontor() or something similar for the static slot layout
+                - in alloc: loop over slots to monitor
+            -> TrackerUI.lua
+                - the tracker UI doesn't need to know about slots. it needs to know which
+                  characters map to which CompactPartyFrameX
+                    - every use but 1 is about cpfMapping
+                - alloc: loop over slots to monitor
+        - ns.trackerUI[slot]
+            - per above, this is actually not slot based
+      DO NOT RE-ARCHITECT:
+        - ns.solutionUI.rows[slot]
 
-- test rider of the apocalypse AMS proc. does it give the same AMS buff? if so
-  we might need to catch it. has 45s cd. might have identical duration? might
-  not be able to differentiate except by isButtonPress
+- rearchitect for multiple inference to handle concurrent buffs or debuffs
+  (bubble, bop, spellwarding) possibly occurring in other events. this also
+  lays the foundation for monitoring updates, revising inferences, etc.
 
 - update github/curseforge readmes
 
@@ -43,7 +142,7 @@ V1.0 RELEASE FEATURES
     - font options for cooldown numbers
         - outlines, size, font
     - show offensives on right
-    - colored class names
+    - color section headers by class
     - max history tray size
     - maybe add tooltips for confusing abilities like the DH apex talent
     - disable externals (this thought was more along the lines of not cluttering up
@@ -67,6 +166,19 @@ V1.0 RELEASE FEATURES
 
 NICE-TO-HAVE FEATURES
 ===========================================================================
+- better non-fixed duration support: generalize current FIXED, LTE, GTE
+  system to a duration range (min, max) where the default FIXED idea
+  is implemented as (duration-TOLERANCE, duration+TOLERANCE), LTE is min=0,
+  GTE is max=Inf. some abilities surely have extensions that are short
+  enough that this helps distinguish
+- do absorbs cause UNIT_HEAL events? could help ID AMS, ret pal DP
+    - yep, it fires. but not a heal. is UNIT_ABSORB_AMOUNT_CHANGED(slot)
+- GoAK might not be cancellable? check. helps identify.
+    - it isn't. right clicking and /cancelaura do not work
+    - however filter=HELPFUL|CANCELABLE is the same for ardent defender and GOAK,
+      despite AD being cancelable (right click and /cancelaura)
+- consider LibCustomGlow for shine
+- do cheat death events generally fire IMPORTANT events? rogue, evoker, DH, warrior, mage..
 - concurrentBuffs: handle buffs that might be updated rather than newly applied
     * e.g., thunder blast from avatar
 - revisit concurrentDebuffs. does it make sense to move to require, like for buffs?
@@ -163,10 +275,76 @@ LIMITATIONS
   usual one is big/littlewigs (I guess). Could also say that everyone needs
   to run PetesDefensiveHistory.. :)
 
+- abilities with both dynamic cooldown reduction and charges are hard to handle reasonably
+  the problem: CDR and charges must be handled in the opposite way
+        * abilities with charges: cooldown swipes are handled differently:
+          when the ability is used before its cooldown is up, the cooldown swipe is left
+          alone to continue its current recharge. this is how charge abilities are supposed
+          to work, where one charge recovers at a time.
+        * abilities with dynamic CDR: since the cooldown reduction events can't be tracked,
+          the best we can do is put an incorrect timer+swipe for the maximum possible CD.
+          it is wrong, but it is still better than no information. since it is wrong,
+          the ability could be used before its cooldown swipe finishes. when that happens,
+          the correct behavior is to cancel the previous swipe and start a new one.
+    - the current behavior is to ignore CDR entirely. when used with full charges, the
+      cooldown swipe begins and it propagates itself at the full CD timer. it is assumed
+      that the next recharge doesn't start until the first recharge is completely full
+        * can do better than this. each time the ability is observed is extra information
+          that can help bring the timer closer to the truth.
+        * currently the events are entirely ignored. the code just ensures that the
+          numQueued counter never passes the max number of charges
+    - even after improving, it still might be a good idea to add an option to disable
+      inference for CDR+charge abilities, sending them to the tray instead. maybe one
+      checkbox that affects all such abilities (and dynamically determines if the needed
+      talents are chosen).
+    - abilities:
+        ----- Rotational CDR (definitely not trackable)
+        * disc priest: pain suppression
+            - CDR on PW:S casts
+        * prot pal: GoAK
+            - CDR on holy power spenders
+        * prot war: shield wall
+            - CDR on rage use and shield slams
+        ----- CDR on large cooldowns (e.g., resets) or other weird circumstances
+        * balance druid: incarn/celestial alignment
+            - weird keeper of the grove talent that reduces cooldown based on time spent
+              with ability off CD. maybe modelable?
+        * aug evoker: scales
+            - potentially trackable since the CDR is attached to a long
+              cooldown that may itself be trackable
+        * frost mage: ice cold/ice block
+            - not really. this a case where cold snap (ability reset) is treated as CDR
+              because it seemed convenient at the time
+
 
 
 DONE
 ===========================================================================
+- cooldown swipe is not black for bear incarn see end of magisters run. does
+  bear incarn have charges?
+    - no, the new charge tracking code broke cooldown swipes for abilities with CDR
+- support danders frames
+- addon options: why do people still have to swipe the size sliders? seems
+  like nil is somehow the default for iconSize
+    - this doesn't happen on fresh chars. i don't see how it can happen for
+      old saved variables either since all of the getters return X or [32|15|3]
+    - it's because the HistoryGrid code accesses the table directly and we don't
+      wait for ADDON_LOADED
+- option to hide history tray items at max CD
+- history tray items aren't hidden when their max CD completes (maybe this should
+  be an option? useful for debugging)
+- remove concurrentDebuff "case 2":
+  concurrent debuff not allowed prevented astral shift on shaman during real
+  run. debuff happened to be applied in same tick, this probably happens
+  often.
+- how to deal with hero talents always being active?
+    - the root talent is always selected=T, purchased=F
+    - other talents are always selected=T, purchased=T if the player has ever
+      filled out that talent tree
+    - good test case is marks hunter: 2s trueshot duration applies no matter what
+      hero talent is active
+        * better test case would be a hero talent with a choice node
+- better handling/inference for abilities with charges
 - talent handling 
     - FULL PASS ACROSS TALENTS AND SPECS: migrate to AbilityDb from SpecAbilityDb
         - recapitulate the old spec structure of the database through hasAbility
