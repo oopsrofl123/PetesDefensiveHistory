@@ -9,6 +9,13 @@ local duration_variable = "duration_variable"
 local hasAbility = "hasAbility"
 local requireConcurrentBuff = "requireConcurrentBuff"
 
+-- Why have separate class and spec trees? Some talents with equal IDs do different
+-- things for different specs. Otherwise it would be sufficient to simply have the
+-- talent. That means that the choice of putting a talent in either the class or
+-- spec tree only matters *IF* it does something different per spec. For example,
+-- all prot war shield wall talents could be put in WARRIOR rather than prot and
+-- would work just as well since no other warrior spec has shield wall.
+--
 -- The Class and Spec tables are *NOT* exactly the same thing as the class and
 -- spec talent trees. Some talents that live in the class tree are represented
 -- in the spec tree because they do different things for different specs. E.g.,
@@ -242,16 +249,6 @@ ns.ClassTalentModifiers = {
         [152278] = {
             { { id=107574, modifies=cdr, amount=true },
               { id=871, modifies=cdr, amount=true } },
-        },
-        [1243659] = {  -- last stand adds a buff to shield wall
-            { { id=871, modifies=requireConcurrentBuff, amount=true } },
-        },
-        [397103] = {
-            { { id=871, modifies=cooldown, amount=-60 },
-              { id=871, modifies=charges, amount=1 } },
-        },
-        [384072] = {
-            { { id=871, modifies=cdr, amount=true } },
         },
     },
 }
@@ -546,6 +543,9 @@ ns.SpecTalentModifiers = {
         [202424] = {
             { { id=116849, modifies=cooldown, amount=-45 } },
         },
+        [443294] = {
+            { { id=116849, modifies=cdr, amount=true } },
+        },
     },
     -- Windwalker monk ------------------------------------------------------------------------
     [269] = {
@@ -835,6 +835,16 @@ ns.SpecTalentModifiers = {
         },
         [871] = {
             { { id=871, modifies=hasAbility, amount=true } },
+        },
+        [1243659] = {  -- last stand adds a buff to shield wall
+            { { id=871, modifies=requireConcurrentBuff, amount=true } },
+        },
+        [397103] = {
+            { { id=871, modifies=cooldown, amount=-60 },
+              { id=871, modifies=charges, amount=1 } },
+        },
+        [384072] = {
+            { { id=871, modifies=cdr, amount=true } },
         },
     },
 }
