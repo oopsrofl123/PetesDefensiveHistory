@@ -1,8 +1,5 @@
 local _, ns = ...
 
-
-
-
 -- Aura removal events aren't processed at exactly the moment the buff
 -- is removed. E.g., if a buff lasts 12s it is common to see the removal
 -- event at 12.05s or 11.95s.
@@ -40,8 +37,6 @@ ns.CASTTIME_CONFIDENT_DIFFERENCE = 0.150
 -- allows us to return "working guesses" when it's useful. E.g., multiple abilities
 -- can cause the metamorphosis buff and it is useful to know that the meta buff is
 -- active until we can determine with certainty which ability applied the meta buff.
---
--- buff always has a slot property: it's who the buff appeared on in UNIT_AURA.
 function ns:getAbility(buff)
     return buff.ability, buff.certain
 end
@@ -51,7 +46,7 @@ end
 local function traceLogic(buff, ability, message, ...)
     ns:printDebug(string.format(
         "ability=[%s], target=[%s], caster=[%s]: " .. message,
-        ability.name, buff.slot, ability.caster, ...))
+        ability.name, buff.target, ability.caster, ...))
 end
 
 
@@ -141,16 +136,8 @@ end
 
 
 -- Does the ability trigger a concurrent debuff and if so, was there one?
--- This checks both for (1) if a debuff is required, there must be one and (2) if a
--- debuff is not required, there must not be one. These could definitely generate
--- false negatives (especially case 2), so need testing to see how reliable this is.
--- Maybe should remove case 2.
---   1. requires debuff: maybe UNIT_AURA can be called separately for the buff and debuff portions
---        * this depends on spell and target, but in general should be addressed
---          by multiple inference.
---   2. does not require debuff: maybe another unrelated debuff was applied in the same event
--- UPDATE: as expected, case 2 was a bad idea. Unrelated buffs (and debuffs) are frequently
--- present in the same UNIT_AURA event.
+-- XXX: TODO: Since the debuff could be applied in a different UNIT_AURA, check if
+-- any debuff was applied within a tolerance window.
 local function logicLayerCheckConcurrentDebuffs(buff, ability)
     if ability.concurrentDebuff then
         if #buff.concurrentDebuffs == 0 then
@@ -159,13 +146,6 @@ local function logicLayerCheckConcurrentDebuffs(buff, ability)
                 #buff.concurrentDebuffs)
             return false
         end
-    --else
-        --if #buff.concurrentDebuffs > 0 then
-            --traceLogic(buff, ability,
-                ----"excluded (concurrent debuff not allowed): %d debuffs observed",
-                --#buff.concurrentDebuffs)
-            --return false
-        --end
     end
     return true
 end
@@ -220,11 +200,11 @@ end
 -- based on how each ability works, determine if it could have possibly produced
 -- buff.
 -- which ability is the best match is determined later.
-local function getPossibleSolutions(buff, slot, useDuration, cdTracker)
+local function getPossibleSolutions(char, buff, useDuration, cdTracker)
     local maxCD = -1
     local possibleSolutions = {}
 
-    for _, ability in pairs(ns.groupCDs[slot].abilities) do
+    for _, ability in pairs(char:getPossibleAbilities()) do
         -- it's tempting to only use possible abilities, but the heuristics
         -- below can exclude abilities incorrectly due to the duration
         -- tolerances. so to be sure we have SOME fallback, take the max
@@ -282,8 +262,6 @@ end
 --   1. nil
 --   2. (ability, certain=true|false)
 ----------------------------------------------------------------------------
-
-
 
 local function confidenceLayerOnlyOnePossible(possibleSolutions)
     if #possibleSolutions == 1 then
@@ -406,13 +384,13 @@ end
 --
 -- Will always produce some non-nil value for buff.cooldown - the worst it
 -- could be is the maximum across all possible abilities that can target this player.
-function ns:inferAbility(slot, buff, useDuration, cdTracker)
+function ns:inferAbility(char, buff, useDuration, cdTracker)
     -- track how many times we've tried to infer this ability
     buff.inference = buff.inference + 1
 
     ns:printDebug(string.format(
-        "|cffD8B87CStarting inference(slot=[%s], time=[%0.3f], attempt=[%d]) ---------------------------------|r",
-        slot, GetTime(), buff.inference))
+        "|cffD8B87CStarting inference(target=[%s], time=[%0.3f], attempt=[%d]) ---------------------------------|r",
+        char:getID(), GetTime(), buff.inference))
     if useDuration == nil then useDuration = true end
 
     -- allow the caller to override the tracked state of CDs to simulate an
@@ -421,7 +399,7 @@ function ns:inferAbility(slot, buff, useDuration, cdTracker)
     cdTracker = cdTracker or ns.cdTracker
 
     -- all logic and ranking is performed in these two lines
-    possibleSolutions, maxCD = getPossibleSolutions(buff, slot, useDuration, cdTracker)
+    possibleSolutions, maxCD = getPossibleSolutions(char, buff, useDuration, cdTracker)
     -- maxCD is a property of the observation because it depends on the time of
     -- the final inference. e.g., the CD tracker state could've changed, removing
     -- some CDs from consideration.
@@ -452,15 +430,29 @@ end
 -- "zeroKnowledge" - don't use the internal CD tracker, don't use cast time
 --      matching. Only infer abilities using the minimum possible info.
 function ns:zeroKnowledgeSolve()
-    for slot, _ in pairs(ns.allSlots) do
-        abilities = ns.groupCDs[slot].abilities
+    local now = GetTime()
+
+    local closestCasts = {}
+    -- give every group member a cast at the perfect time, allowing the ability to
+    -- pass the logic layers but never to be identified based on cast time-matching
+    -- in the confidence layers.
+    for guid, char in pairs(ns:getTrackedCharacters()) do
+        closestCasts[guid] = now
+    end
+
+    -- forget everything the internal CD tracker knows about abilities that are
+    -- currently on cooldown (from previous successful inferences).
+    blankCDs = ns:initCDTracker()
+
+    for guid, char in pairs(ns:getTrackedCharacters()) do
+        abilities = char:getPossibleAbilities()
         for _, ability in pairs(abilities) do
             -- make the buff we would expect to see if this ability got used.
             local buff = {
                 inference = 0,
-                slot = slot,
-                startTime = GetTime(),
-                endTime = GetTime() + ability.duration,
+                target = guid, --char:getID(),
+                startTime = now,
+                endTime = now + ability.duration,
                 duration = ability.duration,
                 IMPORTANT = ability.IMPORTANT,
                 BIG = ability.BIG,
@@ -470,7 +462,7 @@ function ns:zeroKnowledgeSolve()
                 numUpdates = 0,
                 concurrentBuffs = {},
                 concurrentDebuffs = {},
-                closestCasts = {}
+                closestCasts = closestCasts
             }
 
             -- if the ability *must* come with a concurrent buff, give it one.
@@ -484,19 +476,8 @@ function ns:zeroKnowledgeSolve()
                 table.insert(buff.concurrentDebuffs, 1)
             end
 
-            -- give every group member a cast at the perfect time, allowing the ability to
-            -- pass the logic layers but never to be identified based on cast time-matching
-            -- in the confidence layers.
-            for slot, _ in pairs(ns.allSlots) do
-                buff.closestCasts[slot] = GetTime()  
-            end
-
-            -- forget everything the internal CD tracker knows about abilities that are
-            -- currently on cooldown (from previous successful inferences).
-            blankCDs = ns:initCDTracker()
-
             ns:printDebug("simulating ability=["..ability.name.."]")
-            local _, certain = ns:inferAbility(slot, buff, false, blankCDs)
+            local _, certain = ns:inferAbility(char, buff, false, blankCDs)
             ability.solved = certain
             -- would be nice if inferAbility would return the conflicting spell/caster combos
             ability.conflicts = {}

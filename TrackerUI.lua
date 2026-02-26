@@ -1,6 +1,10 @@
 -- get addon namespace
 local addonName, ns = ...
 
+local LibButtonGlow = LibStub("LibButtonGlowcustom")
+
+local GUIDToIndex = {}
+
 
 -- Updates the global variable allSlots to ensure that slot can be mapped
 -- to the correct i such that slot = CompactPartyFrameMember..i
@@ -33,20 +37,6 @@ end
 
 
 
--- Map a character name to a slot name. E.g., "Pete" -> "player"
-function ns:nameToSlot(n)
-    if UnitName("player") == n then
-        return "player"
-    end
-    for i=1,4 do
-        if UnitName("party" .. i) == n then
-            return "party" .. i
-        end
-    end
-end
-
-
-
 -- Blizzard party frames are named CompactPartyFrameMember{1,2,3,4,5}, not the
 -- player, party1, party2, ... naming of UnitName(). Map the latter to the former.
 function ns:slotToPartyFrameName(slot)
@@ -62,6 +52,34 @@ end
 -- Further convenience: return the actual frame
 function ns:slotToPartyFrame(slot)
     return _G[ns:slotToPartyFrameName(slot)]
+end
+
+
+
+function ns:indexToFrame(index)
+    if DandersFrames then
+        return _G["DandersPartyHeaderUnitButton" .. index]
+    else
+        return _G["CompactPartyFrameMember" .. index]
+    end
+end
+
+
+
+function ns:indexToSlot(index)
+    return ns:indexToFrame(index).unit
+end
+
+
+
+function ns:nameToSlot(name)
+    for index=1, 5 do
+        local slot = ns:indexToSlot(index)
+        if UnitExists(slot) and UnitName(slot) == name then
+            return slot
+        end
+    end
+    return nil
 end
 
 
@@ -112,27 +130,29 @@ end
 local function shiftHistoryTrayLeftFrom(items, fromIndex)
     fromIndex = fromIndex or ns.MAX_HISTORY
     for i=1,ns.MAX_HISTORY-1 do
-        shiftHistoryItem(items[i+1], items[i])
+        shiftHistoryTrayItem(items[i+1], items[i])
     end
     clearHistoryItem(items[fromIndex])
 end
 
 
 
-function ns:addBuffToHistoryTray(slot, buff)
-    local row = ns.historyTray[slot]
+function ns:addBuffToHistoryTray(guid, buff)
+    local index = GUIDToIndex[guid]
+print('addBuffToHistoryTray():', index)
+    local tray = ns.trackerUI[index].historyTray
 
     -- Don't do anything if the user disabled the history tray
     if ns:GetOption('disableHistoryTray') then return end
 
     ns:printDebug("aura instance ID " .. buff.auraInstanceId ..
-        " added to history tray " .. slot .. " after " .. buff.duration .. "s")
+        " added to history tray "..index.." after "..buff.duration.."s")
 
     -- Empty the youngest history slot
-    shiftHistoryLeftFrom(row.items)
+    shiftHistoryTrayLeftFrom(tray.items)
     
     -- Now that space has been made, add this ability to the tracker
-    item = row.items[ns.MAX_HISTORY]
+    item = tray.items[ns.MAX_HISTORY]
     item.startTime = buff.startTime
     item.maxCD = buff.maxCD
     item.icon:SetTexture(buff.secretTexture)
@@ -143,15 +163,57 @@ end
 
 
 
+-- Glow an item in the static cooldown tracker. Abilities have known
+-- casters
+function ns:startGlow(ability)
+    local index = GUIDToIndex[ability.caster]
+    local cd = ns.trackerUI[index].staticRow.items[ability.name]
+    cd.swipeTexture:Hide()
+    LibButtonGlow.ShowOverlayGlow(cd)
+end
+
+
+
+-- Stop glowing an item in the static cooldown tracker. Abilities have known
+-- casters
+function ns:stopGlow(ability)
+    local index = GUIDToIndex[ability.caster]
+    local cd = ns.trackerUI[index].staticRow.items[ability.name]
+    LibButtonGlow.HideOverlayGlow(cd)
+end
+
+
+
+-- If startTime is not nil, then also start a new cooldown swipe. If nil, it
+-- is assumed that a cooldown swipe is already in progress (e.g., this ability
+-- has charges).
+function ns:queueCooldown(ability, startTime)
+    local index = GUIDToIndex[ability.caster]
+    local cd = ns.trackerUI[index].staticRow.items[ability.name]
+
+    if cd.charges == 1 or cd.numQueued == 0 then
+        cd.startTime = startTime
+        cd.swipeTexture:SetCooldown(startTime, ability.cooldown)
+    end
+        
+    -- CDR abilities will appear to queue a cooldown when they're used before
+    -- their base CD is up.
+    cd.numQueued = math.min(cd.numQueued + 1, ability.charges)
+    -- If this was the last charge, then draw the dark cooldown swipe.
+    -- Otherwise just show the edge.
+    cd.swipeTexture:SetDrawSwipe(cd.numQueued == ability.charges)
+    cd.swipeTexture:Show()
+end
+
+
 -- Allocate a blank history item and allocate all of its subcomponents. The
 -- history item and all subcomponents are :Hide()ed. Callers should :Show()
 -- desired elements based on whether the ability represented by this history
 -- item is known.
-function allocHistoryItem(row, slot, index, countUp)
+function allocHistoryItem(row, index, countUp)
     local frameName = "item" .. index
     local f = CreateFrame("Frame", frameName, row)
     local textSize = ns:GetOption('textSize')
-    f.slot = slot
 
     f.icon = f:CreateTexture(nil, "ARTWORK")
     f.icon:SetAllPoints()
@@ -167,7 +229,6 @@ function allocHistoryItem(row, slot, index, countUp)
         f.timer:SetPoint("CENTER", f, 0, 0)
         f.timer:SetTextColor(1,1,1)
         f.timer:SetFont(f.timer:GetFont(), textSize, "THICKOUTLINE")
-        -- XXX: TODO: is there a better event than OnUpdate? This runs every frame
         f:SetScript("OnUpdate", function(self)
             if self.startTime and self.maxCD then
                 local elapsed = GetTime() - self.startTime
@@ -184,17 +245,10 @@ function allocHistoryItem(row, slot, index, countUp)
             end
         end)
     else
-        -- Count-down timer and cooldown swipe. These icons have spellIds, so can
-        -- show a tooltip.
+        -- Count-down timer and cooldown swipe for identified spells
         f.swipeTexture = CreateFrame("Cooldown", frameName .. "CDSwipe", f, "CooldownFrameTemplate")
-
-        f.startTime = 0
-        f.cooldown = 0
-        f.numQueued = 0
-        f.charges = 0
-
         f.swipeTexture:SetAllPoints()
-        -- Have to hide blizzard's countdown text so we can control the size
+        -- hide blizzard's countdown text so we can control the size
         f.swipeTexture:SetHideCountdownNumbers(true)
 
         f.swipeTexture.timer = f.swipeTexture:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -207,7 +261,6 @@ function allocHistoryItem(row, slot, index, countUp)
         f.swipeTexture.chargeLabel:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, 0)
         f.swipeTexture.chargeLabel:SetFont(f.swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
 
-        -- XXX: TODO: is there a better event than OnUpdate? This runs every frame
         -- Handle a couple of things:
         --    1. update cooldown timer text
         --    2. handle cooldown charges: monitor the cooldown FIFO to catch
@@ -269,54 +322,27 @@ end
 
 
 
--- Unlike allocRow, do not create any new frames, just set all elements to an
--- empty initial state. Assumes the row has been fully allocated already.
---
--- IMPORTANT: do not do anything that might be combat-unsafe. E.g., changing
--- anchors or positions.
-function ns:clearRow(row)
-    -- Row-specific data
-    row.specId = nil
-    row.playerName = nil
-	row.cpfMapping = ns.allSlots[row.slot]
-
-    -- Blank state for all visuals
-    ns:showDebugVisual(row.bg)
-
-    row.specText:SetText(tostring(row.specId))
-    ns:showDebugVisual(row.specText)
-
-	row.cpfMappingText:SetText(tostring(row.cpfMapping))
-	ns:showDebugVisual(row.cpfMappingText)
-
-    row:Show()
-
-    for i, item in pairs(row.historyItems) do
-        row.historyItems[i] = clearHistoryItem(item)
-    end
-
-    return row
-end
-
-
-
 -- XXX: TODO: This function leaks frames, but it happens rarely enough that we
 -- can live with it for a while.
-local function updateStaticRow(slot)
+local function updateStaticRow(index)
+    local tracker = ns.trackerUI[index]
+    local row = tracker.staticRow
+    local slot = ns:indexToSlot(index)
+    local guid = ns.slotToGUID[slot]
+    local char = ns:getTrackedCharacterByGUID(guid)
+    -- There won't always be a char: before loading and players without libspec
+    local abilities = char and char:getAbilities() or {}
     local iconSize = ns:GetOption('iconSize')
     local iconSpacing = ns:GetOption('iconSpacing')
-    local tracker = ns.trackerUI[slot]
-    local row = tracker.staticRow
+
+    ns:printDebug("updateStaticRow(" .. index .. ")")
 
     row:SetPoint("TOPRIGHT", tracker, "TOPRIGHT", 0, 0)
-
-    local abilities = ns.groupCDs[slot].castableAbilities or {}
-    ns:printDebug("updateStaticRow(" .. slot .. ")")
 
     -- Add a new frame for each tracked cooldown
     for _, ability in pairs(abilities) do
         if not row.items[ability.name] then
-            local newItem = allocHistoryItem(row, slot, ability.name, false)
+            local newItem = allocHistoryItem(row, ability.name, false)
             newItem.spellId = ability.id
             row.items[ability.name] = newItem
             if ability.iconId then
@@ -324,6 +350,7 @@ local function updateStaticRow(slot)
             end
             newItem.cooldown = ability.cooldown
             newItem.charges = ability.charges
+            newItem.numQueued = 0
             if newItem.charges > 1 then
                 -- XXX: TODO: doesn't show when not on cooldown
                 newItem.swipeTexture.chargeLabel:Show()
@@ -375,10 +402,10 @@ end
 
 
 -- Update a single row when visual options or party members change.
-local function updateHistoryTray(slot)
-    local tracker = ns.trackerUI[slot]
+local function updateHistoryTray(index)
+    local tracker = ns.trackerUI[index]
     local row = tracker.historyTray
-    ns:printDebug("updateHistoryTray(" .. slot .. ")")
+    ns:printDebug("updateHistoryTray(" .. index .. ")")
 
     local iconSize = ns:GetOption('iconSize')
     local textSize = ns:GetOption('textSize')
@@ -397,8 +424,7 @@ local function updateHistoryTray(slot)
     end
 
     if ns:GetOption('disableHistoryTray') then
-        -- hide the whole row unless visual debugging is turned on
-        ns:showDebugVisual(row)
+        ns:showDebugVisual(row) -- hide the row unless visual debugging is turned on
     else
         row:Show()
     end
@@ -406,15 +432,38 @@ end
 
 
 
-function ns:updateTrackerUI(slot)
-    local tracker = ns.trackerUI[slot]
+-- It is the UI's job to be able to map GUIDs -> indexes
+function ns:updateTrackerUI()
+    for index=1, 5 do
+        local slot = ns:indexToSlot(index)
+        if UnitExists(slot) then
+            -- Keep the guid -> index map updated
+            local guid = ns.slotToGUID[slot]
+            GUIDToIndex[guid] = index
+            ns:updateTrackerUIByIndex(index)
+        else
+            -- XXX: TODO: undo this for now for testing
+            -- leaving group with a glowing CD left it glowing and attached to the wrong
+            -- slot. and even the wrong index:unit label - 2:player remained though after
+            -- leaving the group i became 1:player
+            --ns.trackerUI[index]:Hide()
+        end
+    end
+end
+
+
+
+function ns:updateTrackerUIByIndex(index)
+    local tracker = ns.trackerUI[index]
+    local slot = ns:indexToSlot(index)
+    local guid = ns.slotToGUID[slot]
+    local char = ns:getTrackedCharacterByGUID(guid)
     local iconSize = ns:GetOption('iconSize')
     local iconSpacing = ns:GetOption('iconSpacing')
     local textSize = ns:GetOption('textSize')
 
     -- Position UI next to frames
-    tracker:SetPoint("TOPRIGHT", ns:slotToPartyFrame(slot), "TOPLEFT", -ns.SPACING_FROM_FRAMES, 0)
-    tracker:SetSize(300, (iconSize+2)*2)
+    tracker:SetPoint("TOPRIGHT", ns:indexToFrame(index), "TOPLEFT", -ns.SPACING_FROM_FRAMES, 0)
 
     tracker.bg:SetAllPoints(tracker)
     tracker.bg:SetColorTexture(0,0,0,0.4)
@@ -422,18 +471,19 @@ function ns:updateTrackerUI(slot)
 
     tracker.specLabel:SetPoint("BOTTOMRIGHT", tracker, "TOPRIGHT", 0, 0)
     tracker.specLabel:SetFont(tracker.specLabel:GetFont(), textSize, "OUTLINE")
-    tracker.specLabel:SetText(ns:specIdToString(specId))
+    local _, spec = char:getSpec()
+    tracker.specLabel:SetText(spec)
     ns:showDebugVisual(tracker.specLabel)
 
-    tracker.cpfMappingLabel:SetPoint("TOPLEFT", tracker, "TOPRIGHT", 3, -3)
-    tracker.cpfMappingLabel:SetFont(tracker.cpfMappingLabel:GetFont(), 12, "OUTLINE")
-    tracker.cpfMappingLabel:SetText("[" .. tracker.cpfMapping .. "] " .. slot)
-    ns:showDebugVisual(tracker.cpfMappingLabel)
-    tracker.cpfMappingLabel.bg:SetAllPoints(tracker.cpfMappingLabel)
-    ns:showDebugVisual(tracker.cpfMappingLabel.bg)
+    tracker.indexLabel:SetPoint("TOPLEFT", tracker, "TOPRIGHT", 3, -3)
+    tracker.indexLabel:SetFont(tracker.indexLabel:GetFont(), 12, "OUTLINE")
+    tracker.indexLabel:SetText("["..index.."] "..ns:indexToFrame(index).unit)
+    ns:showDebugVisual(tracker.indexLabel)
+    tracker.indexLabel.bg:SetAllPoints(tracker.indexLabel)
+    ns:showDebugVisual(tracker.indexLabel.bg)
 
-    updateStaticRow(slot)
-    updateHistoryTray(slot)
+    updateStaticRow(index)
+    updateHistoryTray(index)
 
     tracker:SetWidth(math.max(tracker.staticRow:GetWidth(), tracker.historyTray:GetWidth()))
     tracker:SetHeight(tracker.staticRow:GetHeight() + tracker.historyTray:GetHeight() + iconSpacing)
@@ -441,24 +491,9 @@ end
 
 
 
--- specId is optional
-function ns:setTrackerUIData(slot, playerName, specId)
-    local tracker = ns.trackerUI[slot]
-    --local row = ns.historyRows[slot]
-    --ns:clearRow(row)
-    tracker.cpfMapping = ns.allSlots[slot]
-    tracker.specId = specId
-    tracker.playerName = playerName
-end
-
-
-
-local function allocTrackerUIForSlot(slot)
-    local tracker = CreateFrame("Frame", addonName .. "TrackerUI" .. slot, UIParent)
-    tracker.slot = slot
-    tracker.specId = nil
-    tracker.playerName = nil
-    tracker.cpfMapping = ns.allSlots[slot]
+local function allocTrackerUIForSlot(index)
+    local tracker = CreateFrame("Frame", addonName .. "TrackerUI" .. index, UIParent)
+    tracker.index = index
 
     -- Debug mode transparent background
     tracker.bg = tracker:CreateTexture(nil, "BACKGROUND")
@@ -468,13 +503,12 @@ local function allocTrackerUIForSlot(slot)
     tracker.specLabel:SetTextColor(1,1,1)
 
     -- Debug mode text showing the CompactPartyFrameMember..i mapping
-    tracker.cpfMappingLabel = tracker:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
-    tracker.cpfMappingLabel:SetTextColor(1,1,1)
+    tracker.indexLabel = tracker:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+    tracker.indexLabel:SetTextColor(1,1,1)
 
-    tracker.cpfMappingLabel.bg = tracker:CreateTexture() --nil, "BACKGROUND")
-    tracker.cpfMappingLabel.bg:SetAllPoints()
-    tracker.cpfMappingLabel.bg:SetColorTexture(1,0,0)
-
+    tracker.indexLabel.bg = tracker:CreateTexture()
+    tracker.indexLabel.bg:SetAllPoints()
+    tracker.indexLabel.bg:SetColorTexture(1,0,0)
 
     -- The static cooldown tracker is just an empty list to be filled with icons
     tracker.staticRow = CreateFrame("Frame", "StaticRow", tracker)
@@ -483,8 +517,8 @@ local function allocTrackerUIForSlot(slot)
     -- The history tray
     tracker.historyTray = CreateFrame("Frame", "HistoryTray", tracker)
     tracker.historyTray.items = {}
-    for i=1,ns.MAX_HISTORY do
-        tracker.historyTray.items[i] = allocHistoryItem(tracker.historyTray, slot, i, true)
+    for i=1, ns.MAX_HISTORY do
+        tracker.historyTray.items[i] = allocHistoryItem(tracker.historyTray, index, i, true)
     end
 
     return tracker
@@ -496,10 +530,10 @@ end
 -- frames is increasing MAX_HISTORY. Rather than handle that, just force the user
 -- to /reload.
 function ns:allocHistoryGrid()
-    for slot, _ in pairs(ns.allSlots) do
-        local tracker = allocTrackerUIForSlot(slot)
-        ns.trackerUI[slot] = tracker
+    for index=1, 5 do
+        local tracker = allocTrackerUIForSlot(index)
+        ns.trackerUI[index] = tracker
         tracker:Show()
-        ns:updateTrackerUI(slot)
     end
+    ns:updateTrackerUI()
 end

@@ -1,6 +1,97 @@
 local _, ns = ...
 
 
+-- 4 possible mods:
+--     1. boolean setter. if the amount is a boolean, then the
+--        value is simply set
+--     2. non-boolean setter. there is only one special case of a
+--        where a setter is not boolean: duration_variable. just
+--        handle this.
+--     3. numeric change
+--         3a. additive change
+--         3b. multiplicative change. mult changes apply to the
+--             base value. reduce mults to adds this way.
+local function applyOneModifier(modifiedAbility, mod)
+    ns:printDebug(string.format('got modifier [%d] = (%d, %s, %s, %s)',
+        modifiedAbility.id, mod.id, mod.modifies,
+        tostring(mod.amount), tostring(mod['mult'] or false)))
+
+    if type(mod.amount) == "boolean" then
+        modifiedAbility[mod.modifies] = mod.amount
+    elseif mod.modifies == "duration_variable" then
+        modifiedAbility[mod.modifies] = mod.amount
+    else -- numeric case
+        local change = mod.amount
+        -- Reduce the multiplicative case to the additive case
+        if mod['mult'] then
+            change = modifiedAbility[mod.modifies] * mod.amount/100
+        end
+        modifiedAbility[mod.modifies] = modifiedAbility[mod.modifies] + change
+    end
+end
+
+
+
+-- Returns a modified copy of baseAbility. Do not modify the values in the
+-- static database of abilities.
+--
+-- Numeric modifiers must be applied in a specific order. First, additive
+-- modifiers followed by multiplicative. To handle this, every modifier
+-- for an ability must be collected before applying any changes.
+function ns:applyTalentModifiers(classFile, specId, baseAbility, talentRanks)
+    local modifiedAbility = ns:shallowcopy(baseAbility)
+    local allMods = {}
+    local classmods = ns.ClassTalentModifiers[classFile]
+    local specmods = ns.SpecTalentModifiers[specId]
+
+    -- Collect all modifiers across all talents for this ability
+    ns:printDebug("looking for modifiers for baseAbility=["..baseAbility.name.."]")
+    for spellId, rank in pairs(talentRanks) do
+        -- TalentModifiers only contains the talents relevant to our tracked abilities.
+        if rank > 0 then
+            -- Spell IDs are unique, so they can only be in one of the two tables
+            talents = classmods[spellId] or specmods[spellId]
+            if talents then
+                mods = talents[rank]
+                if not mods then
+                    ns:printDebug(string.format(
+                        'applyTalentModifiers: talent=[%d]: rank=[%d] does not exist',
+                        spellId, rank))
+                    return nil
+                end
+    
+                -- Talents can modify multiple spells with multiple modifiers. Get
+                -- just the mods that apply to this ability.
+                for index, mod in pairs(mods) do
+                    if baseAbility.id == mod.id then
+                        table.insert(allMods, mod)
+                    end
+                end
+            end
+        end
+    end
+
+    -- To achieve the sorting below, give an integer value to each talent and
+    -- then use a standard < comparator.
+    local function toOrd(mod)
+        local first = mod.mult and 1 or 0
+        local second = mod.modifies == "hasAbility" and mod.amount == false and 100000 or 0
+        return first + second
+    end
+    -- Sort additive effects before multiplicative effects and put talents
+    -- that *remove* abilities at the end of the sort. This is a very brittle
+    -- way to implement talents that replace other abilities and will probably
+    -- break at some point.
+    table.sort(allMods, function(a, b) return toOrd(a) < toOrd(b) end)
+    for _, mod in pairs(allMods) do
+        applyOneModifier(modifiedAbility, mod)
+    end
+
+    return modifiedAbility
+end
+
+
+
 -- based on example code here:
 -- https://warcraft.wiki.gg/wiki/API_C_ClassTalents.InitializeViewLoadout
 local function buildTalentToSpellMap(specId)

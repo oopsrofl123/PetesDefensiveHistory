@@ -1,14 +1,14 @@
 -- get addon namespace
 local addonName, ns = ...
 
-local LibButtonGlow = LibStub("LibButtonGlowcustom")
-
 -- All active auras on everyone in the group, whether they're the ones
 -- we track or not.
 ns.auras = {}
 for slot, _ in pairs(ns.allSlots) do
     ns.auras[slot] = {}
 end
+
+ns.slotToGUID = {}
 
 
 local function fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
@@ -42,8 +42,8 @@ end
 -- Add this aura instance to the tracked list of actives on this player.
 local function trackBuff(aura, concurrentBuffs, concurrentDebuffs)
     ns:printDebug(string.format(
-        'trackBuff: auraInstanceID=[%d], slot=[%s], time=[%0.3f], flags=(IMP=%d, BIG=%d, EXT=%d, RAID=%d, RIC=%d, HELP=%d, HARM=%d, CANCELABLE=%d)',
-        aura.auraInstanceId, aura.slot, aura.startTime,
+        'trackBuff: auraInstanceID=[%d], target=[%s], time=[%0.3f], flags=(IMP=%d, BIG=%d, EXT=%d, RAID=%d, RIC=%d, HELP=%d, HARM=%d, CANCELABLE=%d)',
+        aura.auraInstanceId, aura.target, aura.startTime,
         aura.IMPORTANT and 1 or 0,
         aura.BIG and 1 or 0, aura.EXTERNAL and 1 or 0,
         aura.RAID and 1 or 0, aura.RAIDINCOMBAT and 1 or 0,
@@ -52,14 +52,14 @@ local function trackBuff(aura, concurrentBuffs, concurrentDebuffs)
     )
 
     closestCasts = {}
-    for slot, castHistory in pairs(ns.castHistory) do
+    for guid, hist in pairs(ns.castHistory) do
         closest = ns.INFINITY
-        for _, cast in pairs(castHistory:items()) do
+        for _, cast in pairs(hist:items()) do
             if math.abs(cast.time - aura.startTime) < math.abs(closest - aura.startTime) then
                 closest = cast.time
             end
         end
-        closestCasts[slot] = closest
+        closestCasts[guid] = closest
     end
 
     local buff = ns:shallowcopy(aura)
@@ -73,7 +73,7 @@ local function trackBuff(aura, concurrentBuffs, concurrentDebuffs)
     buff.concurrentDebuffs = concurrentDebuffs or {}
     buff.closestCasts = closestCasts
 
-    ns.activeDefensives[aura.slot][aura.auraInstanceId] = buff
+    ns.activeDefensives[aura.target][aura.auraInstanceId] = buff
 
     return buff
 end
@@ -86,7 +86,7 @@ local function finalizeInference(buff, ability)
     if not buff.certain then
         print(string.format(
             "WARNING: finalizing an uncertain inference (ability=[%s], caster=[%s], target=[%s])!",
-            ability.name, ability.caster, buff.slot))
+            ability.name, ability.caster, buff.target))
     end
 
     ns:printDebug(string.format(
@@ -138,9 +138,8 @@ end
 --------------------------------------------------------------------------------------
 local castHandler = CreateFrame("Frame", addonName .. "CastHandler")
 castHandler:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-castHandler:SetScript("OnEvent", function(self, event, unitTarget, castGUID, spellID, castBarID)
-    -- unitTarget is actually the caster of the spell, confusingly
-    if not ns.allSlots[unitTarget] then return end
+castHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID, castBarID)
+    if not ns.allSlots[caster] then return end
 
     -- mask secrets to avoid errors. sets nil if secret
     spellId = ns:maskSecret(spellId)
@@ -148,18 +147,19 @@ castHandler:SetScript("OnEvent", function(self, event, unitTarget, castGUID, spe
     castBarID = ns:maskSecret(castBarID)
 
     ns:printDebug(string.format("UNIT_SPELLCAST_SUCCEEDED(%s, %s, %s, %s, %0.3f)",
-        unitTarget, tostring(castGUID), tostring(spellID), tostring(castBarID), GetTime()))
+        caster, tostring(castGUID), tostring(spellID), tostring(castBarID), GetTime()))
         
-    ns.castHistory[unitTarget]:push({ time=GetTime() })
+    ns.castHistory[ns.slotToGUID[caster]]:push({ time=GetTime() })
 end)
 
 
 
+-- This function needs slot to get filter flags
 local function makeAura(startTime, slot, auraInstanceID, iconId)
     local IMPORTANT, BIG, EXTERNAL, RAID, RAIDINCOMBAT, HELPFUL, HARMFUL, CANCELABLE =
         fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceID)
     return {
-        slot=slot,      -- the aura's target
+        target=ns.slotToGUID[slot],
         auraInstanceId=auraInstanceID,
         secretTexture=iconId,
         startTime=startTime,
@@ -189,6 +189,9 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Ensure unitTarget is a recognized slot. This event is called for nameplates and others
     if not ns.allSlots[unitTarget] then return end
 
+    local guid = ns.slotToGUID[unitTarget]
+    local char = ns:getTrackedCharacterByGUID(guid)
+
     -- empty table to make #(.) work when no auras are added. same for other tables.
     local aurasAdded = updateInfo['addedAuras'] or {}
     local aurasRemoved = updateInfo['removedAuraInstanceIDs'] or {}
@@ -197,10 +200,13 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     local now = GetTime()
 
     -- Currently active defensive buffs for this slot
-    local actives = ns.activeDefensives[unitTarget]
+    if not ns.activeDefensives[guid] then
+        ns.activeDefensives[guid] = {}
+    end
+    local actives = ns.activeDefensives[guid]
 
-    ns:printDebug(string.format('UNIT_AURA(time=%0.3f, slot=[%s], #added=[%d], #updated=[%d], #removed=[%d])',
-        now, unitTarget, #aurasAdded, #aurasUpdated, #aurasRemoved))
+    ns:printDebug(string.format('UNIT_AURA(time=%0.3f, target=[%s/GUID=%s], #added=[%d], #updated=[%d], #removed=[%d])',
+        now, unitTarget, guid, #aurasAdded, #aurasUpdated, #aurasRemoved))
 
     -- Convenience mode for collecting data about buff rules. Show all buffs and
     -- debuffs added, including secret data that would not be available in
@@ -244,14 +250,12 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             local buff = trackBuff(aura, buffs, debuffs)
 
             -- attempt instant identification
-            ability, certain = ns:inferAbility(unitTarget, buff, false)
+            ability, certain = ns:inferAbility(ns:getTrackedCharacterByGUID(guid), buff, false)
             if certain then
                 finalizeInference(buff, ability)
             end
             if ability then 
-                local cd = ns.trackerUI[ability.caster].staticRow.items[ability.name]
-                cd.swipeTexture:Hide()
-                LibButtonGlow.ShowOverlayGlow(cd)
+                ns:startGlow(ability)
             end
         end
     end
@@ -260,7 +264,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     for _, auraInstanceID in pairs(aurasUpdated) do
         buff = actives[auraInstanceID]
         if buff then
-            ns:printDebug("slot=" .. unitTarget .. ": updating " .. buff.auraInstanceID)
+            ns:printDebug("target=" .. unitTarget .. ": updating " .. buff.auraInstanceId)
             buff.numUpdates = buff.numUpdates + 1
         end
     end
@@ -276,15 +280,14 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- 1. no matter what happens below, turn off any glow that may have been
             --    enabled on previous inferences.
             if certain or ability then
-                local cd = ns.trackerUI[ability.caster].staticRow.items[ability.name]
-                LibButtonGlow.HideOverlayGlow(cd)
+                ns:stopGlow(ability)
             end
 
             -- 2. gather some information and take a final swing at inference
             buff.endTime = GetTime()
             buff.duration = buff.endTime - buff.startTime
             if not ability or not certain then
-                ability, certain = ns:inferAbility(unitTarget, buff, true)
+                ability, certain = ns:inferAbility(char, buff, true)
                 if certain then
                     finalizeInference(buff, ability)
                 end
@@ -294,8 +297,6 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             --    If there was a certain inference, track in the static cooldown row,
             --    otherwise dump it in the history tray.
             if ability and certain then
-                local cd = ns.trackerUI[ability.caster].staticRow.items[ability.name]
-
                 -- Support abilities with charges.
                 -- 1. If this is not an ability with charges, then start a swipe no
                 --    matter what. If the ability has CDR, then it could fire before
@@ -315,32 +316,47 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 -- to 0. At t=23, we arrive here and it must be recorded that a charge
                 -- at t=0 prevented CD recovery until t=20. This is exactly what the CD
                 -- tracker provides.
-                if ability.charges == 1 or cd.numQueued == 0 then
-                    local cdEndsAt = ns.cdTracker[ability.caster][ability.name]:head()
+                local cdEndsAt = ns.cdTracker[ability.caster][ability.name]:head()
                     -- cd.startTime is the start time of the recharge, not the start time of the
                     -- buff (=when the ability was cast). These can differ for abilities
                     -- with charges. Some notes:
                     --   * Single charge abilities: cdEndsAt = buff.startTime + ability.cooldown,
                     --     even if there is dynamic CDR
                     --   * Multi-charge abilities: cdEndsAt accounts for previous recharge completions.
-                    cd.startTime = cdEndsAt - ability.cooldown
-                    cd.swipeTexture:SetCooldown(cd.startTime, ability.cooldown)
-                end
+
+                ns:queueCooldown(ability, cdEndsAt - ability.cooldown)
+
                 -- CDR abilities will appear to queue a cooldown when they're used before
                 -- their base CD is up.
-                cd.numQueued = math.min(cd.numQueued + 1, ability.charges)
+                --cd.numQueued = math.min(cd.numQueued + 1, ability.charges)
                 -- If this was the last charge, then draw the dark cooldown swipe.
                 -- Otherwise just show the edge.
-                cd.swipeTexture:SetDrawSwipe(cd.numQueued == ability.charges)
-                cd.swipeTexture:Show()
+                --cd.swipeTexture:SetDrawSwipe(cd.numQueued == ability.charges)
+                --cd.swipeTexture:Show()
             else
-                ns:addBuffToHistoryTray(unitTarget, buff)
+                ns:addBuffToHistoryTray(guid, buff)
             end
 
             actives[auraInstanceID] = nil    -- allow garbage collection
         end
     end
 end)
+
+
+
+local function updateSlotToGUID()
+    for index=1, 5 do
+        local slot = ns:indexToSlot(index)
+        if UnitExists(slot) then
+            local char = ns:trackCharacter(slot)
+            local guid = char:getID() -- UnitGUID(slot)
+            ns.slotToGUID[slot] = guid
+            ns.castHistory[guid] = ns.castHistory[guid] or ns:fixedFIFO(ns.MAX_CAST_HISTORY)
+        end
+    end
+
+    -- XXX: TODO: prune GUIDs that are no longer tracked
+end
 
 
 
@@ -352,37 +368,43 @@ loader:RegisterEvent("PLAYER_ENTERING_WORLD")
 loader:RegisterEvent("GROUP_ROSTER_UPDATE")
 loader:SetScript("OnEvent", function(self, event)
     ns:printDebug(event)
-    for slot, _ in pairs(ns.allSlots) do
-        local tracker = ns.trackerUI[slot]
+
+    -- Maintain the slot -> GUID map
+    updateSlotToGUID()
+
+    -- Update UI elements
+    ns:updateTrackerUI(slot)
+
+    --for slot, _ in pairs(ns.allSlots) do
+        --local tracker = ns.trackerUI[slot]
 
         -- Which X: CompactPartyFrameMemberX maps to player, party1, etc.?
-        ns:updateSlotToFrameMapping(slot)
-        ns:updateTrackerUI(slot)
+        --ns:updateSlotToFrameMapping(slot)
+        --ns:updateTrackerUI(slot)
 
         -- account for the fact that LibSpec also fires on GROUP_ROSTER_UPDATE
         -- and can either come before or after this event.
-        if UnitExists(slot) then
-            if UnitName(slot) ~= tracker.playerName then
-                -- this handler was called before LibSpec
-                ns:setTrackerUIData(slot, nil, UnitName(slot))
-                ns:updateTrackerUI(slot)
-            else
+        --if UnitExists(slot) then
+            --if UnitName(slot) ~= tracker.playerName then
+                ---- this handler was called before LibSpec
+                --ns:setTrackerUIData(slot, nil, UnitName(slot))
+                --ns:updateTrackerUI(slot)
+            --else
                 -- this handler was called after LibSpec. nothing to do
-            end
-        else
+            --end
+        --else
             --ns:clearRow(row)
-            ns:showDebugVisual(tracker)
-        end
-    end
+            --ns:showDebugVisual(tracker)
+        --end
+    --end
 end)
 
 
+updateSlotToGUID()
+
 -- Addons should be loaded after all blizzard frames, so can allocate everything now.
 ns:allocHistoryGrid()
-for slot, _ in pairs(ns.allSlots) do
-    ns.castHistory[slot] = ns:fixedFIFO(ns.MAX_CAST_HISTORY)
-end
-ns.groupSolutionUI = ns:allocGroupSolutionUI()
+--ns.groupSolutionUI = ns:allocGroupSolutionUI()
 
 -- Open the solution UI
 SLASH_PDH1 = "/pdh"
