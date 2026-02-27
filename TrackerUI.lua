@@ -1,59 +1,7 @@
 -- get addon namespace
 local addonName, ns = ...
-
 local LibButtonGlow = LibStub("LibButtonGlowcustom")
-
 local GUIDToIndex = {}
-
-
--- Updates the global variable allSlots to ensure that slot can be mapped
--- to the correct i such that slot = CompactPartyFrameMember..i
-function ns:updateSlotToFrameMapping(slot)
-    local frameRoot
-    if DandersFrames then
-        frameRoot = "DandersPartyHeaderUnitButton"
-    else
-        frameRoot = "CompactPartyFrameMember"
-    end
-
-    for i=1,5 do
-        if slot == _G[frameRoot..i].unit then
-            if i ~= ns.allSlots[slot] then
-                ns:printDebug('updating slot mapping: ' .. slot .. ' -> ' .. i)
-                ns.allSlots[slot] = i
-                ns.trackerUI[slot].cpfMapping = i
-                --ns.historyRows[slot].cpfMappingText:SetText(ns.historyRows[slot].cpfMapping)
-                return
-            end
-        end
-    end
-end
-
-
-
-function ns:slotToIndex(slot)
-    return ns.allSlots[slot]
-end
-
-
-
--- Blizzard party frames are named CompactPartyFrameMember{1,2,3,4,5}, not the
--- player, party1, party2, ... naming of UnitName(). Map the latter to the former.
-function ns:slotToPartyFrameName(slot)
-    if DandersFrames then
-        return "DandersPartyHeaderUnitButton" .. ns:slotToIndex(slot)
-    else
-        return "CompactPartyFrameMember" .. ns:slotToIndex(slot)
-    end
-end
-
-
-
--- Further convenience: return the actual frame
-function ns:slotToPartyFrame(slot)
-    return _G[ns:slotToPartyFrameName(slot)]
-end
-
 
 
 function ns:indexToFrame(index)
@@ -65,11 +13,9 @@ function ns:indexToFrame(index)
 end
 
 
-
 function ns:indexToSlot(index)
     return ns:indexToFrame(index).unit
 end
-
 
 
 function ns:nameToSlot(name)
@@ -81,7 +27,6 @@ function ns:nameToSlot(name)
     end
     return nil
 end
-
 
 
 -- Initialize a history item with blank values and hide it. Do not perform
@@ -139,7 +84,6 @@ end
 
 function ns:addBuffToHistoryTray(guid, buff)
     local index = GUIDToIndex[guid]
-print('addBuffToHistoryTray():', index)
     local tray = ns.trackerUI[index].historyTray
 
     -- Don't do anything if the user disabled the history tray
@@ -163,8 +107,7 @@ end
 
 
 
--- Glow an item in the static cooldown tracker. Abilities have known
--- casters
+-- Glow an item in the static cooldown tracker. Abilities have known casters
 function ns:startGlow(ability)
     local index = GUIDToIndex[ability.caster]
     local cd = ns.trackerUI[index].staticRow.items[ability.name]
@@ -174,8 +117,7 @@ end
 
 
 
--- Stop glowing an item in the static cooldown tracker. Abilities have known
--- casters
+-- Stop glowing an item in the static cooldown tracker. Abilities have known casters
 function ns:stopGlow(ability)
     local index = GUIDToIndex[ability.caster]
     local cd = ns.trackerUI[index].staticRow.items[ability.name]
@@ -204,6 +146,7 @@ function ns:queueCooldown(ability, startTime)
     cd.swipeTexture:SetDrawSwipe(cd.numQueued == ability.charges)
     cd.swipeTexture:Show()
 end
+
 
 
 -- Allocate a blank history item and allocate all of its subcomponents. The
@@ -335,8 +278,6 @@ local function updateStaticRow(index)
     local iconSize = ns:GetOption('iconSize')
     local iconSpacing = ns:GetOption('iconSpacing')
 
-    ns:printDebug("updateStaticRow(" .. index .. ")")
-
     row:SetPoint("TOPRIGHT", tracker, "TOPRIGHT", 0, 0)
 
     -- Add a new frame for each tracked cooldown
@@ -380,6 +321,7 @@ local function updateStaticRow(index)
             -- since frames cannot be deallocated.
             row.items[name]:ClearAllPoints()
             row.items[name]:Hide()
+            --row.items[name] = nil  -- XXX: TODO: wait for frame pool implementation
         end
     end
 
@@ -405,7 +347,6 @@ end
 local function updateHistoryTray(index)
     local tracker = ns.trackerUI[index]
     local row = tracker.historyTray
-    ns:printDebug("updateHistoryTray(" .. index .. ")")
 
     local iconSize = ns:GetOption('iconSize')
     local textSize = ns:GetOption('textSize')
@@ -414,7 +355,7 @@ local function updateHistoryTray(index)
     row:SetSize(ns.MAX_HISTORY*(iconSize+iconSpacing) - iconSpacing, iconSize+2)
     row:SetPoint("TOPRIGHT", tracker, "TOPRIGHT", 0, -(iconSize + iconSpacing))
 
-    for i=1,ns.MAX_HISTORY do
+    for i=1, ns.MAX_HISTORY do
         local item = row.items[i]
         sizeHistoryItem(item)
         -- items are statically positioned with index 1 being the oldest
@@ -438,15 +379,15 @@ function ns:updateTrackerUI()
         local slot = ns:indexToSlot(index)
         if UnitExists(slot) then
             -- Keep the guid -> index map updated
-            local guid = ns.slotToGUID[slot]
-            GUIDToIndex[guid] = index
-            ns:updateTrackerUIByIndex(index)
-        else
-            -- XXX: TODO: undo this for now for testing
-            -- leaving group with a glowing CD left it glowing and attached to the wrong
-            -- slot. and even the wrong index:unit label - 2:player remained though after
-            -- leaving the group i became 1:player
-            --ns.trackerUI[index]:Hide()
+            GUIDToIndex[ns.slotToGUID[slot]] = index
+        end
+        ns:updateTrackerUIByIndex(index)
+
+        -- XXX: TODO: hack to clear history tray while history items/cooldowns are
+        -- folded into Character(). updateHistoryTray() should ask Character() what
+        -- historyItems it should show in updateTrackerUIByIndex()
+        for _, item in pairs(ns.trackerUI[index].historyTray.items) do
+            clearHistoryItem(item)
         end
     end
 end
@@ -471,7 +412,7 @@ function ns:updateTrackerUIByIndex(index)
 
     tracker.specLabel:SetPoint("BOTTOMRIGHT", tracker, "TOPRIGHT", 0, 0)
     tracker.specLabel:SetFont(tracker.specLabel:GetFont(), textSize, "OUTLINE")
-    local _, spec = char:getSpec()
+    local spec = char and char:getSpecString() or nil
     tracker.specLabel:SetText(spec)
     ns:showDebugVisual(tracker.specLabel)
 
