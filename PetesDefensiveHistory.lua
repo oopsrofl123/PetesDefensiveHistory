@@ -1,13 +1,6 @@
 -- get addon namespace
 local addonName, ns = ...
 
--- All active auras on everyone in the group, whether they're the ones
--- we track or not.
-ns.auras = {}
-for slot, _ in pairs(ns.allSlots) do
-    ns.auras[slot] = {}
-end
-
 ns.slotToGUID = {}
 
 
@@ -200,13 +193,10 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     local now = GetTime()
 
     -- Currently active defensive buffs for this slot
-    if not ns.activeDefensives[guid] then
-        ns.activeDefensives[guid] = {}
-    end
     local actives = ns.activeDefensives[guid]
 
     ns:printDebug(string.format('UNIT_AURA(time=%0.3f, target=[%s/GUID=%s], #added=[%d], #updated=[%d], #removed=[%d])',
-        now, unitTarget, guid, #aurasAdded, #aurasUpdated, #aurasRemoved))
+        now, unitTarget, tostring(guid), #aurasAdded, #aurasUpdated, #aurasRemoved))
 
     -- Convenience mode for collecting data about buff rules. Show all buffs and
     -- debuffs added, including secret data that would not be available in
@@ -250,11 +240,11 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             local buff = trackBuff(aura, buffs, debuffs)
 
             -- attempt instant identification
-            ability, certain = ns:inferAbility(ns:getTrackedCharacterByGUID(guid), buff, false)
+            local ability, certain = ns:inferAbility(char, buff, false)
             if certain then
                 finalizeInference(buff, ability)
             end
-            if ability then 
+            if ability then
                 ns:startGlow(ability)
             end
         end
@@ -317,22 +307,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 -- at t=0 prevented CD recovery until t=20. This is exactly what the CD
                 -- tracker provides.
                 local cdEndsAt = ns.cdTracker[ability.caster][ability.name]:head()
-                    -- cd.startTime is the start time of the recharge, not the start time of the
-                    -- buff (=when the ability was cast). These can differ for abilities
-                    -- with charges. Some notes:
-                    --   * Single charge abilities: cdEndsAt = buff.startTime + ability.cooldown,
-                    --     even if there is dynamic CDR
-                    --   * Multi-charge abilities: cdEndsAt accounts for previous recharge completions.
-
                 ns:queueCooldown(ability, cdEndsAt - ability.cooldown)
-
-                -- CDR abilities will appear to queue a cooldown when they're used before
-                -- their base CD is up.
-                --cd.numQueued = math.min(cd.numQueued + 1, ability.charges)
-                -- If this was the last charge, then draw the dark cooldown swipe.
-                -- Otherwise just show the edge.
-                --cd.swipeTexture:SetDrawSwipe(cd.numQueued == ability.charges)
-                --cd.swipeTexture:Show()
             else
                 ns:addBuffToHistoryTray(guid, buff)
             end
@@ -345,17 +320,41 @@ end)
 
 
 local function updateSlotToGUID()
+    -- On this pass: make sure all slot->GUID mappings represent current
+    -- members of the group/raid/arena/etc. If a slot's GUID changes, that
+    -- does not necessarily mean the previous GUID left the group, the
+    -- character's position could've shifted.
     for index=1, 5 do
         local slot = ns:indexToSlot(index)
         if UnitExists(slot) then
-            local char = ns:trackCharacter(slot)
-            local guid = char:getID() -- UnitGUID(slot)
+            local guid = UnitGUID(slot)
             ns.slotToGUID[slot] = guid
-            ns.castHistory[guid] = ns.castHistory[guid] or ns:fixedFIFO(ns.MAX_CAST_HISTORY)
+            -- Is this the first time we've seen this guid?
+            if not ns:getTrackedCharacterByGUID(guid) then
+                local char = ns:trackCharacter(slot)
+                -- XXX: TODO: these should be part of Character()
+                ns.castHistory[guid] = ns:fixedFIFO(ns.MAX_CAST_HISTORY)
+                ns.activeDefensives[guid] = {}
+            end
+        else
+            ns.slotToGUID[slot] = nil
         end
     end
 
-    -- XXX: TODO: prune GUIDs that are no longer tracked
+    -- Now compare the GUIDs that existed before the remapping to the ones
+    -- that exist after. Any in the first list but not the latter left the
+    -- group, so clean up their data.
+    for guid, char in pairs(ns:getTrackedCharacters()) do
+        if not ns:tablecontains(ns.slotToGUID, guid) then
+            local char = ns:getTrackedCharacterByGUID(guid)
+            ns:printDebug(string.format("DELETING ALL DATA for character name=[%s], GUID=[%s]",
+                char:getName(), char:getID()))
+            ns:untrackCharacter(guid)
+            -- XXX: TODO: these should be part of Character()
+            ns.castHistory[guid] = nil
+            ns.activeDefensives[guid] = nil
+        end
+    end
 end
 
 
@@ -373,36 +372,14 @@ loader:SetScript("OnEvent", function(self, event)
     updateSlotToGUID()
 
     -- Update UI elements
-    ns:updateTrackerUI(slot)
-
-    --for slot, _ in pairs(ns.allSlots) do
-        --local tracker = ns.trackerUI[slot]
-
-        -- Which X: CompactPartyFrameMemberX maps to player, party1, etc.?
-        --ns:updateSlotToFrameMapping(slot)
-        --ns:updateTrackerUI(slot)
-
-        -- account for the fact that LibSpec also fires on GROUP_ROSTER_UPDATE
-        -- and can either come before or after this event.
-        --if UnitExists(slot) then
-            --if UnitName(slot) ~= tracker.playerName then
-                ---- this handler was called before LibSpec
-                --ns:setTrackerUIData(slot, nil, UnitName(slot))
-                --ns:updateTrackerUI(slot)
-            --else
-                -- this handler was called after LibSpec. nothing to do
-            --end
-        --else
-            --ns:clearRow(row)
-            --ns:showDebugVisual(tracker)
-        --end
-    --end
+    ns:updateTrackerUI()
+    ns:updateGroupSolutionsUI()
 end)
 
 
 updateSlotToGUID()
 
--- Addons should be loaded after all blizzard frames, so can allocate everything now.
+-- Addons are loaded after all blizzard frames, so can allocate everything now.
 ns:allocHistoryGrid()
 --ns.groupSolutionUI = ns:allocGroupSolutionUI()
 
