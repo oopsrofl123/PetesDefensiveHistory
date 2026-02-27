@@ -281,6 +281,16 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- attempt instant identification
             local ability, certain = ns:inferAbility(char, buff, false)
             if certain then
+                -- Announce the ability with TTS if it satisfies the users preferences
+                if ns:GetOption('enableTTS') and
+                    (not ns:GetOption('TTSnoUntracked') or ns:GetOption('show_'..ability.id)) and
+                    (not ns:GetOption('TTSnoSelfCasts') or ability.caster ~= buff.target) then
+                    C_VoiceChat.SpeakText(
+                        C_TTSSettings.GetVoiceOptionID(Enum.TtsVoiceType.Standard),
+                        ability.name,
+                        C_TTSSettings.GetSpeechRate(),
+                        C_TTSSettings.GetSpeechVolume())
+                end
                 finalizeInference(buff, ability)
             end
             if ability then
