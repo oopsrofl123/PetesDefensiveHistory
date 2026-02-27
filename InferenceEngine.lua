@@ -44,9 +44,11 @@ end
 
 
 local function traceLogic(buff, ability, message, ...)
-    ns:printDebug(string.format(
-        "ability=[%s], target=[%s], caster=[%s]: " .. message,
-        ability.name, buff.target, ability.caster, ...))
+    if not ns:GetOption('muteVerboseDebugging') then
+        ns:printDebug(string.format(
+            "ability=[%s], target=[%s], caster=[%s]: " .. message,
+            ability.name, buff.target, ability.caster, ...))
+    end
 end
 
 
@@ -86,11 +88,10 @@ end
 -- we want to know if THIS caster has the ability off cooldown.
 local function logicLayerAbilityOffCooldown(buff, ability, cdTracker)
     if not ability.cdr then
-        local caster = ability.caster
         -- To cast the ability, just need 1 charge to be off cooldown. So check
         -- the oldest charge - if that one isn't available then no younger charge
         -- can possibly be available.
-        local offCDat = cdTracker[caster][ability.name]:tail()
+        local offCDat = cdTracker[ability.caster][ability.name]:tail()
 
         -- if the buff was applied before the oldest charge came off CD, then this
         -- ability had no charges available to use (was fully on CD).  Allow a small
@@ -236,9 +237,11 @@ end
 
 
 local function traceConfidence(layerName, message, ...)
-    ns:printDebug(string.format(
-        "confidenceLayer(%s): " .. message,
-        layerName, ...))
+    if not ns:GetOption('muteVerboseDebugging') then
+        ns:printDebug(string.format(
+            "confidenceLayer(%s): " .. message,
+            layerName, ...))
+    end
 end
 
 
@@ -450,7 +453,7 @@ function ns:zeroKnowledgeSolve()
             -- make the buff we would expect to see if this ability got used.
             local buff = {
                 inference = 0,
-                target = guid, --char:getID(),
+                target = guid,
                 startTime = now,
                 endTime = now + ability.duration,
                 duration = ability.duration,
