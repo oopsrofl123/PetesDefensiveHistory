@@ -129,6 +129,27 @@ end
 -- If startTime is not nil, then also start a new cooldown swipe. If nil, it
 -- is assumed that a cooldown swipe is already in progress (e.g., this ability
 -- has charges).
+--
+-- Old important comments from other file describing issues with charge+CDR.
+-- Support abilities with charges.
+-- 1. If this is not an ability with charges, then start a swipe no
+--    matter what. If the ability has CDR, then it could fire before
+--    we expect.
+-- 2. If the ability has charges, don't start a CD swipe if one is
+--    already going. If one is already in
+--    progress, then it will propagate itself if there are charges.
+--
+-- This logic is necessary because of delayed inference. Suppose one
+-- charge of an ability is on CD and the second charge is used and
+-- the ability can't be inferred until expiry - for a concrete example,
+-- say the buff lasts 6s and the cd is 20s. At t=0 and 17 the ability
+-- is used. At t=20 the first charge finishes its cd, at t=23 the
+-- second charge's buff ends and the ability is identified. Since the
+-- cooldown swipe completed at t=20, it did not know that it should
+-- start a new swipe for the second charge, and numQueued was dropped
+-- to 0. At t=23, we arrive here and it must be recorded that a charge
+-- at t=0 prevented CD recovery until t=20. This is exactly what the CD
+-- tracker provides.
 function ns:queueCooldown(ability, startTime)
     local index = GUIDToIndex[ability.caster]
     local cd = ns.trackerUI[index].staticRow.items[ability.name]
@@ -210,6 +231,17 @@ function allocHistoryItem(row, index, countUp)
         f.swipeTexture.chargeLabel:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, 0)
         f.swipeTexture.chargeLabel:SetFont(f.swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
 
+        f.warningbg = f:CreateTexture(nil, "OVERLAY", nil, 0)
+        f.warningbg:SetPoint('CENTER', f.icon, 'TOPLEFT', 4, -1)
+        f.warningbg:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask")
+        --f.warningbg:SetVertexColor(233/255, 214/255, 167/255, 0.9)
+        f.warningbg:SetVertexColor(0,0,0,1)
+
+        f.warning = f:CreateTexture(nil, "OVERLAY", nil, 1)
+        f.warning:SetPoint('CENTER', f.icon, 'TOPLEFT', 4, -1)
+        f.warning:SetAtlas("QuestNormal")
+        f.warning:SetVertexColor(1, 0, 0)
+
         -- Handle a couple of things:
         --    1. update cooldown timer text
         --    2. handle cooldown charges: monitor the cooldown FIFO to catch
@@ -266,6 +298,8 @@ local function sizeHistoryItem(item)
     else
         item.swipeTexture.timer:SetFont(item.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
         item.swipeTexture.chargeLabel:SetFont(item.swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
+        item.warningbg:SetSize(iconSize/2, iconSize/2)
+        item.warning:SetSize(iconSize/2, iconSize/2)
     end
 end
 
@@ -304,6 +338,14 @@ local function updateStaticRow(index)
                 newItem.swipeTexture.chargeLabel:SetText(newItem.charges)
             else
                 newItem.swipeTexture.chargeLabel:Hide()
+            end
+
+            if ability.cdr then
+                newItem.warningbg:Show()
+                newItem.warning:Show()
+            else
+                newItem.warningbg:Hide()
+                newItem.warning:Hide()
             end
             newItem:Show()
             newItem.icon:Show()

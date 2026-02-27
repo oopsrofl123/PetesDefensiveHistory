@@ -39,6 +39,11 @@ local function updateGroupSolutionByIndex(index)
         local cooldown = ability.cooldown .. "s"
         if ability.cdr then
             cooldown = "<" .. cooldown
+            item.warning:Show()
+            item.warningbg:Show()
+        else
+            item.warning:Hide()
+            item.warningbg:Hide()
         end
         item.cooldownLabel:SetText(cooldown)
         item.cooldownLabel:Show()
@@ -76,6 +81,8 @@ local function updateGroupSolutionByIndex(index)
         item.cooldownLabel:Hide()
         item.durationLabel:Hide()
         item.chargesLabel:Hide()
+        item.warning:Hide()
+        item.warningbg:Hide()
     end
 
     if char then
@@ -121,7 +128,7 @@ end
 
 local function allocSolutionItem(row)
     local item = {}
-    item.icon = row:CreateTexture(nil, "OVERLAY")
+    item.icon = row:CreateTexture(nil, "ARTWORK")
     item.icon:SetSize(UI_ICON_SIZE, UI_ICON_SIZE)
     item.icon:SetTexture("Interface\\Icons\\Spell_Nature_HealingTouch")
     item.icon:Hide()
@@ -146,6 +153,21 @@ local function allocSolutionItem(row)
     item.conflictsLabel:SetTextColor(1,0,0)
     item.conflictsLabel:SetPoint("TOP", item.durationLabel, 'BOTTOM', 0, -3)
 
+    -- Make a warning (!) mark that will appear on abilities with dynamic
+    -- cooldown reduction since these cannot be tracked accurately. Their
+    -- cooldowns are the *worst case* scenario.
+    item.warningbg = row:CreateTexture(nil, "OVERLAY", nil, 0)
+    item.warningbg:SetSize(UI_ICON_SIZE*3/5, UI_ICON_SIZE*3/5)
+    item.warningbg:SetPoint('CENTER', item.icon, 'TOPLEFT', 0, -3)
+    item.warningbg:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask")
+    item.warningbg:SetVertexColor(0.0, 0.0, 0.0, 0.7)
+
+    item.warning = row:CreateTexture(nil, "OVERLAY", nil, 1)
+    item.warning:SetSize(UI_ICON_SIZE*3/5, UI_ICON_SIZE*3/5)
+    item.warning:SetPoint('CENTER', item.icon, 'TOPLEFT', 0, -3)
+    item.warning:SetAtlas("QuestNormal")
+    item.warning:SetVertexColor(1, 0, 0)
+
     return item
 end
 
@@ -160,7 +182,7 @@ local function allocGroupSolutionRow(uiframe, index)
     row.nameLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     row.specLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     -- tank, healer, dps icon
-    row.roleIcon = row:CreateTexture(nil, "OVERLAY")
+    row.roleIcon = row:CreateTexture(nil, "ARTWORK")
     row.roleIcon:SetTexture('Interface\\LFGFrame\\UI-LFG-ICON-PORTRAITROLES')
     row.roleIcon:SetSize(20, 20)
     row.roleIcon:SetPoint("LEFT", row, "LEFT", 5+10, 0)  -- inset size matters

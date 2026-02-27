@@ -325,26 +325,10 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- 3. The buff is over, so have to make a choice about how to display it.
             --    If there was a certain inference, track in the static cooldown row,
             --    otherwise dump it in the history tray.
-            if ability and certain then
-                -- Support abilities with charges.
-                -- 1. If this is not an ability with charges, then start a swipe no
-                --    matter what. If the ability has CDR, then it could fire before
-                --    we expect.
-                -- 2. If the ability has charges, don't start a CD swipe if one is
-                --    already going. If one is already in
-                --    progress, then it will propagate itself if there are charges.
-                --
-                -- This logic is necessary because of delayed inference. Suppose one
-                -- charge of an ability is on CD and the second charge is used and
-                -- the ability can't be inferred until expiry - for a concrete example,
-                -- say the buff lasts 6s and the cd is 20s. At t=0 and 17 the ability
-                -- is used. At t=20 the first charge finishes its cd, at t=23 the
-                -- second charge's buff ends and the ability is identified. Since the
-                -- cooldown swipe completed at t=20, it did not know that it should
-                -- start a new swipe for the second charge, and numQueued was dropped
-                -- to 0. At t=23, we arrive here and it must be recorded that a charge
-                -- at t=0 prevented CD recovery until t=20. This is exactly what the CD
-                -- tracker provides.
+            -- Since dynamic CDR ability timers are rarely accurate, allow users to
+            -- send those to the history tray instead. This doesn't prevent them from
+            -- being glowed, if possible.
+            if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
                 local cdEndsAt = ns.cdTracker[ability.caster][ability.name]:head()
                 ns:queueCooldown(ability, cdEndsAt - ability.cooldown)
             else
@@ -355,9 +339,6 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         end
     end
 end)
-
-
-
 
 
 

@@ -6,6 +6,7 @@ local optionsDefaults = {
     iconSpacing = 3,
     textSize = 15,
     disableInference = false,
+    disableCDRTrackers = false,
     disableHistoryTray = false,
     hideHistoryItemsAtMaxCd = false,
     showTooltips = true,
@@ -107,6 +108,21 @@ local disableInference = Settings.RegisterProxySetting(
 )
 Settings.CreateCheckbox(ns.optionsCategory, disableInference,
     "Disable logic to infer abilities and the associated row of icons. All abilities will instead be sent to the history tray for the unit on which they were cast (which may not be the caster!). Items in the history tray receive a count-up timer that stops at the maximum cooldown length for all abilities that can target that unit and the player must know the associated cooldown length.")
+
+local setting = Settings.RegisterProxySetting(
+    optionsCategory,
+    "pdh.disableCDRTrackers",
+    Settings.VarType.Boolean,
+    "Disable inaccurate timers",
+    optionsDefaults['disableCDRTrackers'],
+    function() return ns:GetOption('disableCDRTrackers') end,
+    function(value)
+        PetesDefensiveHistoryOptionsDb.disableCDRTrackers = value
+        ns:updateTrackerUI()
+    end
+)
+Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Dynamic cooldown reduction (e.g., each cast of Power Word: Shield reduces the cooldown of Pain Suppression) cannot be tracked. Normally, these abilities will count down to the MAXIMUM cooldown time. Enabling this option will instead send those abilities to the history tray, declining to show an inaccurate cooldown swipe. NOTE: cooldown timers are especially inaccurate for abilities with BOTH dynamic cooldown reduction and charges (e.g., Shield Wall, Guardian of Ancient Kings, Pain Suppresion, etc.).") 
 
 
 local setting = Settings.RegisterProxySetting(
