@@ -133,6 +133,12 @@ function ns:queueCooldown(ability, startTime)
     local index = GUIDToIndex[ability.caster]
     local cd = ns.trackerUI[index].staticRow.items[ability.name]
 
+    -- cd.startTime is the start time of the recharge, not the start time of the
+    -- buff (=when the ability was cast). These can differ for abilities
+    -- with charges. Some notes:
+    --   * Single charge abilities: cdEndsAt = buff.startTime + ability.cooldown,
+    --     even if there is dynamic CDR
+    --   * Multi-charge abilities: cdEndsAt accounts for previous recharge completions.
     if cd.charges == 1 or cd.numQueued == 0 then
         cd.startTime = startTime
         cd.swipeTexture:SetCooldown(startTime, ability.cooldown)
