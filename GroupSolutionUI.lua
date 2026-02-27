@@ -13,12 +13,9 @@ local UI_TITLE_PADDING = 15
 local UI_ROW_HEIGHT = UI_ICON_SIZE + 36
 local UI_CLOSE_BUTTON_HEIGHT = 28
 local UI_WIDTH = 200 + (UI_ICON_SIZE+UI_ICON_PADDING) * UI_MAX_ABILITIES_PER_SLOT
--- Can't take length of keyed tables with #. Have to loop through.
-local numPlayers = 0
-for k, v in pairs(ns.allSlots) do
-    numPlayers = numPlayers + 1
-end
-local UI_HEIGHT = 10 + UI_TITLE_PADDING + 20 + UI_CLOSE_BUTTON_HEIGHT + 20 + UI_ROW_HEIGHT*numPlayers
+-- XXX: TODO: the anchoring here is mostly static, so harder to support non-5 member
+-- layouts. Fix this later.
+local UI_HEIGHT = 10 + UI_TITLE_PADDING + 20 + UI_CLOSE_BUTTON_HEIGHT + 20 + UI_ROW_HEIGHT*5
 
 
 local function updateGroupSolutionByIndex(index)
@@ -63,10 +60,11 @@ local function updateGroupSolutionByIndex(index)
             item.chargesLabel:Hide()
         end
 
-        if #ability.conflicts > 0 then
-            item.conflictsLabel:SetText(table.concat(ability.conflicts, ' '))
-            item.conflictsLabel:Show()
-        end
+        -- XXX: TODO: nothing sets the conflicts field right now. 
+        --if #ability.conflicts > 0 then
+            --item.conflictsLabel:SetText(table.concat(ability.conflicts, ' '))
+            --item.conflictsLabel:Show()
+        --end
         i = i + 1
     end
 
