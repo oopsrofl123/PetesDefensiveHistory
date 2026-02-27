@@ -6,15 +6,15 @@ local _, ns = ...
 -- list of all relevant characters
 local trackedCharacters = {}
 
--- Return the list of `Character`s in the group
 function ns:getTrackedCharacterByGUID(guid)
-    return trackedCharacters[guid]
+    -- protect the call if guid=nil: return nil
+    -- XXX: TODO: it might be more elegant to return an empty character
+    return guid and trackedCharacters[guid] or nil
 end
 
 function ns:getTrackedCharacters()
     return trackedCharacters
 end
-
 
 -- Create a character object for the group/raid member in `slot`.
 -- `slot` - "player", "party1", etc. Don't save the slot used on
@@ -76,6 +76,9 @@ function ns:Character(slot)
 
         talentRanks = ns:getTalentRanks(specId, talentExportString)
 
+        -- clear these out. this could be a spec change
+        abilities = {}
+        possibleAbilities = {}
         for _, baseAbility in pairs(ns.AbilityDb[classFile]) do
             local ability = ns:applyTalentModifiers(classFile, specId, baseAbility, talentRanks)
             if ability.hasAbility then
@@ -89,18 +92,18 @@ function ns:Character(slot)
             function(a, b) return (a.EXTERNAL and 1 or 0) < (b.EXTERNAL and 1 or 0) end)
     end
 
-    function char:getSpec() return specId, tostring(specName).." "..tostring(className) end
+    function char:getSpec() return specId end
+
+    function char:getSpecString() return tostring(specName).." "..tostring(className) end
 
     function char:getTalents() return talentRanks end
 
-    -- Get abilities that can be cast on target
-    -- if target=nil, then allow any target (i.e., get all castable abilities by
-    -- this character)
-    -- The returned table must be an associative array
+    -- If `target` is nil, return an named list of all abilities castable by
+    -- this character. Otherwise, return all abilities this character can cast
+    -- on `target`.
     function char:getAbilities(target)
         local results = {}
         for _, ability in pairs(abilities) do
-            local targets = ability.targets
             if target == nil or
                (ability.targets == ns.TARGET_ANY) or
                (ability.targets == ns.TARGET_SELF and target == GUID) or
@@ -116,7 +119,7 @@ function ns:Character(slot)
     -- OTHER characters, it needs to be called every time any tracked character changes.
     function char:cachePossibleAbilities()
         possibleAbilities = {}
-        for guid, char in pairs(trackedCharacters) do
+        for _, char in pairs(trackedCharacters) do
             for _, ability in pairs(char:getAbilities(GUID)) do
                 table.insert(possibleAbilities, ability)
             end
@@ -144,9 +147,21 @@ function ns:trackCharacter(slot)
         char = ns:Character(slot)
         trackedCharacters[guid] = char
     end
+
+    -- Update the cache of possible abilities targeting this character.
+    -- Cannot rely on a GROUP_ROSTER_UPDATE event or libspec callback to
+    -- fire after whatever event created this character.
+    for _, char in pairs(trackedCharacters) do
+        char:cachePossibleAbilities()
+    end
     return char
 end
 
+
+-- Stop tracking the character identified by guid
+function ns:untrackCharacter(guid)
+    trackedCharacters[guid] = nil
+end
 
 
 -- XXX: TODO: fold this into Character()
@@ -156,11 +171,9 @@ function ns:initCDTracker()
     -- Now that all abilities are determined, initialize this slot's cooldown tracker
     -- with the correct charge count for each ability. Fill with dummy 0 values that
     -- mean the last time the CD was used was infinitely long ago.
-    --for slot, _ in pairs(ns.allSlots) do
     for guid, char in pairs(trackedCharacters) do
-        --cdTracker[slot] = {}
         cdTracker[guid] = {}
-        for _, ability in pairs(char:getAbilities(guid)) do
+        for _, ability in pairs(char:getAbilities()) do
             ns:printDebug(string.format(
                 "initCDTracker: slot=[%s], ability=[%s], charges=[%d]",
                 guid, ability.name, ability.charges))
@@ -194,9 +207,9 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
 
         -- Use the (possibly new) spec ID and talents to determine which abilities
         -- this character has and what their tracking properties are.
+        -- When anything changes the abilities of one character, all must re-cache
+        -- the possible spells that can target them.
         char:setSpecAndTalents(specId, talentExportString)
-
-        -- The specific `char` updated no longer matters. Update everything else.
         for _, char in pairs(trackedCharacters) do
             char:cachePossibleAbilities()
         end
@@ -211,11 +224,6 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
         -- Update various UI elements:
         -- 1. Party frames tracker UI
         ns:updateTrackerUI()
-
-        -- 2. the solutions UI. have to do all rows because each group member affects
-        --    other group members unique solves.
-        --for slot, _ in pairs(ns.allSlots) do
-            --ns:updateGroupSolutionRow(ns.groupSolutionUI.rows[slot])
-        --end
+        --ns:updateGroupSolutionUI()
     end
 )
