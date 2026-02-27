@@ -18,8 +18,6 @@ ns.activeDefensives = {}    -- One list of currently active aura instance IDs pe
                          -- This IS NOT the history!
 ns.castHistory = {}
 
-ns.groupSolutionUI = nil
-
 -- For each unique (caster, ability), this dict tracks the last time that
 -- ability was identified
 ns.cdTracker = {}

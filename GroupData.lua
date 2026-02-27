@@ -58,6 +58,15 @@ function ns:Character(slot)
     -- Return the locale-independent class name, suitable as a key for tables
     function char:getClassFile() return classFile end
 
+    -- Return the class color for this character as a triplet (r,g,b)
+    -- Suitable as direct input in: SetColor(getClassColor())
+    function char:getClassColor()
+        -- RAID_CLASS_COLORS returns a table with lots of other info in it. Have to
+        -- pare down to just r, g, b.
+        local coldata = RAID_CLASS_COLORS[classFile]
+        return coldata.r, coldata.g, coldata.b
+    end
+
     -- Return the current player/partyX alias assigned to this character. This
     -- is not stable, possibly changing during group roster updates.
     -- This is never set. It is always determined by a lookup table.
@@ -224,6 +233,6 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
         -- Update various UI elements:
         -- 1. Party frames tracker UI
         ns:updateTrackerUI()
-        --ns:updateGroupSolutionUI()
+        ns:updateGroupSolutionUI()
     end
 )

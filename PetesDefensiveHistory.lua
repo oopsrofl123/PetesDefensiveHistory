@@ -132,7 +132,8 @@ end
 local castHandler = CreateFrame("Frame", addonName .. "CastHandler")
 castHandler:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 castHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID, castBarID)
-    if not ns.allSlots[caster] then return end
+    -- Only track casts from tracked characters
+    if not ns.slotToGUID[caster] then return end
 
     -- mask secrets to avoid errors. sets nil if secret
     spellId = ns:maskSecret(spellId)
@@ -180,7 +181,8 @@ local auraHandler = CreateFrame("Frame", addonName .. "AuraHandler")
 auraHandler:RegisterEvent("UNIT_AURA")
 auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Ensure unitTarget is a recognized slot. This event is called for nameplates and others
-    if not ns.allSlots[unitTarget] then return end
+    if not ns.slotToGUID[unitTarget] then return end
+    --if not ns.allSlots[unitTarget] then return end
 
     local guid = ns.slotToGUID[unitTarget]
     local char = ns:getTrackedCharacterByGUID(guid)
@@ -373,7 +375,7 @@ loader:SetScript("OnEvent", function(self, event)
 
     -- Update UI elements
     ns:updateTrackerUI()
-    ns:updateGroupSolutionsUI()
+    ns:updateGroupSolutionUI()
 end)
 
 
@@ -381,7 +383,7 @@ updateSlotToGUID()
 
 -- Addons are loaded after all blizzard frames, so can allocate everything now.
 ns:allocHistoryGrid()
---ns.groupSolutionUI = ns:allocGroupSolutionUI()
+ns.groupSolutionUI = ns:allocGroupSolutionUI()
 
 -- Open the solution UI
 SLASH_PDH1 = "/pdh"
