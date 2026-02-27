@@ -11,7 +11,8 @@ local optionsDefaults = {
     showTooltips = true,
 	debugVisuals = false,
 	debugLogging = false,
-    dataMiningMode = false
+    dataMiningMode = false,
+    muteVerboseLogging = true
 }
 
 PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or optionsDefaults
@@ -20,7 +21,11 @@ PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or optionsDefaul
 -- Universal getter. Use this to access settings, not direct keying
 -- into the settings table. No idea why I capitalized this.
 function ns:GetOption(opt)
-    return PetesDefensiveHistoryOptionsDb[opt] or optionsDefaults[opt]
+    local val = PetesDefensiveHistoryOptionsDb[opt]
+    if val == nil then
+        return optionsDefaults[opt]
+    end
+    return val
 end
 
 
@@ -41,9 +46,7 @@ local setting = Settings.RegisterProxySetting(
     function() return ns:GetOption('iconSize') end,
     function(value)
         PetesDefensiveHistoryOptionsDb.iconSize = value
-        for slot, _ in pairs(ns.allSlots) do
-            ns:updateTrackerUI(slot)
-        end
+        ns:updateTrackerUI()
     end
 )
 local options = Settings.CreateSliderOptions(8, 64, 1)
@@ -62,9 +65,7 @@ local setting = Settings.RegisterProxySetting(
     function() return ns:GetOption('textSize') end,
     function(value)
         PetesDefensiveHistoryOptionsDb.textSize = value
-        for slot, _ in pairs(ns.allSlots) do
-            ns:updateTrackerUI(slot)
-        end
+        ns:updateTrackerUI()
     end
 )
 local options = Settings.CreateSliderOptions(4, 32, 1)
@@ -83,9 +84,7 @@ local setting = Settings.RegisterProxySetting(
     function() return ns:GetOption('iconSpacing') end,
     function(value)
         PetesDefensiveHistoryOptionsDb.iconSpacing = value
-        for slot, _ in pairs(ns.allSlots) do
-            ns:updateTrackerUI(slot)
-        end
+        ns:updateTrackerUI()
     end
 )
 local options = Settings.CreateSliderOptions(0, 10, 1)
@@ -103,9 +102,7 @@ local disableInference = Settings.RegisterProxySetting(
     function() return ns:GetOption('disableInference') end,
     function(value)
         PetesDefensiveHistoryOptionsDb.disableInference = value
-        for slot, _ in pairs(ns.allSlots) do
-            ns:updateTrackerUI(slot)
-        end
+        ns:updateTrackerUI()
     end
 )
 Settings.CreateCheckbox(ns.optionsCategory, disableInference,
@@ -121,9 +118,7 @@ local setting = Settings.RegisterProxySetting(
     function() return ns:GetOption('disableHistoryTray') end,
     function(value)
         PetesDefensiveHistoryOptionsDb.disableHistoryTray = value
-        for slot, _ in pairs(ns.allSlots) do
-            ns:updateTrackerUI(slot)
-        end
+        ns:updateTrackerUI()
     end
 )
 Settings.CreateCheckbox(ns.optionsCategory, setting,
@@ -171,9 +166,7 @@ local debugVisuals = Settings.RegisterProxySetting(
     function() return ns:GetOption('debugVisuals') end,
     function(value)
         PetesDefensiveHistoryOptionsDb.debugVisuals = value
-        for slot, _ in pairs(ns.allSlots) do
-            ns:updateTrackerUI(slot)
-        end
+        ns:updateTrackerUI()
     end
 )
 
@@ -211,6 +204,22 @@ local dataMiningMode = Settings.RegisterProxySetting(
 
 Settings.CreateCheckbox(ns.optionsCategory, dataMiningMode,
     "Print very verbose aura updates that help build the tracked ability database by hand. Prints secret values, will cause errors in real content. Intended for developers.")
+
+
+-- Don't log extremely spammy messages like talent ranks and ability inference
+-- during the zero knowledge solve.
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "pdh.muteVerboseDebugging",
+    Settings.VarType.Boolean,
+    "Mute verbose debugging",
+    optionsDefaults['muteVerboseDebugging'],
+    function() return ns:GetOption('muteVerboseDebugging') end,
+    function(value) PetesDefensiveHistoryOptionsDb.muteVerboseDebugging = value  end
+)
+
+Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Mute certain extremely verbose debugging messages.")
 
 Settings.RegisterAddOnCategory(ns.optionsCategory)
 
@@ -292,12 +301,10 @@ for _, classFile in pairs(orderedClasses) do
 
     for _, ability in pairs(abilities) do
         -- set default true values
-        PetesDefensiveHistoryOptionsDb["show_" .. ability.id] = true
+        optionsDefaults["show_" .. ability.id] = true
         local setter = function(value)
             PetesDefensiveHistoryOptionsDb["show_" .. ability.id] = value
-            for slot, _ in pairs(ns.allSlots) do
-                ns:updateTrackerUI(slot)
-            end
+            ns:updateTrackerUI()
         end
         setting = Settings.RegisterProxySetting(
             ability,
@@ -305,7 +312,7 @@ for _, classFile in pairs(orderedClasses) do
             Settings.VarType.Boolean,
             ability.name,
             true,
-            function() return PetesDefensiveHistoryOptionsDb["show_"..ability.id] end,
+            function() return ns:GetOption("show_"..ability.id) end,
             setter)
         Settings.CreateCheckbox(category, setting)
         abilitySetters[class .. "_" .. ability.id] = setting
