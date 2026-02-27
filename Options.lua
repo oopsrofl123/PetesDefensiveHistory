@@ -8,6 +8,11 @@ local optionsDefaults = {
     disableInference = false,
     disableCDRTrackers = false,
     disableHistoryTray = false,
+
+    enableTTS = false,
+    TTSnoUntracked = false,
+    TTSnoSelfCasts = false,
+
     hideHistoryItemsAtMaxCd = false,
     showTooltips = true,
 	debugVisuals = false,
@@ -95,8 +100,8 @@ Settings.CreateSlider(ns.optionsCategory, setting, options, "Spacing between tra
 
 -- Disable all inference. Put everything in the history tray
 local disableInference = Settings.RegisterProxySetting(
-    optionsCategory,
-    "pdh.disableInference",
+    ns.optionsCategory,
+    "disableInference",
     Settings.VarType.Boolean,
     "Disable inference",
     optionsDefaults['disableInference'],
@@ -110,8 +115,8 @@ Settings.CreateCheckbox(ns.optionsCategory, disableInference,
     "Disable logic to infer abilities and the associated row of icons. All abilities will instead be sent to the history tray for the unit on which they were cast (which may not be the caster!). Items in the history tray receive a count-up timer that stops at the maximum cooldown length for all abilities that can target that unit and the player must know the associated cooldown length.")
 
 local setting = Settings.RegisterProxySetting(
-    optionsCategory,
-    "pdh.disableCDRTrackers",
+    ns.optionsCategory,
+    "disableCDRTrackers",
     Settings.VarType.Boolean,
     "Disable inaccurate timers",
     optionsDefaults['disableCDRTrackers'],
@@ -126,8 +131,8 @@ Settings.CreateCheckbox(ns.optionsCategory, setting,
 
 
 local setting = Settings.RegisterProxySetting(
-    optionsCategory,
-    "pdh.disableHistoryTray",
+    ns.optionsCategory,
+    "disableHistoryTray",
     Settings.VarType.Boolean,
     "Disable history tray",
     optionsDefaults['disableHistoryTray'],
@@ -141,8 +146,8 @@ Settings.CreateCheckbox(ns.optionsCategory, setting,
     "Disable the history tray. Do not send abilities that cannot be guessed to the history tray. Instead, quietly ignore them and only show abilities when they are identified. Careful: some abilities can only |cffff0000sometimes|r be guessed! When they are not, they are normally sent to the history tray and appear as available in the cooldown tracker row. If the history tray is hidden, you will not see this and the ability will simply appear to be available.")
 
 local setting = Settings.RegisterProxySetting(
-    optionsCategory,
-    "pdh.hideHistoryItemsAtMaxCd",
+    ns.optionsCategory,
+    "hideHistoryItemsAtMaxCd",
     Settings.VarType.Boolean,
     "Hide old history tray items",
     optionsDefaults['hideHistoryItemsAtMaxCd'],
@@ -154,7 +159,7 @@ Settings.CreateCheckbox(ns.optionsCategory, setting,
 
 local setting = Settings.RegisterProxySetting(
     optionsCategory,
-    "pdh.showTooltips",
+    "showTooltips",
     Settings.VarType.Boolean,
     "Show spell tooltips",
     optionsDefaults['showTooltips'],
@@ -166,6 +171,55 @@ Settings.CreateCheckbox(ns.optionsCategory, setting,
 
 
 
+
+
+-- Settings for text to speech --------------------------------------------------
+layout:AddInitializer(
+    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Text to speech' })
+)
+
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "enableTTS",
+    Settings.VarType.Boolean,
+    "Enable text to speech",
+    optionsDefaults['enableTTS'],
+    function() return ns:GetOption('enableTTS') end,
+    function(value) PetesDefensiveHistoryOptionsDb.enableTTS = value end
+)
+toplevel = Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Say the names of abilities when they are used. Only applies to abilities that can be instantly identified.") -- XXX: TODO: Uses the voice, speed and volume settings in Audio Assist > Combat Audio Alerts.")
+
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "TTSnoUntracked",
+    Settings.VarType.Boolean,
+    "Only tracked abilities",
+    optionsDefaults['TTSnoUntracked'],
+    function() return ns:GetOption('TTSnoUntracked') end,
+    function(value) PetesDefensiveHistoryOptionsDb.TTSnoUntracked = value end
+)
+child = Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Do not announce abilities that are unselected in the Tracked Abilities list.")
+child:SetParentInitializer(toplevel)
+
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "TTSnoSelfCasts",
+    Settings.VarType.Boolean,
+    "No self-casts",
+    optionsDefaults['TTSnoSelfCasts'],
+    function() return ns:GetOption('TTSnoSelfCasts') end,
+    function(value) PetesDefensiveHistoryOptionsDb.TTSnoSelfCasts = value end
+)
+child = Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Do not announce abilities cast by you.")
+child:SetParentInitializer(toplevel)
+
+
+
+
+-- Settings for development --------------------------------------------------
 layout:AddInitializer(
     Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate",
         { name='Developer options' })
@@ -174,8 +228,8 @@ layout:AddInitializer(
 
 -- Debug visuals checkbox
 local debugVisuals = Settings.RegisterProxySetting(
-    optionsCategory,
-    "pdh.debugVisuals",
+    ns.optionsCategory,
+    "debugVisuals",
     Settings.VarType.Boolean,
     "Visual debugging",
     optionsDefaults['debugVisuals'],
@@ -194,7 +248,7 @@ Settings.CreateCheckbox(ns.optionsCategory, debugVisuals,
 -- Debug logging checkbox
 local debugLogging = Settings.RegisterProxySetting(
     ns.optionsCategory,
-    "pdh.debugLogging",
+    "debugLogging",
     Settings.VarType.Boolean,
     "Debugging messages",
     optionsDefaults['debugLogging'],
@@ -210,7 +264,7 @@ Settings.CreateCheckbox(ns.optionsCategory, debugLogging,
 -- Data mining mode checkbox
 local dataMiningMode = Settings.RegisterProxySetting(
     ns.optionsCategory,
-    "pdh.dataMiningMode",
+    "dataMiningMode",
     Settings.VarType.Boolean,
     "Data mining mode",
     optionsDefaults['dataMiningMode'],
@@ -226,7 +280,7 @@ Settings.CreateCheckbox(ns.optionsCategory, dataMiningMode,
 -- during the zero knowledge solve.
 local setting = Settings.RegisterProxySetting(
     ns.optionsCategory,
-    "pdh.muteVerboseDebugging",
+    "muteVerboseDebugging",
     Settings.VarType.Boolean,
     "Mute verbose debugging",
     optionsDefaults['muteVerboseDebugging'],
@@ -237,7 +291,8 @@ local setting = Settings.RegisterProxySetting(
 Settings.CreateCheckbox(ns.optionsCategory, setting,
     "Mute certain extremely verbose debugging messages.")
 
-Settings.RegisterAddOnCategory(ns.optionsCategory)
+
+Settings.RegisterAddOnCategory(ns.optionsCategory, "PetesDefensiveHistoryOptionsDb")
 
 
 
@@ -323,7 +378,8 @@ for _, classFile in pairs(orderedClasses) do
             ns:updateTrackerUI()
         end
         setting = Settings.RegisterProxySetting(
-            ability,
+            --ability,
+            ns.optionsCategory,
             "show_" .. ability.id,
             Settings.VarType.Boolean,
             ability.name,
