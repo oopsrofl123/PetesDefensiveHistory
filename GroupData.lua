@@ -155,6 +155,9 @@ function ns:trackCharacter(slot)
     if not char then
         char = ns:Character(slot)
         trackedCharacters[guid] = char
+        -- XXX: TODO: hack until these are formally folded into Character
+        ns.castHistory[guid] = ns:fixedFIFO(ns.MAX_CAST_HISTORY)
+        ns.activeDefensives[guid] = {}
     end
 
     -- Update the cache of possible abilities targeting this character.
@@ -169,7 +172,16 @@ end
 
 -- Stop tracking the character identified by guid
 function ns:untrackCharacter(guid)
-    trackedCharacters[guid] = nil
+    local char = ns:getTrackedCharacterByGUID(guid)
+
+    if char then
+        ns:printDebug(string.format("DELETING ALL DATA for character name=[%s], GUID=[%s]",
+            char:getName(), char:getID()))
+        trackedCharacters[guid] = nil
+        -- XXX: TODO: hack until these are formally folded into Character
+        ns.castHistory[guid] = nil
+        ns.activeDefensives[guid] = nil
+    end
 end
 
 
@@ -231,7 +243,6 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
         ns:zeroKnowledgeSolve()
 
         -- Update various UI elements:
-        -- 1. Party frames tracker UI
         ns:updateTrackerUI()
         ns:updateGroupSolutionUI()
     end

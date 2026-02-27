@@ -3,6 +3,44 @@ local addonName, ns = ...
 
 ns.slotToGUID = {}
 
+local function updateSlotToGUID()
+    -- On this pass: make sure all slot->GUID mappings represent current
+    -- members of the group/raid/arena/etc. If a slot's GUID changes, that
+    -- does not necessarily mean the previous GUID left the group, the
+    -- character's position could've shifted.
+    for index=1, 5 do
+        local slot = ns:indexToSlot(index)
+        if UnitExists(slot) then
+            local guid = UnitGUID(slot)
+            ns.slotToGUID[slot] = guid
+            -- Is this the first time we've seen this guid?
+            if not ns:getTrackedCharacterByGUID(guid) then
+                ns:trackCharacter(slot)
+            end
+        else
+            ns.slotToGUID[slot] = nil
+        end
+    end
+
+    -- Now compare the GUIDs that existed before the remapping to the ones
+    -- that exist after. Any in the first list but not the latter left the
+    -- group, so clean up their data.
+    for guid, char in pairs(ns:getTrackedCharacters()) do
+        if not ns:tablecontains(ns.slotToGUID, guid) then
+            ns:untrackCharacter(guid)
+        end
+    end
+end
+
+
+-- XXX: TODO: does calling this before registering any event listeners ensure
+-- that no event handler will fire on an uninitialized slotToGUID map?
+do
+    print('updateSlotToGUID being called before registering any frames')
+    updateSlotToGUID()
+end
+
+
 
 local function fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
     -- XXX: TODO: weird stuff going on here. an aura filtered by HELPFUL|IMPORTANT
@@ -181,10 +219,9 @@ local auraHandler = CreateFrame("Frame", addonName .. "AuraHandler")
 auraHandler:RegisterEvent("UNIT_AURA")
 auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Ensure unitTarget is a recognized slot. This event is called for nameplates and others
-    if not ns.slotToGUID[unitTarget] then return end
-    --if not ns.allSlots[unitTarget] then return end
-
     local guid = ns.slotToGUID[unitTarget]
+    if not guid then return end
+
     local char = ns:getTrackedCharacterByGUID(guid)
 
     -- empty table to make #(.) work when no auras are added. same for other tables.
@@ -321,43 +358,6 @@ end)
 
 
 
-local function updateSlotToGUID()
-    -- On this pass: make sure all slot->GUID mappings represent current
-    -- members of the group/raid/arena/etc. If a slot's GUID changes, that
-    -- does not necessarily mean the previous GUID left the group, the
-    -- character's position could've shifted.
-    for index=1, 5 do
-        local slot = ns:indexToSlot(index)
-        if UnitExists(slot) then
-            local guid = UnitGUID(slot)
-            ns.slotToGUID[slot] = guid
-            -- Is this the first time we've seen this guid?
-            if not ns:getTrackedCharacterByGUID(guid) then
-                local char = ns:trackCharacter(slot)
-                -- XXX: TODO: these should be part of Character()
-                ns.castHistory[guid] = ns:fixedFIFO(ns.MAX_CAST_HISTORY)
-                ns.activeDefensives[guid] = {}
-            end
-        else
-            ns.slotToGUID[slot] = nil
-        end
-    end
-
-    -- Now compare the GUIDs that existed before the remapping to the ones
-    -- that exist after. Any in the first list but not the latter left the
-    -- group, so clean up their data.
-    for guid, char in pairs(ns:getTrackedCharacters()) do
-        if not ns:tablecontains(ns.slotToGUID, guid) then
-            local char = ns:getTrackedCharacterByGUID(guid)
-            ns:printDebug(string.format("DELETING ALL DATA for character name=[%s], GUID=[%s]",
-                char:getName(), char:getID()))
-            ns:untrackCharacter(guid)
-            -- XXX: TODO: these should be part of Character()
-            ns.castHistory[guid] = nil
-            ns.activeDefensives[guid] = nil
-        end
-    end
-end
 
 
 
@@ -379,14 +379,15 @@ loader:SetScript("OnEvent", function(self, event)
 end)
 
 
-updateSlotToGUID()
 
--- Addons are loaded after all blizzard frames, so can allocate everything now.
-ns:allocHistoryGrid()
-ns.groupSolutionUI = ns:allocGroupSolutionUI()
+do
+    -- Addons are loaded after all blizzard frames, so can allocate everything now.
+    ns:allocHistoryGrid()
+    ns.groupSolutionUI = ns:allocGroupSolutionUI()
 
--- Open the solution UI
-SLASH_PDH1 = "/pdh"
--- Open the config panel
--- SlashCmdList.PDH = function() Settings.OpenToCategory(ns.optionsCategory:GetID()) end
-SlashCmdList.PDH = function() ns.groupSolutionUI:Show() end
+    -- Open the solution UI
+    SLASH_PDH1 = "/pdh"
+    -- Open the config panel
+    -- SlashCmdList.PDH = function() Settings.OpenToCategory(ns.optionsCategory:GetID()) end
+    SlashCmdList.PDH = function() ns.groupSolutionUI:Show() end
+end
