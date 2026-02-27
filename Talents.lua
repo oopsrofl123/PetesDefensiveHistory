@@ -12,9 +12,11 @@ local _, ns = ...
 --         3b. multiplicative change. mult changes apply to the
 --             base value. reduce mults to adds this way.
 local function applyOneModifier(modifiedAbility, mod)
-    ns:printDebug(string.format('got modifier [%d] = (%d, %s, %s, %s)',
-        modifiedAbility.id, mod.id, mod.modifies,
-        tostring(mod.amount), tostring(mod['mult'] or false)))
+    if not ns:GetOption('muteVerboseDebugging') then
+        ns:printDebug(string.format('got modifier [%d] = (%d, %s, %s, %s)',
+            modifiedAbility.id, mod.id, mod.modifies,
+            tostring(mod.amount), tostring(mod['mult'] or false)))
+    end
 
     if type(mod.amount) == "boolean" then
         modifiedAbility[mod.modifies] = mod.amount
@@ -45,7 +47,9 @@ function ns:applyTalentModifiers(classFile, specId, baseAbility, talentRanks)
     local specmods = ns.SpecTalentModifiers[specId]
 
     -- Collect all modifiers across all talents for this ability
-    ns:printDebug("looking for modifiers for baseAbility=["..baseAbility.name.."]")
+    if not ns:GetOption('muteVerboseDebugging') then
+        ns:printDebug("looking for modifiers for baseAbility=["..baseAbility.name.."]")
+    end
     for spellId, rank in pairs(talentRanks) do
         -- TalentModifiers only contains the talents relevant to our tracked abilities.
         if rank > 0 then
@@ -287,15 +291,18 @@ function ns:getTalentRanks(specId, talentExportString)
         end
     end
 
-    -- Print the full records for debugging
-    table.sort(fullRecords, function(a, b) return a.spellId < b.spellId end)
-    ns:printDebug(string.format("%5s %10s %10s %5s %5s %3s %3s %5s %5s",
-        "found", "spellId", "talentId", "sel", "pur", "rank", "choice", 'subtree', 'type'))
-    for _, v in pairs(fullRecords) do
-        ns:printDebug(string.format("%5s %10d %10d %5s %5s %3s %3s %5s %5s",
-            tostring(v.found), v.spellId, tostring(v.talentId),
-            tostring(v.selected), tostring(v.purchased), tostring(v.rank),
-            tostring(v.choiceIndex), tostring(v.subTreeId), tostring(v.type)))
+    -- Only print this if the user opted in to *really* spammy debug logs
+    if not ns:GetOption('muteVerboseDebugging') then
+        -- Print the full records for debugging
+        table.sort(fullRecords, function(a, b) return a.spellId < b.spellId end)
+        ns:printDebug(string.format("%5s %10s %10s %5s %5s %3s %3s %5s %5s",
+            "found", "spellId", "talentId", "sel", "pur", "rank", "choice", 'subtree', 'type'))
+        for _, v in pairs(fullRecords) do
+            ns:printDebug(string.format("%5s %10d %10d %5s %5s %3s %3s %5s %5s",
+                tostring(v.found), v.spellId, tostring(v.talentId),
+                tostring(v.selected), tostring(v.purchased), tostring(v.rank),
+                tostring(v.choiceIndex), tostring(v.subTreeId), tostring(v.type)))
+        end
     end
 
     -- Hero talents: talents selected in the inactive hero talent tree are still marked
