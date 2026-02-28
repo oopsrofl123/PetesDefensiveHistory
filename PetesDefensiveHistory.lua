@@ -1,7 +1,22 @@
 -- get addon namespace
 local addonName, ns = ...
 
-ns.slotToGUID = {}
+-- Other files shouldn't directly access this
+local slotToGUID = {}
+
+-- Is slot tracked? If so, return the stable GUID and character object. The
+-- GUID may exist before the Character object, so (non-nil, nil) returns are
+-- possible.
+--
+-- Relies on the updateSlotToGUID maintenance function.
+function ns:getTrackedCharacterBySlot(slot)
+    if UnitExists(slot) and slotToGUID[slot] then
+        local guid = slotToGUID[slot]
+        return guid, ns:getTrackedCharacterByGUID(guid)
+    end
+    return nil
+end
+
 
 local function updateSlotToGUID()
     -- On this pass: make sure all slot->GUID mappings represent current
@@ -12,13 +27,13 @@ local function updateSlotToGUID()
         local slot = ns:indexToSlot(index)
         if UnitExists(slot) then
             local guid = UnitGUID(slot)
-            ns.slotToGUID[slot] = guid
+            slotToGUID[slot] = guid
             -- Is this the first time we've seen this guid?
             if not ns:getTrackedCharacterByGUID(guid) then
                 ns:trackCharacter(slot)
             end
         else
-            ns.slotToGUID[slot] = nil
+            slotToGUID[slot] = nil
         end
     end
 
@@ -26,18 +41,10 @@ local function updateSlotToGUID()
     -- that exist after. Any in the first list but not the latter left the
     -- group, so clean up their data.
     for guid, char in pairs(ns:getTrackedCharacters()) do
-        if not ns:tablecontains(ns.slotToGUID, guid) then
+        if not ns:tablecontains(slotToGUID, guid) then
             ns:untrackCharacter(guid)
         end
     end
-end
-
-
--- XXX: TODO: does calling this before registering any event listeners ensure
--- that no event handler will fire on an uninitialized slotToGUID map?
-do
-    print('updateSlotToGUID being called before registering any frames')
-    updateSlotToGUID()
 end
 
 
@@ -73,8 +80,8 @@ end
 -- Add this aura instance to the tracked list of actives on this player.
 local function trackBuff(aura, concurrentBuffs, concurrentDebuffs)
     ns:printDebug(string.format(
-        'trackBuff: auraInstanceID=[%d], target=[%s], time=[%0.3f], flags=(IMP=%d, BIG=%d, EXT=%d, RAID=%d, RIC=%d, HELP=%d, HARM=%d, CANCELABLE=%d)',
-        aura.auraInstanceId, aura.target, aura.startTime,
+        'trackBuff: time=[%0.3f], ID=[%d], target=[%s], flags=(IMP=%d, BIG=%d, EXT=%d, RAID=%d, RIC=%d, HELP=%d, HARM=%d, CANCEL=%d)',
+        aura.startTime, aura.auraInstanceId, aura.target,
         aura.IMPORTANT and 1 or 0,
         aura.BIG and 1 or 0, aura.EXTERNAL and 1 or 0,
         aura.RAID and 1 or 0, aura.RAIDINCOMBAT and 1 or 0,
@@ -111,36 +118,23 @@ end
 
 
 
--- Call this function when we are ready to fully accept whatever the best
--- inference was.
-local function finalizeInference(buff, ability)
-    if not buff.certain then
-        print(string.format(
-            "WARNING: finalizing an uncertain inference (ability=[%s], caster=[%s], target=[%s])!",
-            ability.name, ability.caster, buff.target))
-    end
-
-    ns:printDebug(string.format(
-        "|cff00CDCDFINAL INFERENCE (attempt=%d, time=%0.3f): [%s] cast [%s] at time [%0.3f]!|r",
-            buff.inference, GetTime(), ability.caster, ability.name, buff.startTime))
-
-    
-    -- Determine when an ability began recharging. For #charges=1 abilities, this
-    -- is just the cast time. For N>1 charges, the recharge for charge k depends
-    -- on when charge k-1 finished
-    --     end{k} = max(end{k-1}+cd, cast{k}+cd),   end{0}=-Inf
-    -- where end{.} is the time when charge {.} finishes recharging.
-    --
-    -- To see how this differs from the simple charge=1 case where the recharge
-    -- finishes at time=cast+cd, consider an ability that has N=10 charges and a
-    -- cooldown of cd=10. Use all 10 charges 1s apart, so at times=0, 1, 2, 3, ... 9.
-    -- Charge 1 (t=0) comes off of cooldown at t=10, the same as cast+cd:
-    --      end{1} = max(-Inf+10, 0+10) = 10
-    -- Charge 2 was used at t=1, but it comes off cd at t=20:
-    --      end{2} = max(end{1}+10, cast{2}+10) = max(20, 11) = 20
-    -- Charge 3:
-    --      end{3} = max({end{2}+10, cast{3}+10) = max(30, 12) = 30
-    -- ...
+-- Determine when an ability began recharging. For #charges=1 abilities, this
+-- is just the cast time. For N>1 charges, the recharge for charge k depends
+-- on when charge k-1 finished
+--     end{k} = max(end{k-1}+cd, cast{k}+cd),   end{0}=-Inf
+-- where end{.} is the time when charge {.} finishes recharging.
+--
+-- To see how this differs from the simple charge=1 case where the recharge
+-- finishes at time=cast+cd, consider an ability that has N=10 charges and a
+-- cooldown of cd=10. Use all 10 charges 1s apart, so at times=0, 1, 2, 3, ... 9.
+-- Charge 1 (t=0) comes off of cooldown at t=10, the same as cast+cd:
+--      end{1} = max(-Inf+10, 0+10) = 10
+-- Charge 2 was used at t=1, but it comes off cd at t=20:
+--      end{2} = max(end{1}+10, cast{2}+10) = max(20, 11) = 20
+-- Charge 3:
+--      end{3} = max({end{2}+10, cast{3}+10) = max(30, 12) = 30
+-- ...
+local function trackCooldown(buff, ability)
     local cdfifo = ns.cdTracker[ability.caster][ability.name]
     if ability.cdr == false then
         cdfifo:push(math.max(cdfifo:head() + ability.cooldown, buff.startTime + ability.cooldown))
@@ -164,6 +158,42 @@ end
 
 
 
+-- Call this function when we are ready to fully accept whatever the best
+-- inference was.
+local function finalizeInference(buff, ability)
+    if not buff.certain then
+        print(string.format(
+            "WARNING: finalizing an uncertain inference (ability=[%s], caster=[%s], target=[%s])!",
+            ability.name, ability.caster, buff.target))
+    end
+
+    ns:printDebug(string.format(
+        "|cff00CDCDFINAL INFERENCE (attempt=%d, time=%0.3f): [%s] cast [%s] at time [%0.3f]!|r",
+            buff.inference, GetTime(), ability.caster, ability.name, buff.startTime))
+
+    trackCooldown(buff, ability)
+
+    -- XXX: TODO: Awful hack for BoP/Spellward. Using one starts the cooldown for the
+    -- other. For the other, the cooldown should start as if this buff were created
+    -- by that ability. I'd love to have an elegant solution to this, but I don't
+    -- think there is another tracked ability that sets the cooldown of another
+    -- tracked ability.
+    if ability.id == 1022 or ability.id == 204018 then
+        local char = ns:getTrackedCharacterByGUID(ability.caster)
+        for _, otherAbility in pairs(char:getAbilities(buff.target)) do
+            if otherAbility.id == 1022 or otherAbility.id == 204018 and
+               ability.id ~= otherAbility.id then
+                trackCooldown(buff, otherAbility) -- doesn't alter buff
+                -- XXX: TODO: copy/pasted from below
+                local cdEndsAt = ns.cdTracker[otherAbility.caster][otherAbility.name]:head()
+                ns:queueCooldown(otherAbility, cdEndsAt - ability.cooldown)
+            end
+        end
+    end
+end
+
+
+
 --------------------------------------------------------------------------------------
 -- This frame is responsible for tracking when party members cast abilities.
 --------------------------------------------------------------------------------------
@@ -171,17 +201,18 @@ local castHandler = CreateFrame("Frame", addonName .. "CastHandler")
 castHandler:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 castHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID, castBarID)
     -- Only track casts from tracked characters
-    if not ns.slotToGUID[caster] then return end
+    local guid, char = ns:getTrackedCharacterBySlot(caster)
+    if not guid then return end
 
     -- mask secrets to avoid errors. sets nil if secret
     spellId = ns:maskSecret(spellId)
     castGUID = ns:maskSecret(castGUID)
     castBarID = ns:maskSecret(castBarID)
 
-    ns:printDebug(string.format("UNIT_SPELLCAST_SUCCEEDED(%s, %s, %s, %s, %0.3f)",
-        caster, tostring(castGUID), tostring(spellID), tostring(castBarID), GetTime()))
+    ns:printDebug(string.format("SPELLCAST(time=[%0.3f], caster=[%s|%s], %s, %s)",
+        GetTime(), caster, guid, tostring(spellID), tostring(castBarID)))
         
-    ns.castHistory[ns.slotToGUID[caster]]:push({ time=GetTime() })
+    ns.castHistory[guid]:push({ time=GetTime() })
 end)
 
 
@@ -191,7 +222,7 @@ local function makeAura(startTime, slot, auraInstanceID, iconId)
     local IMPORTANT, BIG, EXTERNAL, RAID, RAIDINCOMBAT, HELPFUL, HARMFUL, CANCELABLE =
         fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceID)
     return {
-        target=ns.slotToGUID[slot],
+        target=slotToGUID[slot],
         auraInstanceId=auraInstanceID,
         secretTexture=iconId,
         startTime=startTime,
@@ -219,27 +250,21 @@ local auraHandler = CreateFrame("Frame", addonName .. "AuraHandler")
 auraHandler:RegisterEvent("UNIT_AURA")
 auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Ensure unitTarget is a recognized slot. This event is called for nameplates and others
-    local guid = ns.slotToGUID[unitTarget]
+    local guid, char = ns:getTrackedCharacterBySlot(unitTarget)
     if not guid then return end
 
-    local char = ns:getTrackedCharacterByGUID(guid)
-
-    -- empty table to make #(.) work when no auras are added. same for other tables.
+    -- empty tables to make #(.) work when no auras are in the list
     local aurasAdded = updateInfo['addedAuras'] or {}
     local aurasRemoved = updateInfo['removedAuraInstanceIDs'] or {}
     local aurasUpdated = updateInfo['updatedAuraInstanceIDs'] or {}
-
     local now = GetTime()
+    local actives = ns.activeDefensives[guid]  -- Currently active defensive buffs for this slot
 
-    -- Currently active defensive buffs for this slot
-    local actives = ns.activeDefensives[guid]
+    ns:printDebug(string.format('AURA(time=%0.3f, target=[%s|%s], #added=[%d], #updated=[%d], #removed=[%d])',
+        now, unitTarget, guid, #aurasAdded, #aurasUpdated, #aurasRemoved))
 
-    ns:printDebug(string.format('UNIT_AURA(time=%0.3f, target=[%s/GUID=%s], #added=[%d], #updated=[%d], #removed=[%d])',
-        now, unitTarget, tostring(guid), #aurasAdded, #aurasUpdated, #aurasRemoved))
-
-    -- Convenience mode for collecting data about buff rules. Show all buffs and
-    -- debuffs added, including secret data that would not be available in
-    -- real content
+    -- Convenience mode for collecting data about buff rules. Shows all buffs and debuffs added,
+    -- including secret data that would not normally be available.
     if ns:GetOption('dataMiningMode') and unitTarget == "player" then
         print(string.format("DATA MINING: %d added, %d updated, %d removed",
             #aurasAdded, #aurasUpdated, #aurasRemoved))
@@ -372,6 +397,8 @@ end)
 
 
 do
+    updateSlotToGUID()
+
     -- Addons are loaded after all blizzard frames, so can allocate everything now.
     ns:allocHistoryGrid()
     ns.groupSolutionUI = ns:allocGroupSolutionUI()
