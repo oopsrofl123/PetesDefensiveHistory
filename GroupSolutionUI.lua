@@ -21,7 +21,7 @@ local UI_HEIGHT = 10 + UI_TITLE_PADDING + 20 + UI_CLOSE_BUTTON_HEIGHT + 20 + UI_
 local function updateGroupSolutionByIndex(index)
     local row = ns.groupSolutionUI.rows[index]
     local slot = ns:indexToSlot(index)
-    local char = ns:getTrackedCharacterByGUID(ns.slotToGUID[slot])
+    local guid, char = ns:getTrackedCharacterBySlot(slot)
     local abilities = char and char:getPossibleAbilities() or {}
 
     local i = 1
