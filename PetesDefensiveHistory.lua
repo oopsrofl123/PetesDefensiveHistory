@@ -255,19 +255,18 @@ end
 -- UPDATE: to match other code, we now assume isFinalAttempt=true if buff.endTime
 -- is non-nil.
 local function inferAndAct(char, buff, now)
-    isFinalAttempt = buff.endTime ~= nil
+    buffIsExpiring = buff.endTime ~= nil
 
     if not buff.certain then
         buff.duration = now - buff.startTime
         ns:prepareForInference(buff, ns.eventTrackers)
-        -- important: isFinalAttempt = useDuration in inferAbility
-        local ability, certain = ns:inferAbility(char, buff, isFinalAttempt)
+        local ability, certain = ns:inferAbility(char, buff)
         if certain then
             -- Announce the ability with TTS if it satisfies the users preferences,
             -- as long as this isn't when the buff is removed.
             -- As an extra sanity check, don't announce if the buff was applied more
             -- than 1.5s ago.
-            if not isFinalAttempt and
+            if not buffIsExpiring and
                buff.duration < 1.5 and
                ns:GetOption('enableTTS') and
                (not ns:GetOption('TTSnoUntracked') or ns:GetOption('show_'..ability.id)) and
@@ -280,7 +279,7 @@ local function inferAndAct(char, buff, now)
             end
             finalizeInference(buff, ability)
         end
-        if ability and not isFinalAttempt then
+        if ability and not buffIsExpiring then
             ns:startGlow(ability)
         end
     end
