@@ -140,6 +140,9 @@ end
 -- XXX: TODO: Since the debuff could be applied in a different UNIT_AURA, check if
 -- any debuff was applied within a tolerance window.
 local function logicLayerCheckConcurrentDebuffs(buff, ability)
+    -- XXX: TODO: disable for now, this will cause too many false IDs until multiple
+    -- inference with tolerance windows is implemented.
+    --if false and ability.concurrentDebuff then
     if ability.concurrentDebuff then
         if #buff.concurrentDebuffs == 0 then
             traceLogic(buff, ability,
@@ -187,7 +190,7 @@ local function logicLayerCasterDidCast(buff, ability)
     -- mechanics like last resort and golden valkyr proc without an action
     if ability.buttonPress and diff > ns.DURATION_TOLERANCE then
         traceLogic(buff, ability,
-            "excluded: caster's closest cast=%0.3f, buff applied=%0.3f (diff=%0.3f)",
+            "excluded: closest cast=%0.3f, applied=%0.3f (diff=%0.3f)",
             closest, buffApplied, diff)
         return false
     end
@@ -392,8 +395,8 @@ function ns:inferAbility(char, buff, useDuration, cdTracker)
     buff.inference = buff.inference + 1
 
     ns:printDebug(string.format(
-        "|cffD8B87CStarting inference(target=[%s], time=[%0.3f], attempt=[%d]) ---------------------------------|r",
-        char:getID(), GetTime(), buff.inference))
+        "|cffD8B87CStarting inference(time[%0.3f], target=[%s], attempt=[%d]) ---------------------------------|r",
+        GetTime(), char:getID(), buff.inference))
     if useDuration == nil then useDuration = true end
 
     -- allow the caller to override the tracked state of CDs to simulate an
