@@ -8,6 +8,7 @@ local duration = "duration"
 local duration_variable = "duration_variable"
 local hasAbility = "hasAbility"
 local requireConcurrentBuff = "requireConcurrentBuff"
+local requireConcurrentShield = "requireConcurrentShield"
 
 -- Why have separate class and spec trees? Some talents with equal IDs do different
 -- things for different specs. Otherwise it would be sufficient to simply have the
@@ -77,8 +78,8 @@ ns.ClassTalentModifiers = {
         },
         [385786] = {  -- adds a shield buff to barkskin. rank 2's shield is bigger but
                       -- that's irrelevant.
-            { { id=22812, modifies=requireConcurrentBuff, amount=true } },   -- rank 1
-            { { id=22812, modifies=requireConcurrentBuff, amount=true } },   -- rank 2
+            { { id=22812, modifies=requireConcurrentShield, amount=true } },   -- rank 1
+            { { id=22812, modifies=requireConcurrentShield, amount=true } },   -- rank 2
         }
     },
 
@@ -446,7 +447,6 @@ ns.SpecTalentModifiers = {
             { { id=357170, modifies=duration, amount=15, mult=true } },   -- rank 1
             { { id=357170, modifies=duration, amount=30, mult=true } },   -- rank 2
         },
-        -- XXX: [362874] temporal compression affects time dilation, giving it a concurrent buff
     },
     -- Augmentation evoker ------------------------------------------------------------------
     [1473] = {
@@ -455,7 +455,7 @@ ns.SpecTalentModifiers = {
             -- talent somewhere but i can't find it.
             { { id=363916, modifies=duration, amount=0.5 } }
         },
-        -- XXX: this ability does add a buff, but it is not in the same UNIT_AURA event
+        -- XXX: TODO: this ability does add a buff, but it is not in the same UNIT_AURA event
         --[407243] = {
             --{ { id=363916, modifies=requireConcurrentBuff, amount=true } },  -- rank 1
             --{ { id=363916, modifies=requireConcurrentBuff, amount=true } },  -- rank 2
@@ -518,6 +518,8 @@ ns.SpecTalentModifiers = {
             { { } },    -- rank 3
             { { id=190319, modifies=duration_variable, amount=ns.DURATION_GTE } },    -- rank 4
         },
+        -- XXX: TODO: 431131 causes ice cold to update itself a gazillion times
+        -- could use this to differentiate from alter time if talented
     },
     -- Frost mage -----------------------------------------------------------------------------
     [64] = {
