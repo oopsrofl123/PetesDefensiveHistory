@@ -125,7 +125,6 @@ local function buildTalentToSpellMap(specId)
                     -- tree is selected. It has no associated spell and thus no spell ID, so
                     -- it needs to be added to the talent map here.
                     if node.type == Enum.TraitNodeType.SubTreeSelection then
-                        print(node.ID, 'choice', choiceIndex, talentId, entryInfo.subTreeID)
                         talentmap[node.ID .. "_" .. choiceIndex] = {
                             spellId=-1, maxRank=-1, type=node.type, subTreeID=entryInfo.subTreeID
                         }
