@@ -111,6 +111,9 @@ end
 function ns:startGlow(ability)
     local index = GUIDToIndex[ability.caster]
     local cd = ns.trackerUI[index].staticRow.items[ability.name]
+    -- The cooldown swipe could be active, e.g. for abilities with charges,
+    -- CDR abilities, or redirected buffs like VDH meta, which can be applied
+    -- by several other abilities.
     cd.swipeTexture:Hide()
     LibButtonGlow.ShowOverlayGlow(cd)
 end
@@ -122,6 +125,12 @@ function ns:stopGlow(ability)
     local index = GUIDToIndex[ability.caster]
     local cd = ns.trackerUI[index].staticRow.items[ability.name]
     LibButtonGlow.HideOverlayGlow(cd)
+    -- The cooldown swipe could be active, e.g. for abilities with charges,
+    -- CDR abilities, or redirected buffs like VDH meta, which can be applied
+    -- by several other abilities.
+    if cd.numQueued > 0 then
+        cd.swipeTexture:Show()
+    end
 end
 
 
@@ -311,8 +320,7 @@ local function updateStaticRow(index)
     local tracker = ns.trackerUI[index]
     local row = tracker.staticRow
     local slot = ns:indexToSlot(index)
-    local guid = ns.slotToGUID[slot]
-    local char = ns:getTrackedCharacterByGUID(guid)
+    local guid, char = ns:getTrackedCharacterBySlot(slot)
     -- There won't always be a char: before loading and players without libspec
     local abilities = char and char:getAbilities() or {}
     local iconSize = ns:GetOption('iconSize')
@@ -395,7 +403,6 @@ end
 local function updateHistoryTray(index)
     local tracker = ns.trackerUI[index]
     local row = tracker.historyTray
-
     local iconSize = ns:GetOption('iconSize')
     local textSize = ns:GetOption('textSize')
     local iconSpacing = ns:GetOption('iconSpacing')
@@ -425,9 +432,10 @@ end
 function ns:updateTrackerUI()
     for index=1, 5 do
         local slot = ns:indexToSlot(index)
-        if UnitExists(slot) then
+        local guid, char = ns:getTrackedCharacterBySlot(slot)
+        if guid then
             -- Keep the guid -> index map updated
-            GUIDToIndex[ns.slotToGUID[slot]] = index
+            GUIDToIndex[guid] = index
         end
         ns:updateTrackerUIByIndex(index)
 
@@ -445,8 +453,7 @@ end
 function ns:updateTrackerUIByIndex(index)
     local tracker = ns.trackerUI[index]
     local slot = ns:indexToSlot(index)
-    local guid = ns.slotToGUID[slot]
-    local char = ns:getTrackedCharacterByGUID(guid)
+    local guid, char = ns:getTrackedCharacterBySlot(slot)
     local iconSize = ns:GetOption('iconSize')
     local iconSpacing = ns:GetOption('iconSpacing')
     local textSize = ns:GetOption('textSize')
