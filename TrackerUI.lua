@@ -2,6 +2,11 @@
 local addonName, ns = ...
 local LibButtonGlow = LibStub("LibButtonGlowcustom")
 local GUIDToIndex = {}
+local MAX_HISTORY = 4
+local SPACING_FROM_FRAMES = 2
+local DEFAULT_ICON = 134400    -- Question mark
+
+ns.trackerUI = {}  -- The UI elements next to the frames
 
 
 function ns:indexToFrame(index)
@@ -38,7 +43,7 @@ local function clearHistoryItem(item)
     item.numQueued = 0
 
     -- Initialize visuals
-    item.icon:SetTexture(ns.DEFAULT_ICON)
+    item.icon:SetTexture(DEFAULT_ICON)
     ns:showDebugVisual(item.icon)  -- show empty icons in debug mode
 
     if item.countUp then
@@ -73,8 +78,8 @@ end
 -- IMPORTANT: the item at fromIndex is hidden since it is cleared. Callers
 -- must re-:Show() if they want the item to be seen after this shift.
 local function shiftHistoryTrayLeftFrom(items, fromIndex)
-    fromIndex = fromIndex or ns.MAX_HISTORY
-    for i=1,ns.MAX_HISTORY-1 do
+    fromIndex = fromIndex or MAX_HISTORY
+    for i=1, MAX_HISTORY-1 do
         shiftHistoryTrayItem(items[i+1], items[i])
     end
     clearHistoryItem(items[fromIndex])
@@ -96,7 +101,7 @@ function ns:addBuffToHistoryTray(guid, buff)
     shiftHistoryTrayLeftFrom(tray.items)
     
     -- Now that space has been made, add this ability to the tracker
-    item = tray.items[ns.MAX_HISTORY]
+    item = tray.items[MAX_HISTORY]
     item.startTime = buff.startTime
     item.maxCD = buff.maxCD
     item.icon:SetTexture(buff.secretTexture)
@@ -407,10 +412,10 @@ local function updateHistoryTray(index)
     local textSize = ns:GetOption('textSize')
     local iconSpacing = ns:GetOption('iconSpacing')
 
-    row:SetSize(ns.MAX_HISTORY*(iconSize+iconSpacing) - iconSpacing, iconSize+2)
+    row:SetSize(MAX_HISTORY*(iconSize+iconSpacing) - iconSpacing, iconSize+2)
     row:SetPoint("TOPRIGHT", tracker, "TOPRIGHT", 0, -(iconSize + iconSpacing))
 
-    for i=1, ns.MAX_HISTORY do
+    for i=1, MAX_HISTORY do
         local item = row.items[i]
         sizeHistoryItem(item)
         -- items are statically positioned with index 1 being the oldest
@@ -459,7 +464,7 @@ function ns:updateTrackerUIByIndex(index)
     local textSize = ns:GetOption('textSize')
 
     -- Position UI next to frames
-    tracker:SetPoint("TOPRIGHT", ns:indexToFrame(index), "TOPLEFT", -ns.SPACING_FROM_FRAMES, 0)
+    tracker:SetPoint("TOPRIGHT", ns:indexToFrame(index), "TOPLEFT", -SPACING_FROM_FRAMES, 0)
 
     tracker.bg:SetAllPoints(tracker)
     tracker.bg:SetColorTexture(0,0,0,0.4)
@@ -513,7 +518,7 @@ local function allocTrackerUIForSlot(index)
     -- The history tray
     tracker.historyTray = CreateFrame("Frame", "HistoryTray", tracker)
     tracker.historyTray.items = {}
-    for i=1, ns.MAX_HISTORY do
+    for i=1, MAX_HISTORY do
         tracker.historyTray.items[i] = allocHistoryItem(tracker.historyTray, index, i, true)
     end
 
