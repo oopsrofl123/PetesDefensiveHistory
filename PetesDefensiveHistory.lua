@@ -501,6 +501,20 @@ end)
 
 
 
+--------------------------------------------------------------------------------------
+-- A totally unnecessary poller to force more inference attempts when nothing is
+-- happening (e.g., standing in town).
+--------------------------------------------------------------------------------------
+poller = C_Timer.NewTicker(0.25, function()
+    local now = GetTime()
+    for guid, char in pairs(ns:getTrackedCharacters()) do
+        for auraInstanceId, buff in pairs(ns.buffsForInference[guid]) do
+            inferAndAct(char, buff, now)
+        end
+    end
+end)
+
+
 do
     updateSlotToGUID()
 
