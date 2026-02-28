@@ -6,11 +6,28 @@ local _, ns = ...
 --
 -- The tolerance defines the maximum difference between the nominal buff
 -- duration and the measured buff duration that counts as match.
-ns.DURATION_TOLERANCE = 0.15
+DURATION_TOLERANCE = 0.15
+
+-- Some abilities cause concurrent events. Some apply other buffs or
+-- debuffs (e.g., hypothermia/ice block, forbearance/bubble) or fire other
+-- events (e.g., AMS applies a shield that causes a UNIT_ABSORB_AMOUNT_CHANGED
+-- event). Despite being "concurrent", these actions can occur in different
+-- event payloads, meaning we have to wait some amount of time to witness them.
+-- Some (like the AMS example) always occur in other payloads because they
+-- aren't UNIT_AURA events. So: how long must we wait before we decide that
+-- an action *did not* occur?
+--
+-- Multiple inference is required to make use of this extra information. This
+-- parameter both:
+--   1. How long must we wait past the buff application to declare that
+--      no "concurrent" action occurred.
+--   2. Similar to duration tolerance, how far from the buff application
+--      counts as "concurrent"?
+CONCURRENT_EVENT_TOLERANCE = 0.125
 
 -- How much better the best possible solution must be than the second
 -- best possible solution.
-ns.DURATION_CONFIDENT_DIFFERENCE = 0.5
+DURATION_CONFIDENT_DIFFERENCE = 0.5
 
 -- How close must the buff's start time be to the caster's cast time for us
 -- to confidently claim this spell was cast?
@@ -25,8 +42,7 @@ ns.DURATION_CONFIDENT_DIFFERENCE = 0.5
 -- as a uniform on [0, GCD length]. For a slow GCD of 1.5, setting this parameter
 -- to 0.01 would have a false positive rate of 1/150 (0.6%) and for a fast GCD of 1.0 a
 -- FP rate of 1/100 (=1%).
-ns.CASTTIME_CONFIDENT_DIFFERENCE = 0.150
-
+CASTTIME_CONFIDENT_DIFFERENCE = 0.150
 
 
 -- Return a 2-tuple:
@@ -96,7 +112,7 @@ local function logicLayerAbilityOffCooldown(buff, ability, cdTracker)
         -- if the buff was applied before the oldest charge came off CD, then this
         -- ability had no charges available to use (was fully on CD).  Allow a small
         -- tolerance.
-        if buff.startTime + ns.DURATION_TOLERANCE < offCDat then
+        if buff.startTime + DURATION_TOLERANCE < offCDat then
             traceLogic(buff, ability,
                 "excluded (not off cd): recharging until [%0.3fs], buff applied at [%0.3fs]",
                 offCDat, buff.startTime)
@@ -115,58 +131,20 @@ end
 
 
 -- Was the buff's duration consistent with how the ability works?
-local function logicLayerDurationMatches(buff, ability, useDuration)
-    if useDuration then
-        -- shorter variables for readability
-        local diff = getDurationDiff(buff, ability)
-        local dv = ability.duration_variable
-        local tol = ns.DURATION_TOLERANCE
+local function logicLayerDurationMatches(buff, ability)
+    local buffIsBeingRemoved = buff.endTime ~= nil
 
-        if (dv == ns.DURATION_FIXED and diff > tol) or
-           (dv == ns.DURATION_LTE and diff > tol and buff.duration > ability.duration) or
-           (dv == ns.DURATION_GTE and diff > tol and buff.duration < ability.duration) then
-            traceLogic(buff, ability,
-                "excluded (incorrect duration): buff=%0.3f, ability=%03f, duration type=%d, diff=%0.3f",
-                buff.duration, ability.duration, dv, diff)
-            return false
-        end
-    end
-    return true
-end
+    local diff = getDurationDiff(buff, ability)
+    local dv = buffIsBeingRemoved and ability.duration_variable or ns.DURATION_LTE
+    local tol = DURATION_TOLERANCE
 
-
-
--- Does the ability trigger a concurrent debuff and if so, was there one?
--- XXX: TODO: Since the debuff could be applied in a different UNIT_AURA, check if
--- any debuff was applied within a tolerance window.
-local function logicLayerCheckConcurrentDebuffs(buff, ability)
-    -- XXX: TODO: disable for now, this will cause too many false IDs until multiple
-    -- inference with tolerance windows is implemented.
-    --if false and ability.concurrentDebuff then
-    if ability.concurrentDebuff then
-        if #buff.concurrentDebuffs == 0 then
-            traceLogic(buff, ability,
-                "excluded (concurrent debuff required): %d debuffs observed",
-                #buff.concurrentDebuffs)
-            return false
-        end
-    end
-    return true
-end
-
-
-
--- Similar to above, but for concurrent buffs
--- Changed the language to make it clearer that if the ability does not *require*
--- current debuffs, then this logic layer doesn't do anything.
-local function logicLayerRequireConcurrentBuffs(buff, ability)
-    if ability.requireConcurrentBuff then
-        if #buff.concurrentBuffs == 0 then
-            traceLogic(buff, ability,
-                "excluded (concurrent buff required): %d other buffs observed",
-                #buff.concurrentBuffs)
-            return false
-        end
+    if (dv == ns.DURATION_FIXED and diff > tol) or
+       (dv == ns.DURATION_LTE and diff > tol and buff.duration > ability.duration) or
+       (dv == ns.DURATION_GTE and diff > tol and buff.duration < ability.duration) then
+        traceLogic(buff, ability,
+            "excluded (incorrect duration): buff=%0.3f, ability=%03f, duration type=%d, diff=%0.3f",
+            buff.duration, ability.duration, dv, diff)
+        return false
     end
     return true
 end
@@ -174,7 +152,7 @@ end
 
 
 local function getCastTimeDiff(buff, ability)
-    local closest = buff.closestCasts[ability.caster] or ns.INFINITY
+    local closest = buff.closest_cast[ability.caster] or ns.INFINITY
     local buffApplied = buff.startTime
     local diff = math.abs(closest - buffApplied)
 
@@ -183,16 +161,30 @@ end
 
 
 
--- Ensure the person who can cast this ability did cast something around the correct time
-local function logicLayerCasterDidCast(buff, ability)
-    local closest, buffApplied, diff = getCastTimeDiff(buff, ability)
-    -- buttonPress - does the ability require the player to press a button? cheat death
-    -- mechanics like last resort and golden valkyr proc without an action
-    if ability.buttonPress and diff > ns.DURATION_TOLERANCE then
+-- Generalized event logic layer
+local function getEventTimeDiff(buff, ability, event)
+    local closest = buff["closest_"..event][ability.caster] or ns.INFINITY
+    return closest, buff.startTime, math.abs(closest - buff.startTime)
+end
+
+local function logicLayerRequireConcurrentEvent(buff, ability, event)
+    local closest, buffApplied, diff = getEventTimeDiff(buff, ability, event)
+    -- buff.duration: hack to avoid zillions of GetTime() calls:
+    -- the "duration" is how long the buff has existed so far, not
+    -- necessarily the final length of the buff. In this usage, we want
+    -- to know how long it's been since the event we want to infer happened
+    -- to decide whether it's been long enough to definitively state that
+    -- the other required concurrent event should have been seen by now.
+    if diff > CONCURRENT_EVENT_TOLERANCE and buff.duration > CONCURRENT_EVENT_TOLERANCE then
         traceLogic(buff, ability,
-            "excluded: closest cast=%0.3f, applied=%0.3f (diff=%0.3f)",
-            closest, buffApplied, diff)
+            "excluded: closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
+            event, closest, buffApplied, diff)
         return false
+    -- Only for spammy debugging
+    --else
+        --traceLogic(buff, ability,
+            --"accepted: closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
+            --event, closest, buffApplied, diff)
     end
     return true
 end
@@ -204,7 +196,7 @@ end
 -- based on how each ability works, determine if it could have possibly produced
 -- buff.
 -- which ability is the best match is determined later.
-local function getPossibleSolutions(char, buff, useDuration, cdTracker)
+local function getPossibleSolutions(char, buff, cdTracker)
     local maxCD = -1
     local possibleSolutions = {}
 
@@ -219,17 +211,18 @@ local function getPossibleSolutions(char, buff, useDuration, cdTracker)
         -- logic layers aren't evaluated if they aren't necessary.
         if logicLayerBuffFlags(buff, ability) and
            logicLayerAbilityOffCooldown(buff, ability, cdTracker) and
-           logicLayerDurationMatches(buff, ability, useDuration) and
-           logicLayerCheckConcurrentDebuffs(buff, ability) and
-           logicLayerRequireConcurrentBuffs(buff, ability) and
-           logicLayerCasterDidCast(buff, ability) then
+           logicLayerDurationMatches(buff, ability) and
+           (not ability.requireConcurrentBuff or logicLayerRequireConcurrentEvent(buff, ability, "buff")) and
+           (not ability.requireConcurrentDebuff or logicLayerRequireConcurrentEvent(buff, ability, "debuff")) and
+           (not ability.requireConcurrentShield or logicLayerRequireConcurrentEvent(buff, ability, "shield")) and
+           (not ability.requireButtonPress or logicLayerRequireConcurrentEvent(buff, ability, "cast")) then
             traceLogic(buff, ability, "is a possible solution")
             -- All rules have passed, this ability is a possible match
             local x = ns:shallowcopy(ability)
             _, _, x.castTimeDiff = getCastTimeDiff(buff, ability)
             -- if we aren't using duration, set the diff to 0 so no ability is considered
             -- a better match than others.
-            x.durationDiff = useDuration and getDurationDiff(buff, ability) or 0
+            x.durationDiff = buff.endTime ~= nil and getDurationDiff(buff, ability) or 0
             table.insert(possibleSolutions, x)
         end
     end
@@ -288,29 +281,31 @@ local function confidenceLayerDuration(possibleSolutions)
         { name='dummy', durationDiff=ns.INFINITY },
         function(a, b) return a.durationDiff <= b.durationDiff end)
 
-    if second.durationDiff - best.durationDiff >= ns.DURATION_CONFIDENT_DIFFERENCE then
+    if second.durationDiff - best.durationDiff >= DURATION_CONFIDENT_DIFFERENCE then
         traceConfidence('duration', 'success: best=%0.3f, second=%0.3f, required diff=%0.3f',
-            best.durationDiff, second.durationDiff, ns.DURATION_CONFIDENT_DIFFERENCE)
+            best.durationDiff, second.durationDiff, DURATION_CONFIDENT_DIFFERENCE)
         return { best, true }
     else
         traceConfidence('duration', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
-            best.durationDiff, second.durationDiff, ns.DURATION_CONFIDENT_DIFFERENCE)
+            best.durationDiff, second.durationDiff, DURATION_CONFIDENT_DIFFERENCE)
         return nil
     end
 end
 
 
 
+-- The best possible solutions can have different cast times if they come
+-- from different characters.
 local function confidenceLayerCastTime(possibleSolutions)
     best, second = getTopTwo(possibleSolutions,
         { name='dummy', castTimeDiff=ns.INFINITY },
         function(a, b) return a.castTimeDiff <= b.castTimeDiff end)
 
-    if second.castTimeDiff - best.castTimeDiff >= ns.CASTTIME_CONFIDENT_DIFFERENCE then
+    if second.castTimeDiff - best.castTimeDiff >= CASTTIME_CONFIDENT_DIFFERENCE then
         return { best, true }
     else
         traceConfidence('castTime', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
-            best.castTimeDiff, second.castTimeDiff, ns.CASTTIME_CONFIDENT_DIFFERENCE)
+            best.castTimeDiff, second.castTimeDiff, CASTTIME_CONFIDENT_DIFFERENCE)
         return nil
     end
 end
@@ -390,14 +385,13 @@ end
 --
 -- Will always produce some non-nil value for buff.cooldown - the worst it
 -- could be is the maximum across all possible abilities that can target this player.
-function ns:inferAbility(char, buff, useDuration, cdTracker)
+function ns:inferAbility(char, buff, cdTracker)
     -- track how many times we've tried to infer this ability
     buff.inference = buff.inference + 1
 
     ns:printDebug(string.format(
         "|cffD8B87CStarting inference(time[%0.3f], target=[%s], attempt=[%d]) ---------------------------------|r",
         GetTime(), char:getID(), buff.inference))
-    if useDuration == nil then useDuration = true end
 
     -- allow the caller to override the tracked state of CDs to simulate an
     -- unknown state. useful for determining which abilities are ALWAYS
@@ -405,7 +399,7 @@ function ns:inferAbility(char, buff, useDuration, cdTracker)
     cdTracker = cdTracker or ns.cdTracker
 
     -- all logic and ranking is performed in these two lines
-    possibleSolutions, maxCD = getPossibleSolutions(char, buff, useDuration, cdTracker)
+    possibleSolutions, maxCD = getPossibleSolutions(char, buff, cdTracker)
     -- maxCD is a property of the observation because it depends on the time of
     -- the final inference. e.g., the CD tracker state could've changed, removing
     -- some CDs from consideration.
@@ -438,12 +432,17 @@ end
 function ns:zeroKnowledgeSolve()
     local now = GetTime()
 
-    local closestCasts = {}
+    local idealEventTrackers = {}
     -- give every group member a cast at the perfect time, allowing the ability to
     -- pass the logic layers but never to be identified based on cast time-matching
     -- in the confidence layers.
     for guid, char in pairs(ns:getTrackedCharacters()) do
-        closestCasts[guid] = now
+        local tracker = ns:makeEventTracker()
+        tracker.buff:push(now)
+        tracker.cast:push(now)
+        tracker.shield:push(now)
+        tracker.debuff:push(now)
+        idealEventTrackers[guid] = tracker
     end
 
     -- forget everything the internal CD tracker knows about abilities that are
@@ -458,7 +457,10 @@ function ns:zeroKnowledgeSolve()
                 inference = 0,
                 target = guid,
                 startTime = now,
-                endTime = now + ability.duration,
+                -- XXX: TODO: to match previous behavior (old useDuration=false),
+                -- do not set the endTime field. could also re-run inference if the
+                -- first fails to simulate whether the buff would be IDed at removal.
+                --endTime = now + ability.duration,
                 duration = ability.duration,
                 IMPORTANT = ability.IMPORTANT,
                 BIG = ability.BIG,
@@ -466,24 +468,12 @@ function ns:zeroKnowledgeSolve()
                 RAID = ability.RAID,
                 RAIDINCOMBAT = ability.RAIDINCOMBAT,
                 numUpdates = 0,
-                concurrentBuffs = {},
-                concurrentDebuffs = {},
-                closestCasts = closestCasts
             }
 
-            -- if the ability *must* come with a concurrent buff, give it one.
-            -- doesn't matter what the auraInstanceId is.
-            if ability.requireConcurrentBuff then
-                table.insert(buff.concurrentBuffs, 1)
-            end
-            -- if the ability is supposed to come with a concurrent debuff, give it a
-            -- dummy aura. It doesn't matter what the auraInstanceId is.
-            if ability.concurrentDebuff then
-                table.insert(buff.concurrentDebuffs, 1)
-            end
+            ns:prepareForInference(buff, idealEventTrackers)
 
             ns:printDebug("simulating ability=["..ability.name.."]")
-            local _, certain = ns:inferAbility(char, buff, false, blankCDs)
+            local _, certain = ns:inferAbility(char, buff, blankCDs)
             ability.solved = certain
             -- would be nice if inferAbility would return the conflicting spell/caster combos
             ability.conflicts = {}

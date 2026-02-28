@@ -156,8 +156,8 @@ function ns:trackCharacter(slot)
         char = ns:Character(slot)
         trackedCharacters[guid] = char
         -- XXX: TODO: hack until these are formally folded into Character
-        ns.castHistory[guid] = ns:fixedFIFO(ns.MAX_CAST_HISTORY)
-        ns.activeDefensives[guid] = {}
+        ns.buffsForInference[guid] = {}
+        ns.eventTrackers[guid] = ns:makeEventTracker()
     end
 
     -- Update the cache of possible abilities targeting this character.
@@ -179,8 +179,8 @@ function ns:untrackCharacter(guid)
             char:getName(), char:getID()))
         trackedCharacters[guid] = nil
         -- XXX: TODO: hack until these are formally folded into Character
-        ns.castHistory[guid] = nil
-        ns.activeDefensives[guid] = nil
+        ns.buffsForInference[guid] = nil
+        ns.eventTrackers[guid] = nil
     end
 end
 
