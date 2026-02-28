@@ -15,9 +15,9 @@ Utils.lua
 Options.lua
 Talents.lua
 TalentDb.lua
-GroupData.lua
 GroupSolutionUI.lua
 InferenceEngine.lua
 TrackerUI.lua
 DumpAbilityFlags.lua
+GroupData.lua
 PetesDefensiveHistory.lua
