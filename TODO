@@ -1,25 +1,72 @@
 BUGS
 ===========================================================================
-- add option to remove charge+CDR cooldowns from the tracker row and only show
-  them in history tray, due to difficulty in tracking them
+- full pass on ability testing
+    - paladin
+    - priest
+    - rogue
+    - shaman
+    - warlock
+    - warrior
+
+- [NEEDS TESTING] ripped out useDuration from inferAbility, instead if endTime
+  is unset in buff, it is assumed the buff is not yet over. the DURATION mode
+  is then forced to LTE to allow the buff to be less than its stated time, but
+  having the effect of excluding other buffs with duration > the current time
+    - what to do about inferAbility(useDuration=true|false)? it's not that simple
+      anymore when considering updates. since useDuration often requires exact
+      matches, i guess it should be false.
+        - [YES] is the fix to instead make the flag allow DURATION_LTE regardless of
+          the buff's stated rule? would that work for VDH apex vs. meta? (it would)
+
+- VDH meta: after putting meta on CD unambiguously and then procing the apex
+  talent well after meta was over, meta was still considered off cooldown for
+  some reason.
 
 - hides chubb's micromenu (bags, character sheet, group finder, etc. buttons)
     - if it helps: it's from dominos, not the blizz default menu
 
-- in general, what happens for players with no known spec?
-    - history tray items never time out when spec isn't known (i.e. no libspec).
-      should set some maximum
-
-- VDH meta cooldown is forgotten when apex talent gives meta buff
-
-- handle shared cooldown between BoP and spellwarding
-
-- issues related to concurrent buff/debuff that should be solved by multiple inference:
-    - spamming shadow dance somehow caused dance to be excluded due to (I think)
-      lack of required buffs??
-    - spellwarding doesn't work when cast on self due to the concurrentDebuff issue
-    - bubble doesn't work when forbearance is already on the player (e.g. spellwarding
-      into bubble)
+- extendable abilities
+    - since the apex talent applies the meta buff, there are situations where
+      it is impossible to tell which button was pressed first. this can sometimes
+      be quickly decided via the CDTracker. here's how it works:
+        1. meta is applied to unit X. it can't be cheat because there is no debuff,
+           so it is meta, uncertain=TRUE, with possibilities meta or apex.
+        2. meta is updated on unit X. the update extends the duration of meta by
+           either 10s or 20s depending on whether the apex talent charge or real
+           meta was used. if the update happens before 10s (duration of apex meta),
+           then it could've been either ability that triggered the original meta.
+    it looks like maybe this can be handled. when apex>meta, the duration does not
+    extend. when meta>apex, it does. so:
+        t0=0: buff 1
+        t1:   buff 2 (=update)
+            if t1: >10s? then t0=meta, t1=apex
+            else:  <10s? if total duration = 30s, then t0=meta, t1=apex
+                         if total duration < 30s, then t0=apex, t1=meta
+    - can the one buff=one ability system be extended to one buff=>0 abilities?
+      some important constraints
+        - did the buff update? should this buff update?
+        - did the update coincide with a button press? does the update require a button press?
+            * e.g., sentinel stacks update regardless
+        - should be flags specifying the buffs that can be affected by multiple abilities
+    - ALL CHARGE ABILITIES: need to know whether these: update themselves, extend duration
+      these are different from the meta vdh issue since they both deduct cooldown charges
+      from the same ability. what made VDH hard is having to figure out which ability was
+      used when more than 1 granted the same buff.
+        - incarn elune
+        - celestial alignment
+        - blur
+        - survival of the fittest
+        - time dilation
+        - ice cold (would snap allow a recast? or does that not resolve hypothermia?)
+        - goak and golden valkyr cheat death
+        - maybe vdh meta
+        - maybe avatar if a war gets a proc then presses avatar
+        - pain supp
+        - obsidian scales: update=TRUE, extend=FALSE
+        - probably most abilities with charges. shadow dance is an exception since it
+          doesn't allow itself to be cast twice
+        - if there are multiple paladins, how do their externals work? sacs must be
+          different since they deal damage to the casters, but what about freedoms?
     - gift of the golden valkyr doesn't track if occurs during goak
         - because this is recorded as an update to the previous goak
         - more general problem: does using a second charge of an ability cause an
@@ -33,7 +80,6 @@ NEEDS TESTING
 	- libspecialization updates during m+ runs. need to figure out why
 - groups with sac and ironbark
 - warrior avatar procs
-- charge tracking
 - test rider of the apocalypse AMS proc. does it give the same AMS buff? if so
   we might need to catch it. has 45s cd. might have identical duration? might
   not be able to differentiate except by isButtonPress
@@ -42,35 +88,25 @@ NEEDS TESTING
 
 V1.0 RELEASE FEATURES
 ===========================================================================
-- merge the separate history tray/static row/debug labels into a single UI element
-    - many of the frame ordering bugs were caused by only maintaining/updating the
-      history tray in GROUP_ROSTER_UPDATE. rather than fix this oversight, this is
-      a good time to get rid of some technical debt.
-    - upon updateSlotToFrameMapping(), swap tracker UI.
-    - after all update/swaps nuke remaining tracker UIs where UnitExists=F
-    - frame ordering
-        - reproduce a bug: zone into follower instance, anchors will be correct.
-          open edit mode > party frames > sort. change the order. the mapping
-          will change but no GROUP_ROSTER_UPDATE event fires, so it goes unnoticed
-        - when libspec's message comes through, order is corrected
+- enable TTS
+    - add option for saying ability on instant ID
 
-    - group update seems to be broken again (see: follower dungeons)
-        - empty members
-        - reanchor
-        - part of this: consolidate the static row, cooldown tray and debug labels
-          into a single frame rather than two separate rows anchored to opposite
-          corners of the party frames.
+- rearchitect for multiple inference to handle concurrent buffs or debuffs
+  (bubble, bop, spellwarding) possibly occurring in other events. this also
+  lays the foundation for monitoring updates, revising inferences, etc.
 
+- update github/curseforge readmes
+
+- it feels like castHistory and activeDefensives (which will be renamed) need
+  to be folded into Character. becomes obvious when we have to manually create
+  empty entries in updateSlotToGUID
     - the mapping of party1/party2/.. can change when a group roster update occurs.
       this means objects that store references to who cast them/who they were cast on
       should not use party1/2/.. IDs. to handle this, add a translation table for
       slot -> GUID to get unchanging unique IDs. this translation should be used for
       character data (like casters, talents, names, etc.) but NOT for things that are
       fundamentally party slot based (like the trackerUI elements).
-      DO RE-ARCHITECT:
-        - generally: need GUID -> slot mapping for printing. e.g., in inferability want
-          to use GUIDs as casters/targets, but when printing want GUID->player/partyX for
-          readability
+      TO RE-ARCHITECT (these seem to be nice-to-haves):
         - ns.activeDefensives[slot]
             -> trackedBuffs or trackedEvents (leave general for later possible extensions)
                 - buffs can either be tracked for inference or supporting data
@@ -82,6 +118,10 @@ V1.0 RELEASE FEATURES
                 - trackCast
                 - getClosestCast
             -> ns.closestCasts[slot]: this is derived from castHistory
+        -> cdTracker[slot]
+            - should be a separate object from groupData so that we can easily construct
+              blank ones for the zeroKnowledge solves
+      DONE 
         - ns.groupCDs[slot]
             -> groupData
                 - loop over group
@@ -91,53 +131,8 @@ V1.0 RELEASE FEATURES
                     - getAbilities(castableOnly=true)
                         - castableAbilities[slot]
                     - getTalentRanks()
-            -> cdTracker[slot]
-                - should be a separate object from groupData so that we can easily construct
-                  blank ones for the zeroKnowledge solves
-        - ns.allSlots         ???
-            -> Options.lua: always updateTrackerUI(). just add updateAllTrackers()
-            -> InferenceEngine: only in zeroKnowledge
-                - loops over group members for abilities (use translation)
-                - generate blank cast history for members (extend getClosestCast to a dummy nowTime)
-            -> Petes
-                - init ns.auras
-                - event filter (only fire for player/partyX)
-                - event filter (only fire for player/partyX)
-                - update frames on roster/enter world
-                - alloc castHistory
-            -> SpecHandler.lua
-                - init groupCDs: loop over groupData
-                - build derived groupCDs.abilities and groupCDs.castableAbilities
-                - determine if an ability can be cast by X on Y
-                    - does NOT require non-GUID names. only cares about SELF vs. ANY vs. OTHERS,
-                      which can be determined from GUID
-                - cdTracker: loop over group members
-                - loop over slots from groupSolutionUI
-                    - move responsibility to SolutionUI; use slots not GUIDs
-            -> SpecHandlerUI.lua
-                - spec handler is the most slot-reliant module. it is more flexible than just
-                  a mapping from groupData -> party frames on screen
-                - count players in group (not really, counts the number of slots that will
-                  be monitored. done on addon load, always 5.
-                    - needs getSlotsToMontor() or something similar for the static slot layout
-                - in alloc: loop over slots to monitor
-            -> TrackerUI.lua
-                - the tracker UI doesn't need to know about slots. it needs to know which
-                  characters map to which CompactPartyFrameX
-                    - every use but 1 is about cpfMapping
-                - alloc: loop over slots to monitor
-        - ns.trackerUI[slot]
-            - per above, this is actually not slot based
-      DO NOT RE-ARCHITECT:
-        - ns.solutionUI.rows[slot]
 
-- rearchitect for multiple inference to handle concurrent buffs or debuffs
-  (bubble, bop, spellwarding) possibly occurring in other events. this also
-  lays the foundation for monitoring updates, revising inferences, etc.
-
-- update github/curseforge readmes
-
-- options panel
+- options to add
     TODO ------------------------------
     - font options for cooldown numbers
         - outlines, size, font
@@ -145,8 +140,6 @@ V1.0 RELEASE FEATURES
     - color section headers by class
     - max history tray size
     - maybe add tooltips for confusing abilities like the DH apex talent
-    - disable externals (this thought was more along the lines of not cluttering up
-      the history tray with paladin freedoms/bops/sacs/etc)
     - support directional layouts other than horizontal+left of frame
     - options for centerdefensivebuff icon: takeover (could be useful: some buffs
       like bubble/evasion aren't shown, we could do better)? hide?
@@ -166,6 +159,55 @@ V1.0 RELEASE FEATURES
 
 NICE-TO-HAVE FEATURES
 ===========================================================================
+- even more fun: buff removal could be an event, further generalizing the new
+  event architecture
+
+- UPDATE_STEALTH event for shadowmeld?
+
+- replace for index=1,5 loops for a loop over a set of "annotated frames", which
+  can be blizz compact party frames, raid frames, danders frames, etc. so long
+  as each frame has a .unit member that gives a unit token like player, partyN,
+  raidN, arenaN, etc.
+
+- [LOW PRIORITY] multi-charge abilities and the history tray: this bug only
+  exists someone disables the hide inaccurate trackers option between two
+  casts of a multi-charge CDR ability. the bug shows a cooldown swipe for the
+  sum of the two recharges, not the current recharge time.
+  * the first ability goes to the history tray and does not call queueCooldown
+    but *DOES* trigger the cooldown tracker. the second goes to the tracker via
+    queueCooldown, which has numQueued=0. but because the first ability triggers
+    the cdTracker, the endsAt time knows when the second charge will end and
+    sets that as the cooldown duration.
+  * interestingly, the startTime in this case is in the future, starting at
+    the actual beginning of the last charge's recharge. the swipe stays at
+    12 o'clock until the time passes future-cooldown, then begins and ends
+    at the correct time for the second charge.
+
+- groupSolutionUI
+    - doesn't scale with non-5 member group tracking (raids/arenas)
+    - isn't wide enough to handle things like groups with multiple paladins
+    - doesn't show casters, so a multi-paladin group would have multiple freedoms
+      but no indication that they are cast by different paladins
+- explore the empty character idea for getTrackedCharacterByGUID:
+    when guid=nil or the guid isn't found (shouldn't happen), return a special
+    empty character. if the CD tracker, various states of cooldown swipes, and
+    even textures in the history tray get folded into Character(), then the empty
+    idea is way more elegant. need to check all 4 use cases of getTrackedCharByGUID
+    to make sure it would work:
+        1. UNIT_AURA
+        2. updateSlotToGUID
+        3. updateSlotToGUID
+        4. updateStaticRow
+        5. updateHistoryTray
+    the main problem is uniqueness of the empty GUID. things keyed by GUID would
+    not like it (unless we generate many empties?). e.g., TrackerUI:GUIDToIndex
+    ---- BIG PROBLEM ----
+    inferAbility expectws an object that collects all CD trackers together for inference.
+    this can be changed such that abilities (who know their caster) can refer to the
+    appropriate cooldown tracker, but will take a little work to allow an empty
+    tracker to be substituted in that case.
+- fold verbosity of logging (and checking option muteVerboseDebugging) into
+  printDebug via a first argument (verbosity level or something)
 - better non-fixed duration support: generalize current FIXED, LTE, GTE
   system to a duration range (min, max) where the default FIXED idea
   is implemented as (duration-TOLERANCE, duration+TOLERANCE), LTE is min=0,
@@ -271,9 +313,21 @@ NICE-TO-HAVE FEATURES
 
 LIMITATIONS
 ===========================================================================
+- reproduce a bug: zone into follower instance, anchors will be correct.
+  open edit mode > party frames > sort. change the order. the mapping
+  will change but no GROUP_ROSTER_UPDATE event fires, so it goes unnoticed
+
+- [MAYBE LIMITATION?] bug in libspec: when entering a follower dungeon with a role that doesn't match
+  your spec, the game forces you into another spec (e.g., if a paladin queues for a
+  follower dungeon as a DPS while specced prot, it forces the paladin's spec to ret).
+  this forced respec does not trigger a new libspec callback. same when you leave the
+  follower dungeon and it returns you to your previous spec.
+
 - other players MUST be using some addon that has LibSpec embedded. The
   usual one is big/littlewigs (I guess). Could also say that everyone needs
   to run PetesDefensiveHistory.. :)
+    - players without libspec will ONLY show the history tray and items will
+      not fade at max CD since none is known.
 
 - abilities with both dynamic cooldown reduction and charges are hard to handle reasonably
   the problem: CDR and charges must be handled in the opposite way
@@ -320,6 +374,84 @@ LIMITATIONS
 
 DONE
 ===========================================================================
+- paladin: ret bop caused a 500s cooldown with a swipe that never started moving
+    - this is despite being listed as 240s on /pdh
+    - it was also instant IDed
+    - bug triggered bop/spellwarding CD hack
+
+- handle shared cooldown between BoP and spellwarding
+
+- issues related to concurrent buff/debuff that should be solved by multiple inference:
+    - spamming shadow dance somehow caused dance to be excluded due to (I think)
+      lack of required buffs??
+    - spellwarding doesn't work when cast on self due to the concurrentDebuff issue
+    - bubble doesn't work when forbearance is already on the player (e.g. spellwarding
+      into bubble)
+
+- generalize the cast tracker to any event
+    - remember to add relevant events in ZKS
+    - this solves the long standing bugs with forbearance abilities that
+      could apply their debuffs in different payloads under some circumstances
+      that were hard to predict.
+
+- VDH meta cooldown is forgotten when apex talent gives meta buff
+
+- [FIXED] solve on-login bug. caused by LibSpec's handler firing before the first
+  UnitExists()=true is witnessed by our handlers.
+    - the fix was to check for both UnitExists and ns.slotToGUID[slot] != nil in
+      the relevant locations. this was encapsulated into a new function
+      getTrackedCharacterBySlot() that generalized to even more use cases.
+    - this also fixed a bug thrown when zoning into follower dungeons
+
+- ensure libspec callback Character() doesn't overwrite an existing one.
+  though that is probably ok since the GUID doesn't change and the libspec
+  one will be reinitialized to an empty slate..
+
+- ns.allSlots purging
+    - remove common if not allSlots[slot] then return pattern. replace with
+      a check on tracked characters
+
+- merge the separate history tray/static row/debug labels into a single UI element
+    - many of the frame ordering bugs were caused by only maintaining/updating the
+      history tray in GROUP_ROSTER_UPDATE. rather than fix this oversight, this is
+      a good time to get rid of some technical debt.
+    - frame ordering
+        - when libspec's message comes through, order is corrected
+
+- group update seems to be broken again (see: follower dungeons)
+    - empty members
+    - reanchor
+    - part of this: consolidate the static row, cooldown tray and debug labels
+      into a single frame rather than two separate rows anchored to opposite
+      corners of the party frames.
+
+- mark CDR abilities so users know the cooldown is only a maximum
+
+- add option to remove charge+CDR cooldowns from the tracker row and only show
+  them in history tray, due to difficulty in tracking them
+
+- when leaving party, currently active cooldown swipes stay in the old UI location
+  e.g., ret pal in follower is party3 -> leave party becomes party1, new CDs are
+  populated in party1 but with no swipes and party3 has continuing swipes
+    - need to fold historyTray and staticRow items into Character() to do this
+
+- for testing cleanup after group changes:
+    - leave instance group: leaves all working data in slot 2
+    - respec ret -> prot: does not remove old spec abilities from static tracker
+    - bubble didn't work (prob due to req debuff), but did not get sent to history tray
+
+- [FIXED: cached abilities happened before follower dungeon tracking] bug in follower
+      dungeon: some externals aren't considered in cached possible
+    - to reproduce, queue as prot into follower dungeon as ret. cast sac or freedom
+      on party. should not be detected. doesn't matter who it's cast on.
+    - then respec ret > prot and try both casts again. freedom works, sac works
+    - but do they work the second time because the respec fired the libspec handler?
+      or did something break internally when prot became ret without an event?
+    - OK: queued as ret and it still didn't work. something is wrong with the
+      cached possible abilities and it is being fixed by respec firing libspec
+        * just to confirm, respecing WITHOUT reloading fixes, so it is just the
+          libspec update
+
 - cooldown swipe is not black for bear incarn see end of magisters run. does
   bear incarn have charges?
     - no, the new charge tracking code broke cooldown swipes for abilities with CDR
