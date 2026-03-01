@@ -94,10 +94,11 @@ local function fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
         not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL"),
         not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HARMFUL"),
         -- Some buffs we track are not cancelable (like GoAK). Unfortunately this filter
-        -- isn't correct for GoAK, so it isn't useful in that case. But maybe it is for
-        -- some others?
-        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|CANCELABLE")
+        -- does not correctly reflect that  for GoAK. But maybe it is correct for others?
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|CANCELABLE"),
         --not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "CANCELABLE")
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|INCLUDE_NAME_PLATE_ONLY"),
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "INCLUDE_NAME_PLATE_ONLY")
 end
 
 
@@ -147,20 +148,49 @@ end
 
 
 
--- Add this aura instance to the tracked list of actives on this player.
+-- This function needs slot rather than guid to get filter flags from the Blizzard API
+local function makeAura(startTime, slot, auraInstanceID, iconId)
+    local IMPORTANT, BIG, EXTERNAL, RAID, RAIDINCOMBAT, HELPFUL, HARMFUL, CANCELABLE, HELPNAMEPLATE, NAMEPLATE  =
+        fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceID)
+    return {
+        target=slotToGUID[slot],
+        auraInstanceId=auraInstanceID,
+        secretTexture=iconId,
+        startTime=startTime,
+        duration=0,
+        -- do not specify an end time. a missing endTime field indicates
+        -- the buff is not being removed.
+        --endTime=startTime + ns.INFINITY,
+        IMPORTANT=IMPORTANT,
+        BIG=BIG,
+        EXTERNAL=EXTERNAL,
+        RAID=RAID,
+        RAIDINCOMBAT=RAIDINCOMBAT,
+        HELPFUL=HELPFUL,
+        HARMFUL=HARMFUL,
+        CANCELABLE=CANCELABLE,
+        HELPNAMEPLATE = HELPNAMEPLATE,
+        NAMEPLATE = NAMEPLATE,
+        numUpdates=0
+    }
+end
+
+
+
+-- Add this aura instance to the tracked list of buffs that we want to infer.
 local function trackBuff(aura)
     local buff = ns:shallowcopy(aura)
     ns:printDebug(string.format(
-        'trackBuff: time=[%0.3f], ID=[%d], target=[%s], flags=(IMP=%d, BIG=%d, EXT=%d, RAID=%d, RIC=%d, HELP=%d, HARM=%d, CANCEL=%d)',
+        'trackBuff: time=[%0.3f], ID=[%d], target=[%s], flags=(IMP=%d, BIG=%d, EXT=%d, RAID=%d, RIC=%d, HELP=%d, HARM=%d, CANCEL=%d, HELPNAMEPLATE=%d, NAMEPLATE=%d)',
         aura.startTime, aura.auraInstanceId, aura.target,
         aura.IMPORTANT and 1 or 0,
         aura.BIG and 1 or 0, aura.EXTERNAL and 1 or 0,
         aura.RAID and 1 or 0, aura.RAIDINCOMBAT and 1 or 0,
         aura.HELPFUL and 1 or 0, aura.HARMFUL and 1 or 0,
-        aura.CANCELABLE and 1 or 0)
+        aura.CANCELABLE and 1 or 0,
+        aura.HELPNAMEPLATE and 1 or 0, aura.NAMEPLATE and 1 or 0)
     )
 
-    -- Fields relevant to inference
     buff.inference = 0    -- counter tracking how many times this buff has been through inferAbility()
     buff.ability = nil    -- the ability that created this buff
     buff.certain = false  -- is the buff <-> ability assignment certain?
@@ -223,8 +253,8 @@ local function finalizeInference(buff, ability)
     end
 
     ns:printDebug(string.format(
-        "|cff00CDCDFINAL INFERENCE (attempt=%d, time=%0.3f): [%s] cast [%s] at time [%0.3f]!|r",
-            buff.inference, GetTime(), ability.caster, ability.name, buff.startTime))
+        "|cff00CDCDFINALIZED(time=[%0.3f], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
+            GetTime(), buff.inference, ability.caster, ability.name, buff.startTime))
 
     trackCooldown(buff, ability)
 
@@ -241,8 +271,7 @@ local function finalizeInference(buff, ability)
                 ns:printDebug("applying BoP/spellwarding cooldown hack")
                 trackCooldown(buff, otherAbility) -- doesn't alter buff
                 -- XXX: TODO: copy/pasted from below
-                local cdEndsAt = ns.cdTracker[otherAbility.caster][otherAbility.name]:head()
-                ns:queueCooldown(otherAbility, cdEndsAt - ability.cooldown)
+                ns:queueCooldown(otherAbility)
             end
         end
     end
@@ -254,13 +283,13 @@ end
 -- to the result. If this buff is being removed, set isFinalAttempt=true.
 -- UPDATE: to match other code, we now assume isFinalAttempt=true if buff.endTime
 -- is non-nil.
-local function inferAndAct(char, buff, now)
+local function inferAndAct(event, char, buff, now)
     buffIsExpiring = buff.endTime ~= nil
 
     if not buff.certain then
         buff.duration = now - buff.startTime
         ns:prepareForInference(buff, ns.eventTrackers)
-        local ability, certain = ns:inferAbility(char, buff)
+        local ability, certain = ns:inferAbility(event, char, buff)
         if certain then
             -- Announce the ability with TTS if it satisfies the users preferences,
             -- as long as this isn't when the buff is removed.
@@ -287,8 +316,28 @@ end
 
 
 
+-- What to do when the buff expires (or is replaced)? If there was a certain inference,
+-- track in the static cooldown row, otherwise dump it in the history tray.
+-- Since dynamic CDR ability timers are rarely accurate, allow users to
+-- send those to the history tray instead. This doesn't prevent them from
+-- being glowed while active.
+local function buffExpiredOrReplaced(buff)
+    local ability, certain = ns:getAbility(buff)
+    if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
+        ns:queueCooldown(ability)
+    else
+        ns:addBuffToHistoryTray(buff.target, buff)
+    end
+end
+
+
+
+--====================================================================================
+-- EVENT HANDLERS
+--====================================================================================
+
 --------------------------------------------------------------------------------------
--- Track when spell casts occur
+-- Track player spell casts
 --------------------------------------------------------------------------------------
 local castHandler = CreateFrame("Frame", addonName .. "CastHandler")
 castHandler:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
@@ -308,9 +357,8 @@ castHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID
         
     ns.eventTrackers[guid].cast:push(GetTime())
 
-print("SPELLCAST inference pass")
     for auraInstanceId, buff in pairs(ns.buffsForInference[guid]) do
-        inferAndAct(char, buff, now)
+        inferAndAct("CAST", char, buff, now)
     end
 end)
 
@@ -330,44 +378,14 @@ absorbHandler:SetScript("OnEvent", function(self, event, target)
         now, target, guid))
         
     ns.eventTrackers[guid].shield:push(GetTime())
-print("ABSORB inference pass")
     for auraInstanceId, buff in pairs(ns.buffsForInference[guid]) do
-        inferAndAct(char, buff, now)
+        inferAndAct("ABSORB", char, buff, now)
     end
 end)
 
 
-
--- This function needs slot to get filter flags
-local function makeAura(startTime, slot, auraInstanceID, iconId)
-    local IMPORTANT, BIG, EXTERNAL, RAID, RAIDINCOMBAT, HELPFUL, HARMFUL, CANCELABLE =
-        fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceID)
-    return {
-        target=slotToGUID[slot],
-        auraInstanceId=auraInstanceID,
-        secretTexture=iconId,
-        startTime=startTime,
-        duration=0,
-        -- do not specify an end time. a missing endTime field indicates
-        -- the buff is not being removed.
-        --endTime=startTime + ns.INFINITY,
-        IMPORTANT=IMPORTANT,
-        BIG=BIG,
-        EXTERNAL=EXTERNAL,
-        RAID=RAID,
-        RAIDINCOMBAT=RAIDINCOMBAT,
-        HELPFUL=HELPFUL,
-        HARMFUL=HARMFUL,
-        CANCELABLE=CANCELABLE,
-        numUpdates=0
-    }
-end
-
-
-
 --------------------------------------------------------------------------------------
--- This frame is responsible for handling events about auras being applied, updated
--- or removed.
+-- Track when auras are applied, updated or removed
 --------------------------------------------------------------------------------------
 local auraHandler = CreateFrame("Frame", addonName .. "AuraHandler")
 auraHandler:RegisterEvent("UNIT_AURA")
@@ -383,39 +401,50 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     local now = GetTime()
     local actives = ns.buffsForInference[guid]  -- Currently active defensive buffs for this slot
 
-    ns:printDebug(string.format('AURA(time=%0.3f, target=[%s|%s], #added=[%d], #updated=[%d], #removed=[%d])',
+    ns:printDebug(string.format('AURA(time=[%0.3f], target=[%s|%s], added=[%d], updated=[%d], removed=[%d])',
         now, unitTarget, guid, #aurasAdded, #aurasUpdated, #aurasRemoved))
 
     -- Convenience mode for collecting data about buff rules. Shows all buffs and debuffs added,
     -- including secret data that would not normally be available.
     if ns:GetOption('dataMiningMode') and unitTarget == "player" then
-        print(string.format("DATA MINING: %d added, %d updated, %d removed",
-            #aurasAdded, #aurasUpdated, #aurasRemoved))
         for _, v in pairs(aurasAdded) do
-            print("DATA MINING: aura added ID=" .. v.auraInstanceID)
+            ns:printDebug("DATA MINING: aura added ID=" .. v.auraInstanceID)
             if not issecretvalue(v.spellId) then
-                ns.printer(v)
+                ns.compactPrinter(v)
             end
         end
-        print("DATA MINING: auras updated:")
-        ns.printer(aurasUpdated)
-        print("DATA MINING: auras removed:")
-        ns.printer(aurasRemoved)
+        ns:printDebug("DATA MINING: aura instance IDs updated: " .. ns.compactFormatter(aurasUpdated))
+        ns:printDebug("DATA MINING: aura instance IDs removed: " .. ns.compactFormatter(aurasRemoved))
     end
 
-    -- aurasAdded is a list of data structures unlike the other aura sets
     for _, v in pairs(aurasAdded) do
         local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
-        print(aura.auraInstanceId, aura.IMPORTANT, aura.BIG, aura.EXTERNAL,
-            aura.RAID, aura.RAIDINCOMBAT, aura.HELPFUL, aura.HARMFUL, aura.CANCELABLE)
+        ns:printDebug(string.format("%d, %s, %s, %s, %s, %s, %s, %s, %s, %s",
+            aura.auraInstanceId, tostring(aura.IMPORTANT), tostring(aura.BIG),
+            tostring(aura.EXTERNAL), tostring(aura.RAID), tostring(aura.RAIDINCOMBAT),
+            tostring(aura.HELPFUL), tostring(aura.HARMFUL), tostring(aura.CANCELABLE),
+            tostring(aura.HELPNAMEPLATE), tostring(aura.NAMEPLATE)))
 
         -- Is this aura a buff we want to infer?
         if aura.HELPFUL and (aura.IMPORTANT or aura.BIG or aura.EXTERNAL) then
             local buff = trackBuff(aura)
-            -- attempt instant identification
-            inferAndAct(char, buff, now)
+            -- N.B. this event will be re-processed a second time at the end of this
+            -- handler, allowing another chance with all information from the payload.
+            -- XXX: TODO: Perhaps skipping this inference would be better?
+            -- An aura can only be in one of the added, updated or removed lists, so the
+            -- only harm in not inferring here is if ANOTHER tracked buff needs this
+            -- buff's info to infer on update or remove.
+            -- There is a reasonable argument for doing that: for expiring buffs, this is
+            -- the absolute last chance at inference, so potentially having one more
+            -- known cooldown (assuming this buff instant-IDs) could be advantageous.
+            inferAndAct("AURA(add)", char, buff, now)    -- attempt instant identification
         else
             -- This is not an aura we want to track, so it counts as a concurrent event
+            -- IMPORTANT!! some auras are returned by neither the helpful nor harmful
+            -- filters. This does not necessarily agree with isHelpful or isHarmful
+            -- annotations in this payload (which are secret anyway).
+            -- If you think a buff should be present in the trackers but isn't, it likely
+            -- falls is neither HELPFUL nor HARMFUL. Example: coagulating blood (id=463730)
             if aura.HARMFUL then
                 ns.eventTrackers[guid].debuff:push(now)
             elseif aura.HELPFUL then
@@ -424,13 +453,49 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         end
     end
 
-    -- unlike aurasAdded, this is just a list of updated IDs
     for _, auraInstanceID in pairs(aurasUpdated) do
         buff = actives[auraInstanceID]
         if buff then
-            ns:printDebug("target=" .. unitTarget .. ": updating " .. buff.auraInstanceId)
+            ns:printDebug("|cff00ff00++++++++++++++ target=" .. unitTarget ..
+                ": updating " .. buff.auraInstanceId.."|r")
             buff.numUpdates = buff.numUpdates + 1
-            -- XXX: TODO: inferAndAct(char, buff, now) here
+            local ability, certain = ns:getAbility(buff)
+            -- LIMITATION: when inference fails (or more likely, is turned off) we can't
+            -- do anything because the ability could naturally update. an example of this
+            -- is when a charge>1 ability is pressed a second time while it's already
+            -- running. if it wasn't inferred (or the user disabled inference), then we
+            -- can't send the first charge to the history tray because it would need to
+            -- happen now and we don't know if this is a natural update. in the end, only
+            -- the second use will be sent to the history tray (on expiry).
+            if certain and not ability.naturallyUpdates and ability.charges > 1 then
+                -- The easy case: the first use of the ability with IDed with certainty and
+                -- the cooldown has already been tracked. If this buff does NOT naturally
+                -- update and it has >1 charges, then maybe it was pressed a second time,
+                -- expending a second charge. Try to infer again.
+                -- ability.charges > 1 is not a check that there is a charge available for
+                -- use, the inference engine does that.
+                --
+                -- Whether the upcoming inference succeeds or not, the previous certain
+                -- inference is being voided and replaced.
+                buffExpiredOrReplaced(buff)
+                buff.startTime = now   -- must reset or inference machinery will skip
+                buff.certain = false   -- must reset or inference machinery will skip
+                inferAndAct("AURA(update)", char, buff, now)
+            end
+        else
+            -- buff not in the tracked list, so it is potentially a concurrent buff.
+            -- since this isn't in the buff list, need to read flags again. An example
+            -- is warrior's thunder blast stacks, which can be farmed naturally but are
+            -- awarded when activating avatar. If the warrior already had >0 blast stacks
+            -- when pressing avatar, the new stacks would be awarded as an update rather
+            -- than a new application.
+            local _, _, _, _, _, HELPFUL, HARMFUL, _, _, _ =
+                fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceID)
+            if HARMFUL then
+                ns.eventTrackers[guid].debuff:push(now)
+            elseif HELPFUL then
+                ns.eventTrackers[guid].buff:push(now)
+            end
         end
     end
 
@@ -451,23 +516,9 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             end
 
             -- 2. gather some information and take a final swing at inference
-            buff.endTime = now   -- if endTime is not nil, the buff is being removed
-            inferAndAct(char, buff, now, true)
-            ability, certain = ns:getAbility(buff)
-
-            -- 3. The buff is over, so have to make a choice about how to display it.
-            --    If there was a certain inference, track in the static cooldown row,
-            --    otherwise dump it in the history tray.
-            -- Since dynamic CDR ability timers are rarely accurate, allow users to
-            -- send those to the history tray instead. This doesn't prevent them from
-            -- being glowed, if possible.
-            if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
-                local cdEndsAt = ns.cdTracker[ability.caster][ability.name]:head()
-                ns:queueCooldown(ability, cdEndsAt - ability.cooldown)
-            else
-                ns:addBuffToHistoryTray(guid, buff)
-            end
-
+            buff.endTime = now   -- if endTime is not nil, the buff is expiring
+            inferAndAct("AURA(remove)", char, buff, now, true)
+            buffExpiredOrReplaced(buff)
             actives[auraInstanceID] = nil
         end
     end
@@ -476,14 +527,29 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Important note: getting here means the buff has not been removed yet, so
     -- that resolution still must wait for a later UNIT_AURA event.
     for auraInstanceId, buff in pairs(actives) do
-        inferAndAct(char, buff, now)
+        inferAndAct("AURA(poll)", char, buff, now)
     end
 end)
 
 
+--------------------------------------------------------------------------------------
+-- A totally unnecessary poller to force more inference attempts. In real content,
+-- there will be many inferences per second, but when nothing is happening (e.g.,
+-- standing in town) some multiple-inference machinery doesn't fire.
+--------------------------------------------------------------------------------------
+local pollrate = 0.25
+poller = C_Timer.NewTicker(pollrate, function()
+    local now = GetTime()
+    for guid, char in pairs(ns:getTrackedCharacters()) do
+        for auraInstanceId, buff in pairs(ns.buffsForInference[guid]) do
+            inferAndAct("POLL("..pollrate..")", char, buff, now)
+        end
+    end
+end)
+
 
 --------------------------------------------------------------------------------------
--- Just handle initialization and group roster updates.
+-- Handle initialization and group roster updates.
 --------------------------------------------------------------------------------------
 local loader = CreateFrame("Frame", addonName .. "Loader")
 loader:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -497,21 +563,6 @@ loader:SetScript("OnEvent", function(self, event)
     -- Update UI elements
     ns:updateTrackerUI()
     ns:updateGroupSolutionUI()
-end)
-
-
-
---------------------------------------------------------------------------------------
--- A totally unnecessary poller to force more inference attempts when nothing is
--- happening (e.g., standing in town).
---------------------------------------------------------------------------------------
-poller = C_Timer.NewTicker(0.25, function()
-    local now = GetTime()
-    for guid, char in pairs(ns:getTrackedCharacters()) do
-        for auraInstanceId, buff in pairs(ns.buffsForInference[guid]) do
-            inferAndAct(char, buff, now)
-        end
-    end
 end)
 
 
