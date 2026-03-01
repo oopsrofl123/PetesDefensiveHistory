@@ -1,76 +1,63 @@
 BUGS
 ===========================================================================
-- full pass on ability testing
+- hardest part: full pass on ability testing, especially with updating. this
+  is not easy to do since seemingly uninteresting talents can cause updating.
+  see, e.g., the mage hero talent that causes ice cold/ice block to constantly
+  update as they allow you to move
+****** CHECK UPDATES
+****** CHECK CONCURRENTBUFF ABILITIES - SEE TalentDb - ONLY SHADOW DANCE NATURALLY HAS A CONCURRENT BUFF
+                 natural update?     update when press?      extend?
+    - dk
+    - dh
+blur             false               true                    false
+vdh meta
+    - druid
+celestial alignment
+incarn elune
+    - evoker
+obsidian scales                      true                    false
+    - hunter
+survival fittest
+time dilation
+    - mage
+ice cold (would snap allow a recast? or prevented by hypothermia?)
+    - monk
     - paladin
+goak/golden valkyr
     - priest
+pain supp
     - rogue
     - shaman
     - warlock
     - warrior
+avatar (proc>press)
 
-- [NEEDS TESTING] ripped out useDuration from inferAbility, instead if endTime
-  is unset in buff, it is assumed the buff is not yet over. the DURATION mode
-  is then forced to LTE to allow the buff to be less than its stated time, but
-  having the effect of excluding other buffs with duration > the current time
-    - what to do about inferAbility(useDuration=true|false)? it's not that simple
-      anymore when considering updates. since useDuration often requires exact
-      matches, i guess it should be false.
-        - [YES] is the fix to instead make the flag allow DURATION_LTE regardless of
-          the buff's stated rule? would that work for VDH apex vs. meta? (it would)
+- handle some special cases
+    - THE VDH META SPECIAL CASE: when meta extends, which ability was pressed first?
+      this determines the cooldown. when apex>meta, the duration does not
+      extend. when meta>apex, it does. so:
+        t0=0: buff 1
+        t1:   buff 2 (=meta buff is updated)
+            if t1: >10s? then t0=meta, t1=apex  
+            else:  <10s? if total duration = 30s, then t0=meta, t1=apex
+                         if total duration < 30s, then t0=apex, t1=meta
+        - Other weird observation: after putting meta on CD unambiguously and then
+          procing the apex talent well after meta was over, meta was still considered off
+          cooldown for some reason. This bug may have been an issue with not calling
+          queueCooldown and is already fixed.
+    - THE GIFT OF THE GOLDEN VALKYR SPECIAL CASE: gift of the golden valkyr can update
+      goak. this should be easy because of the concurrent debuff
+        - because this is recorded as an update to the previous goak
 
-- VDH meta: after putting meta on CD unambiguously and then procing the apex
-  talent well after meta was over, meta was still considered off cooldown for
-  some reason.
+
+- [NEEDS TESTING] concurrentBuffs: if the buff that must be applied by an ability that can be updated,
+  these currently will not fire. need to check the updated list in UNIT_AURA while
+  pushing into eventTracker.buffs
+    * e.g., thunder blast from avatar
+
 
 - hides chubb's micromenu (bags, character sheet, group finder, etc. buttons)
     - if it helps: it's from dominos, not the blizz default menu
-
-- extendable abilities
-    - since the apex talent applies the meta buff, there are situations where
-      it is impossible to tell which button was pressed first. this can sometimes
-      be quickly decided via the CDTracker. here's how it works:
-        1. meta is applied to unit X. it can't be cheat because there is no debuff,
-           so it is meta, uncertain=TRUE, with possibilities meta or apex.
-        2. meta is updated on unit X. the update extends the duration of meta by
-           either 10s or 20s depending on whether the apex talent charge or real
-           meta was used. if the update happens before 10s (duration of apex meta),
-           then it could've been either ability that triggered the original meta.
-    it looks like maybe this can be handled. when apex>meta, the duration does not
-    extend. when meta>apex, it does. so:
-        t0=0: buff 1
-        t1:   buff 2 (=update)
-            if t1: >10s? then t0=meta, t1=apex
-            else:  <10s? if total duration = 30s, then t0=meta, t1=apex
-                         if total duration < 30s, then t0=apex, t1=meta
-    - can the one buff=one ability system be extended to one buff=>0 abilities?
-      some important constraints
-        - did the buff update? should this buff update?
-        - did the update coincide with a button press? does the update require a button press?
-            * e.g., sentinel stacks update regardless
-        - should be flags specifying the buffs that can be affected by multiple abilities
-    - ALL CHARGE ABILITIES: need to know whether these: update themselves, extend duration
-      these are different from the meta vdh issue since they both deduct cooldown charges
-      from the same ability. what made VDH hard is having to figure out which ability was
-      used when more than 1 granted the same buff.
-        - incarn elune
-        - celestial alignment
-        - blur
-        - survival of the fittest
-        - time dilation
-        - ice cold (would snap allow a recast? or does that not resolve hypothermia?)
-        - goak and golden valkyr cheat death
-        - maybe vdh meta
-        - maybe avatar if a war gets a proc then presses avatar
-        - pain supp
-        - obsidian scales: update=TRUE, extend=FALSE
-        - probably most abilities with charges. shadow dance is an exception since it
-          doesn't allow itself to be cast twice
-        - if there are multiple paladins, how do their externals work? sacs must be
-          different since they deal damage to the casters, but what about freedoms?
-    - gift of the golden valkyr doesn't track if occurs during goak
-        - because this is recorded as an update to the previous goak
-        - more general problem: does using a second charge of an ability cause an
-         update rather than an add? GoAK charges, obsidian scales, shield wall, ...
 
 
 
@@ -86,54 +73,37 @@ NEEDS TESTING
 
 
 
+
 V1.0 RELEASE FEATURES
 ===========================================================================
-- enable TTS
-    - add option for saying ability on instant ID
-
-- rearchitect for multiple inference to handle concurrent buffs or debuffs
-  (bubble, bop, spellwarding) possibly occurring in other events. this also
-  lays the foundation for monitoring updates, revising inferences, etc.
+- bugs
 
 - update github/curseforge readmes
 
-- it feels like castHistory and activeDefensives (which will be renamed) need
-  to be folded into Character. becomes obvious when we have to manually create
-  empty entries in updateSlotToGUID
-    - the mapping of party1/party2/.. can change when a group roster update occurs.
-      this means objects that store references to who cast them/who they were cast on
-      should not use party1/2/.. IDs. to handle this, add a translation table for
-      slot -> GUID to get unchanging unique IDs. this translation should be used for
-      character data (like casters, talents, names, etc.) but NOT for things that are
-      fundamentally party slot based (like the trackerUI elements).
-      TO RE-ARCHITECT (these seem to be nice-to-haves):
-        - ns.activeDefensives[slot]
-            -> trackedBuffs or trackedEvents (leave general for later possible extensions)
-                - buffs can either be tracked for inference or supporting data
-                - trackAura
-                - trackCC     ??? maybe the CCs are auras on nameplates?
-                - ns.auras[slot]   <- not used yet, for tracking "supporting data" buffs
-        - ns.castHistory[slot]
-            -> spellCastTracker ?
-                - trackCast
-                - getClosestCast
-            -> ns.closestCasts[slot]: this is derived from castHistory
-        -> cdTracker[slot]
-            - should be a separate object from groupData so that we can easily construct
-              blank ones for the zeroKnowledge solves
-      DONE 
-        - ns.groupCDs[slot]
-            -> groupData
-                - loop over group
-                - setGroupData (name, GUID, class, classFile, spec, talents)
-                - getGroupData (same as above)
-                - derived data getters:
-                    - getAbilities(castableOnly=true)
-                        - castableAbilities[slot]
-                    - getTalentRanks()
+
+
+
+V1.1 RELEASE FEATURES
+===========================================================================
+- don't clear tracker data when party members join/leave/change positions
+    - requires migrating current CD status tracking into Character and out of the
+      icons that display the CDs. one reason this isn't trivial is polling: the icons
+      register OnUpdate, so are constantly checking for changes, e.g., when a recharge
+      completes
+
+- UNIT_DIED handler. Seems the GUID is secret - probably fires for deaths
+  of NPCs as well as players. PLAYER_DEAD also fires, has no payload. would
+  be better than UNIT_DIED if that includes NPCs
+    - what about PLAYER_LEAVE_COMBAT?
+    - what about PLAYER_REGEN_ENABLED? i've often seen this used to better
+      detect leaving combat
+      
+
+- fold eventTrackers, cdTrackers and buffsForInference into Character.
+    - buffsForInference: consider generalization to kicks, stops
+    - empty eventTrackers and cdTrackers need to be easily creatable for ZKS
 
 - options to add
-    TODO ------------------------------
     - font options for cooldown numbers
         - outlines, size, font
     - show offensives on right
@@ -148,26 +118,124 @@ V1.0 RELEASE FEATURES
           defensive icon.
     - "omnicd mode" - moving the center debuff out of the frame
     - add reset button to panel, have /pdh open options panel rather than reset
-    DONE --------------------------------
-    - disable history tray
-    - disable all inference (@Aryella WoWUIDev)
-    - text sizes
-    - icon size
-    - icon padding
+
+- minimap icon especially with reset ability
 
 
 
 NICE-TO-HAVE FEATURES
-===========================================================================
-- even more fun: buff removal could be an event, further generalizing the new
-  event architecture
+===============================================================================
 
-- UPDATE_STEALTH event for shadowmeld?
+RANDOM IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
+- nameplate personal buffs/debuffs
+    - this could be a massive information source for IDing buffs that we'd like
+      to track but didn't make it onto blizzard's IMPORTANT/BIG/EXTERNAL flag set.
+    - need to test an ability that we wish could be tracked but isn't (like fort brew?)
+- detect abilities that reset other cooldowns like adrenaline rush and ice block
+    - should not be hard. if the ability has a fixed cooldown (i.e. no CDR),
+      then seeing that ability before it is available means the reset was used,
+      so infer the reset ability. can track the CD of that.
+        * would not be able to track the reset ability if it was used to reset
+          something else. e.g., if prep was used while adrenaline rush was available,
+          the prep usage would not be noticed. but that's fine.
+- UPDATE_STEALTH event for shadowmeld? should also look for leave-combat events like
+    - PLAYER_REGEN_ENABLED (mentions "and player not on hate list of any NPC"..)
+    - PLAYER_LEAVE_COMBAT (mentions leaves combat "through abilities")
+- [maybe] add CCs/stops if the blizzard CC flags cause uniquely identifiable events
+- do cheat death events generally fire IMPORTANT events? rogue, evoker, DH, warrior, mage..
+- could hunter exhil be detected by the idea that they only have one
+- GoAK might not be cancellable? check. helps identify.
+    - it isn't. right clicking and /cancelaura do not work
+    - however filter=HELPFUL|CANCELABLE is the same for ardent defender and GOAK,
+      despite AD being cancelable (right click and /cancelaura)
+- self-cast heal that requires a button press (i.e., isn't a proc) and also
+  applies a hot? how to distinguish from health pot?
+    - buttonPress
+    - UNIT_COMBAT heal where the caster=target=a hunter
+    - UNIT_AURA applied a HoT (basically required talent)
+    - is SPELL_UPDATE_COOLDOWN sent to party? or only fires in the player's client
+- more work to distinguish divine protection from wings
+    - some wings constantly update themselves (sentinel), though in that case there
+      is no DP..
+    - maybe this can work by adding inference on update? some of the wings versions
+      fire update events and the ability can then be identified
+    - however, for that to make DP show up as a center defensive the update inference
+      logic would be that updates _MUST_ occur for the spell. how would DP know that
+      it didn't receive an update and therefore should fire?
+- [NOT SURE - this is a valid idea, but it is very rare to be unable to ID abilites
+   after their duration completes]
+    add logic layer to detect when all possible CDs have been cast
+    - how useful is this? suppose at time X we know every ability is on
+      cooldown. then when the next ability is used, can assume the best case
+      scenario for every ability (min CD across all abilities).  this could
+      eliminate some possibilities.  e.g., DK uses AMS at time=1 and IBF at
+      time=10.  so at time=10 both are on CD.  the min CD across the two is
+      40s, so until time=10+IBF's cooldown, anymore abilities from that player
+      must have been AMS.
+- confidence layer -> confidence network
+    - the abstract idea for confidence should be that of a network. each confidence
+      method should state its level of confidence and the decided ability, then the
+      network should check itself for consistency.
+- could we do better for the dreaded >1charge+CDR abilities?
+    - the current behavior is to ignore CDR entirely. when used with full charges, the
+      cooldown swipe begins and it propagates itself at the full CD timer. it is assumed
+      that the next recharge doesn't start until the first recharge is completely full
+        * can do better than this. each time the ability is observed is extra information
+          that can help bring the timer closer to the truth.
+        * currently the events are entirely ignored. the code just ensures that the
+          numQueued counter never passes the max number of charges
+- is it possible to track cold snap? can we infer that it was used when some other
+  ability we can track comes off of cooldown unexpectedly? e.g., the ideal case would
+  be when a mage casts spell 1 (unknown) immediately followed by spell 2 (inferred: ice
+  cold) while ice cold was known to be on CD.
+- get data to make better estimates on duration solve tolerance
+    - both the "match" epsilon and the minimum difference
+- use updating to ID spells
+    - e.g., fiery brand, sentinel constantly self-update
+- better handle CDR
+    - can compute upper bounds (or averages) on the amount of CDR gained. e.g., throwing
+      avenger's shield on CD at 5 targets = 5s CDR per 12s (though procs reduce this
+      and so does divine toll).:
 
-- replace for index=1,5 loops for a loop over a set of "annotated frames", which
-  can be blizz compact party frames, raid frames, danders frames, etc. so long
-  as each frame has a .unit member that gives a unit token like player, partyN,
-  raidN, arenaN, etc.
+
+
+ARCHITECTURE FEATURES ----------------------------------------------------------
+- could buff removal become an event for eventTrackers, further generalizing the
+  event architecture and removing special logic in UNIT_AURA?
+
+- add list of annotated frames, which could be party/raid/arena.
+    - replace for index=1,5 loops for a loop over a set of "annotated frames", which
+      can be blizz compact party frames, raid frames, danders frames, etc. so long
+      as each frame has a .unit member that gives a unit token like player, partyN,
+      raidN, arenaN, etc.
+
+- support verbosity levels (and checking option muteVerboseDebugging) in
+  printDebug via a first argument (verbosity level or something)
+
+- [NOT SURE - is this really helpful?] better non-fixed duration support: generalize
+  current FIXED, LTE, GTE system to a duration range (min, max) where the default
+  FIXED idea is implemented as (duration-TOLERANCE, duration+TOLERANCE), LTE is min=0,
+  GTE is max=Inf. some abilities surely have extensions that are short enough that this
+  helps distinguish
+
+- explore the empty character idea for getTrackedCharacterByGUID:
+    when guid=nil or the guid isn't found (shouldn't happen), return a special
+    empty character. if the CD tracker, various states of cooldown swipes, and
+    even textures in the history tray get folded into Character(), then the empty
+    idea is way more elegant. need to check all 4 use cases of getTrackedCharByGUID
+    to make sure it would work:
+        1. UNIT_AURA
+        2. updateSlotToGUID
+        3. updateSlotToGUID
+        4. updateStaticRow
+        5. updateHistoryTray
+    the main problem is uniqueness of the empty GUID. things keyed by GUID would
+    not like it (unless we generate many empties?). e.g., TrackerUI:GUIDToIndex
+    ---- BIG PROBLEM ----
+    inferAbility expects an object that collects all CD trackers together for inference.
+    this can be changed such that abilities (who know their caster) can refer to the
+    appropriate cooldown tracker, but will take a little work to allow an empty
+    tracker to be substituted in that case.
 
 - [LOW PRIORITY] multi-charge abilities and the history tray: this bug only
   exists someone disables the hide inaccurate trackers option between two
@@ -188,192 +256,182 @@ NICE-TO-HAVE FEATURES
     - isn't wide enough to handle things like groups with multiple paladins
     - doesn't show casters, so a multi-paladin group would have multiple freedoms
       but no indication that they are cast by different paladins
-- explore the empty character idea for getTrackedCharacterByGUID:
-    when guid=nil or the guid isn't found (shouldn't happen), return a special
-    empty character. if the CD tracker, various states of cooldown swipes, and
-    even textures in the history tray get folded into Character(), then the empty
-    idea is way more elegant. need to check all 4 use cases of getTrackedCharByGUID
-    to make sure it would work:
-        1. UNIT_AURA
-        2. updateSlotToGUID
-        3. updateSlotToGUID
-        4. updateStaticRow
-        5. updateHistoryTray
-    the main problem is uniqueness of the empty GUID. things keyed by GUID would
-    not like it (unless we generate many empties?). e.g., TrackerUI:GUIDToIndex
-    ---- BIG PROBLEM ----
-    inferAbility expectws an object that collects all CD trackers together for inference.
-    this can be changed such that abilities (who know their caster) can refer to the
-    appropriate cooldown tracker, but will take a little work to allow an empty
-    tracker to be substituted in that case.
-- fold verbosity of logging (and checking option muteVerboseDebugging) into
-  printDebug via a first argument (verbosity level or something)
-- better non-fixed duration support: generalize current FIXED, LTE, GTE
-  system to a duration range (min, max) where the default FIXED idea
-  is implemented as (duration-TOLERANCE, duration+TOLERANCE), LTE is min=0,
-  GTE is max=Inf. some abilities surely have extensions that are short
-  enough that this helps distinguish
-- do absorbs cause UNIT_HEAL events? could help ID AMS, ret pal DP
-    - yep, it fires. but not a heal. is UNIT_ABSORB_AMOUNT_CHANGED(slot)
-- GoAK might not be cancellable? check. helps identify.
-    - it isn't. right clicking and /cancelaura do not work
-    - however filter=HELPFUL|CANCELABLE is the same for ardent defender and GOAK,
-      despite AD being cancelable (right click and /cancelaura)
+
+
+OTHER FEATURES -----------------------------------------------------------------
 - consider LibCustomGlow for shine
-- do cheat death events generally fire IMPORTANT events? rogue, evoker, DH, warrior, mage..
-- concurrentBuffs: handle buffs that might be updated rather than newly applied
-    * e.g., thunder blast from avatar
-- revisit concurrentDebuffs. does it make sense to move to require, like for buffs?
-- better handle abilities that reset other cooldowns like adrenaline rush and ice block
-    - should not be hard. if the ability has a fixed cooldown (i.e. no CDR),
-      then seeing that ability before it is available means the reset was used,
-      so infer the reset ability. can track the CD of that.
-        * would not be able to track the reset ability if it was used to reset
-          something else. e.g., if prep was used while adrenaline rush was available,
-          the prep usage would not be noticed. but that's fine.
-- could hunter exhil be detected by the idea that they only have one
-  self-cast heal that requires a button press (i.e., isn't a proc) and also
-  applies a hot? how to distinguish from health pot?
-    - buttonPress
-    - UNIT_COMBAT heal where the caster=target=a hunter
-    - UNIT_AURA applied a HoT (basically required talent)
-    - is SPELL_UPDATE_COOLDOWN sent to party? or only fires in the player's client
-- more work to distinguish divine protection from wings
-    - maybe this can work by adding inference on update? some of the wings versions
-      fire update events and the ability can then be identified
-    - however, for that to make DP show up as a center defensive the update inference
-      logic would be that updates _MUST_ occur for the spell. how would DP know that
-      it didn't receive an update and therefore should fire?
-- [maybe] add CCs/stops if the blizzard CC flags cause uniquely identifiable events
-- consolidate specialization/class/player info into a GetSlotInfo() function and
-  stop delegating data management to the icon rows.  logic is all duplicated due
-  to the tray+cd bars.
+
 - visual on solver for abilities that can't be solved under ideal zero knowledge
   conditions (e.g., arcane mage surge and mirror images have identical flags
   and durations).
     - highlight these icons red
+
 * ability database completeness is questionable
     - is looping through all spell IDs and dumping any with BIG, IMPORTANT or
       EXTERNAL flags exhaustive?
     - i only looked at all C_Spell.IsSpellHelpful()=true spells that were either
-      BIG|IMP|EXT. there is a not_helpful_spells dump that needs a pass.  e.g.,
-      fiery brand is only in the not_helpful list since it's a debuff.
-- associate player ID token with rows so that on GROUP_ROSTER_UPDATEs we can
-  potentially preserve data. very low priority - just clearing and resetting
-  all data should be fine for real world use.
-    - currently using player name from libspec
-- add logic layer to detect when all possible CDs have been cast
-    - how useful is this? suppose at time X we know every ability is on
-      cooldown. then when the next ability is used, can assume the best case
-      scenario for every ability (min CD across all abilities).  this could
-      eliminate some possibilities.  e.g., DK uses AMS at time=1 and IBF at
-      time=10.  so at time=10 both are on CD.  the min CD across the two is
-      40s, so until time=10+IBF's cooldown, anymore abilities from that player
-      must have been AMS.
-- confidence layer -> confidence network
-    - the abstract idea for confidence should be that of a network. each confidence
-      method should state its level of confidence and the decided ability, then the
-      network should check itself for consistency.
-- look into required debuffs - the current code does not actually find debuffs,
-  it finds things not flagged as HELPFUL. vampiric blood is an example of where
-  this doesn't behave as expected
-    - could be why bop and spellwarding didn't detect forbearance? even though it
-      worked for bubble..
-    - [UPDATE] bop/spellwarding: the forbearance aura comes in a different UNIT_AURA
-      even. could it be caused casting on other units vs self? YEP, when cast on self
-      BoP and forbearance arrive in the same UNIT_AURA
-- confidence network: handle death
-    - on death all auras are removed with a UNIT_AURA call, but all duration rules
-      need to be treated as DURATION_LTE.
+      BIG|IMP|EXT. be sure to dump not_helpful_spells when building the db.
+
 - inferAbility() - save the conflicting spells/casters for UI elements
-- would be nice to firm up two object classes: Buff and HistoryItem, where Buff represents
-  the aura itself and HistoryItem only handles tracking and display duties.
-- updating/clearing tracker data
-    - when party members join/leave group or change positions
-    - could be easier to just clear for now, but could be annoying if,
-      e.g., you're looking at CDs when a key ends and a group member drops
-      party and deletes all of your info.
-    - update (likely clear, since there is a memory leak by design) between keys.
-	    - is there a different event when changing zones vs. starting a mythic+ key?
-    - add reset button to the /pdh solution window
-- get data to make better estimates on duration solve tolerance
-    - both the "match" epsilon and the minimum difference
-- consider aurasUpdated logic layer
-    - turns out almost everything about fiery brand is bugged so can't work on this
-    - can be useful for fiery brand, sentinel (due to buff stacks ticking down)
-- better handle CDR
-    - can compute upper bounds (or averages) on the amount of CDR gained. e.g., throwing
-      avenger's shield on CD at 5 targets = 5s CDR per 12s (though procs reduce this
-      and so does divine toll).:
-- consider a different event than OnUpdate for cooldown timers since this
-  fires every frame.
 
 
 
 
 LIMITATIONS
 ===========================================================================
-- reproduce a bug: zone into follower instance, anchors will be correct.
-  open edit mode > party frames > sort. change the order. the mapping
-  will change but no GROUP_ROSTER_UPDATE event fires, so it goes unnoticed
+- Weird cases: like multiple paladins. Are their externals always different
+  buffs or might they update? Sacs must be different since they deal damage
+  to the casters, but what about freedoms?
 
-- [MAYBE LIMITATION?] bug in libspec: when entering a follower dungeon with a role that doesn't match
-  your spec, the game forces you into another spec (e.g., if a paladin queues for a
-  follower dungeon as a DPS while specced prot, it forces the paladin's spec to ret).
-  this forced respec does not trigger a new libspec callback. same when you leave the
-  follower dungeon and it returns you to your previous spec.
+- Re-application of buffs when inference fails (or is turned off) can't be
+  detected. For example, if a charge>1 ability is pressed a second time while it's
+  already running, we will miss the first use if it wasn't inferred (or the user
+  disabled inference). the first use can't be distinguished from a buff that
+  naturally updates itself (e.g., paladin sentinel) since inference doesn't know
+  what's going on. in this case, only the second use will be sent to the history
+  tray when it expires.
 
-- other players MUST be using some addon that has LibSpec embedded. The
-  usual one is big/littlewigs (I guess). Could also say that everyone needs
-  to run PetesDefensiveHistory.. :)
-    - players without libspec will ONLY show the history tray and items will
-      not fade at max CD since none is known.
+- Only history tray mode is available for other players that do not have LibSpec.
+  LibSpec is embedded in common addons like bigwigs (and this addon), so many
+  people will have it without knowing.
 
-- abilities with both dynamic cooldown reduction and charges are hard to handle reasonably
-  the problem: CDR and charges must be handled in the opposite way
-        * abilities with charges: cooldown swipes are handled differently:
-          when the ability is used before its cooldown is up, the cooldown swipe is left
-          alone to continue its current recharge. this is how charge abilities are supposed
-          to work, where one charge recovers at a time.
-        * abilities with dynamic CDR: since the cooldown reduction events can't be tracked,
-          the best we can do is put an incorrect timer+swipe for the maximum possible CD.
-          it is wrong, but it is still better than no information. since it is wrong,
-          the ability could be used before its cooldown swipe finishes. when that happens,
-          the correct behavior is to cancel the previous swipe and start a new one.
-    - the current behavior is to ignore CDR entirely. when used with full charges, the
-      cooldown swipe begins and it propagates itself at the full CD timer. it is assumed
-      that the next recharge doesn't start until the first recharge is completely full
-        * can do better than this. each time the ability is observed is extra information
-          that can help bring the timer closer to the truth.
-        * currently the events are entirely ignored. the code just ensures that the
-          numQueued counter never passes the max number of charges
-    - even after improving, it still might be a good idea to add an option to disable
-      inference for CDR+charge abilities, sending them to the tray instead. maybe one
-      checkbox that affects all such abilities (and dynamically determines if the needed
-      talents are chosen).
-    - abilities:
-        ----- Rotational CDR (definitely not trackable)
-        * disc priest: pain suppression
+- Abilities with dynamic cooldown reduction (CDR) are hard to handle. This means
+  abilities that reduce their cooldown due to some event - for example, a guardian
+  druid's Incarn cooldown is reduced by 1 sec for for every 25 rage spent. Since these
+  events can't (generally) be detected, the cooldown will show the MAXIMUM POSSIBLE
+  (worst case) cooldown. This information can still be useful, but judgment is required.
+    - For these reasons, there is an option to disable inference for abilities with
+      dynamic CDR. They will instead always be sent to the history tray rather than
+      display an inaccurate timer. This instead shows you **how long** it has been since
+      the ability was last used.
+    - A much bigger problem: abilities with **both** CDR and multiple charges. For
+      multi-charge abilities, only one charge recharges at a time. If there is no
+      dynamic CDR, this is no problem to track. But if there is CDR, consider the
+      case where both charges are used back to back: because of CDR, we don't know
+      when the first recharge finishes (equivalent to not knowing when a 1-charge
+      ability with CDR comes off cooldown), which means we also don't know when the
+      second ability **begins** charging. This compounding issue makes the cooldown info
+      very difficult to judge.
+        Rotational CDR (definitely not trackable)
+        - disc priest: pain suppression
             - CDR on PW:S casts
-        * prot pal: GoAK
+        - prot pal: GoAK
             - CDR on holy power spenders
-        * prot war: shield wall
+        - prot war: shield wall
             - CDR on rage use and shield slams
-        ----- CDR on large cooldowns (e.g., resets) or other weird circumstances
+        CDR on large cooldowns (e.g., resets)
         * balance druid: incarn/celestial alignment
-            - weird keeper of the grove talent that reduces cooldown based on time spent
-              with ability off CD. maybe modelable?
+            - keeper of the grove talent that reduces cooldown based on time spent
+              with ability off CD.
         * aug evoker: scales
             - potentially trackable since the CDR is attached to a long
               cooldown that may itself be trackable
-        * frost mage: ice cold/ice block
-            - not really. this a case where cold snap (ability reset) is treated as CDR
-              because it seemed convenient at the time
 
 
-
-DONE
+KNOWN BUGS
 ===========================================================================
+- Death handling is not implemented. For now, buffs that are running when the
+  unit dies may not be inferred. Support will be added later.
+
+- Changes to party sorting order aren't detected. If you change your
+  party sort (e.g., edit mode > party frames > sort), you need to /reload for
+  the cooldown trackers to update. There must be a way to handle this, but I don't
+  know how.
+
+- bug in libspec: when entering a follower dungeon with a role that doesn't match
+  your spec, the game forces you into another spec (e.g., if a paladin queues for a
+  follower dungeon as a DPS while prot, it forces the paladin's spec to ret).
+  this forced respec does not trigger a new libspec callback. same when you leave the
+  follower dungeon and it returns you to your previous spec. you must /reload for
+  talents/abilities to be updated.
+
+- frost mage: cold snap can reset ice cold/ice block, so expect to see these abilities
+  occur sometimes when the mage has cold snap
+
+
+
+DONE (not necessarily in order of completion)
+===========================================================================
+- extendable abilities
+    - can the one buff=one ability system be extended to one buff=>0 abilities?
+      some important constraints
+        - did the buff update? should this buff update?
+        - did the update coincide with a button press? does the update require a button press?
+            * e.g., sentinel stacks update regardless
+        - should be flags specifying the buffs that can be affected by multiple abilities
+    - THE BASIC IDEA: allow removal-like end of life when inference happens in an update.
+      generally, abilities with charges should admit this with special flags for handling
+      meta and goak.
+      THE CHALLENGE: abilities that can't be instant-IDed. if the ability needs to run to
+      its duration to be IDed, the update itself needs to be leveraged as IDing info. but
+      as usual, using information for one ability means we need the information for all
+      abilities, so requires another ability pass to see which update. some will update
+      with concurrent button presses (dynamic extended abilities like sentinel)
+
+- vampiric blood: the coagulated blood thing is not being correctly tracked.
+  think it should be fixable. just look.
+    - two things: coagulated blood is an example of an aura that is returned
+      by neither HELPFUL nor HARMFUL filters.
+    - it is also probably not related to vamp blood, it is the tracker for how
+      much damage should be healed by death strike. it is probably showing up
+      because i'm testing these things out of combat.
+
+- even after improving, it still might be a good idea to add an option to disable
+  inference for CDR+charge abilities, sending them to the tray instead. maybe one
+  checkbox that affects all such abilities (and dynamically determines if the needed
+  talents are chosen).
+
+- associate player ID token with rows so that on GROUP_ROSTER_UPDATEs we can
+  potentially preserve data. very low priority - just clearing and resetting
+  all data should be fine for real world use.
+    - currently using player name from libspec
+
+- stop delegating data management to the icon rows.  logic is all duplicated due
+  to the tray+cd bars.
+
+- do absorbs cause UNIT_HEAL events? could help ID AMS, ret pal DP
+    - yep, it fires. but not a heal. is UNIT_ABSORB_AMOUNT_CHANGED(slot)
+
+- rearchitect groupCDs -> groupData
+    - loop over group
+    - setGroupData (name, GUID, class, classFile, spec, talents)
+    - getGroupData (same as above)
+    - derived data getters:
+        - getAbilities(castableOnly=true)
+            - castableAbilities[slot]
+        - getTalentRanks()
+
+- the mapping of party1/party2/.. can change when a group roster update occurs.
+  this means objects that store references to who cast them/who they were cast on
+  should not use party1/2/.. IDs. to handle this, add a translation table for
+  slot -> GUID to get unchanging unique IDs. this translation should be used for
+  character data (like casters, talents, names, etc.) but NOT for things that are
+  fundamentally party slot based (like the trackerUI elements).
+
+- addon options
+    - disable history tray
+    - disable all inference (@Aryella WoWUIDev)
+    - text sizes
+    - icon size
+    - icon padding
+
+- enable TTS
+    - add option for saying ability on instant ID
+
+- rearchitect for multiple inference to handle concurrent buffs or debuffs
+  (bubble, bop, spellwarding) possibly occurring in other events. this also
+  lays the foundation for monitoring updates, revising inferences, etc.
+
+- [NEEDS TESTING] ripped out useDuration from inferAbility, instead if endTime
+  is unset in buff, it is assumed the buff is not yet over. the DURATION mode
+  is then forced to LTE to allow the buff to be less than its stated time, but
+  having the effect of excluding other buffs with duration > the current time
+    - what to do about inferAbility(useDuration=true|false)? it's not that simple
+      anymore when considering updates. since useDuration often requires exact
+      matches, i guess it should be false.
+        - the fix to instead make fall back to DURATION_LTE when 
+          the buff's stated rule? would that work for VDH apex vs. meta? (it would)
+
 - paladin: ret bop caused a 500s cooldown with a swipe that never started moving
     - this is despite being listed as 240s on /pdh
     - it was also instant IDed
