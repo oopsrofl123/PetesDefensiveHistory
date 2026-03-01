@@ -140,11 +140,14 @@ end
 
 
 
--- If startTime is not nil, then also start a new cooldown swipe. If nil, it
--- is assumed that a cooldown swipe is already in progress (e.g., this ability
--- has charges).
+-- XXX: TODO: this logic shouldn't be here. it should be in Character
+-- after folding in cooldown tracking. Only code connecting the tracked
+-- cooldown to display should be here.
 --
--- Old important comments from other file describing issues with charge+CDR.
+-- Describes why startTime must be computed the way it is. This won't work
+-- for abilities with both charges and dynamic CDR. There is no solution in
+-- that case.
+--
 -- Support abilities with charges.
 -- 1. If this is not an ability with charges, then start a swipe no
 --    matter what. If the ability has CDR, then it could fire before
@@ -164,13 +167,14 @@ end
 -- to 0. At t=23, we arrive here and it must be recorded that a charge
 -- at t=0 prevented CD recovery until t=20. This is exactly what the CD
 -- tracker provides.
-function ns:queueCooldown(ability, startTime)
+function ns:queueCooldown(ability)
+    local startTime = ns.cdTracker[ability.caster][ability.name]:head() - ability.cooldown
     local index = GUIDToIndex[ability.caster]
     local cd = ns.trackerUI[index].staticRow.items[ability.name]
 
     -- cd.startTime is the start time of the recharge, not the start time of the
     -- buff (=when the ability was cast). These can differ for abilities
-    -- with charges. Some notes:
+    -- with charges.
     --   * Single charge abilities: cdEndsAt = buff.startTime + ability.cooldown,
     --     even if there is dynamic CDR
     --   * Multi-charge abilities: cdEndsAt accounts for previous recharge completions.
