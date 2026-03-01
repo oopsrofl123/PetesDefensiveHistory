@@ -61,8 +61,13 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            -- XXX: TODO: adds Coagulating Blood (id=463730), which is not harmful but is
-            -- not returned by the aura filter HELPFUL
+            -- adds Coagulating Blood (id=463730). N.B., isHelpful=true but this ability
+            -- is not returned by the aura filter HELPFUL. It is in the buff payload of
+            -- UNIT_AURA.
+            -- XXX: TODO: this buff might not be related to vamp blood - it tracks the
+            -- damage that will be used to calculate death strike's next heal. maybe it's
+            -- applied in my testing because i'm not in combat.
+            -- requireConcurrentBuff=true,
 		},
 		{
 			name="Pillar of Frost",
