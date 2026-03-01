@@ -6,6 +6,14 @@ ns.printer = LibPrettyPrint:Printer({
     formatter = { multiline_tables = true }
 })
 
+ns.compactPrinter = LibPrettyPrint:Printer({
+    prefix = addonName,
+})
+
+ns.compactFormatter = LibPrettyPrint:Formatter({
+    prefix = addonName,
+}):Compact()
+
 
 -- ring buffer for a fixed size FIFO queue
 function ns:fixedFIFO(size)
