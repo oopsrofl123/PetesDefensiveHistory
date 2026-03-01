@@ -385,13 +385,13 @@ end
 --
 -- Will always produce some non-nil value for buff.cooldown - the worst it
 -- could be is the maximum across all possible abilities that can target this player.
-function ns:inferAbility(char, buff, cdTracker)
+function ns:inferAbility(event, char, buff, cdTracker)
     -- track how many times we've tried to infer this ability
     buff.inference = buff.inference + 1
 
     ns:printDebug(string.format(
-        "|cffD8B87CStarting inference(time[%0.3f], target=[%s], attempt=[%d]) ---------------------------------|r",
-        GetTime(), char:getID(), buff.inference))
+        "|cffD8B87CInfer(event=[%s], time=[%0.3f], target=[%s], attempt=[%d]) ---------------------------------|r",
+        event, GetTime(), char:getID(), buff.inference))
 
     -- allow the caller to override the tracked state of CDs to simulate an
     -- unknown state. useful for determining which abilities are ALWAYS
@@ -471,11 +471,9 @@ function ns:zeroKnowledgeSolve()
             }
 
             ns:prepareForInference(buff, idealEventTrackers)
-
-            ns:printDebug("simulating ability=["..ability.name.."]")
-            local _, certain = ns:inferAbility(char, buff, blankCDs)
+            local _, certain = ns:inferAbility("SIMULATE("..ability.name..")", char, buff, blankCDs)
             ability.solved = certain
-            -- would be nice if inferAbility would return the conflicting spell/caster combos
+            -- XXX: TODO: inferAbility should return the conflicting spell/caster combos
             ability.conflicts = {}
         end
     end
