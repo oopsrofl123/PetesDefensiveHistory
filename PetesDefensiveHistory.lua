@@ -252,6 +252,12 @@ local function finalizeInference(buff, ability)
             ability.name, ability.caster, buff.target))
     end
 
+    -- Run an optional callback to make last minute changes before finalizing
+    if buff.onFinalize then
+        ns:printDebug("+++ Running special onFinalize("..ability.name..")")
+        buff.onFinalize(buff, ability)
+    end
+
     ns:printDebug(string.format(
         "|cff00CDCDFINALIZED(time=[%0.3f], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
             GetTime(), buff.inference, ability.caster, ability.name, buff.startTime))
@@ -286,7 +292,7 @@ end
 local function inferAndAct(event, char, buff, now)
     buffIsExpiring = buff.endTime ~= nil
 
-    if not buff.certain then
+    if not buff.certain and (buffIsExpiring or not buff.forceFullDuration) then
         buff.duration = now - buff.startTime
         ns:prepareForInference(buff, ns.eventTrackers)
         local ability, certain = ns:inferAbility(event, char, buff)
@@ -467,6 +473,15 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- can't send the first charge to the history tray because it would need to
             -- happen now and we don't know if this is a natural update. in the end, only
             -- the second use will be sent to the history tray (on expiry).
+            --
+            -- XXX: TODO: this is the crux of the fiery brand 2-charge problem. It
+            -- naturally self-updates and has 2 charges. The only way to distinguish
+            -- a charge use is to detect a very close button press (and even this is
+            -- not 100% accurate), but the machinery to do that is in inferAbility. We
+            -- can't call inferAbility here without causing side effects.
+            --
+            -- It looks like a no-side-effects version of inferAbility is needed so this
+            -- rule and others can be tested without committing to previous results.
             if certain and not ability.naturallyUpdates and ability.charges > 1 then
                 -- The easy case: the first use of the ability with IDed with certainty and
                 -- the cooldown has already been tracked. If this buff does NOT naturally
@@ -481,6 +496,37 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 buff.startTime = now   -- must reset or inference machinery will skip
                 buff.certain = false   -- must reset or inference machinery will skip
                 inferAndAct("AURA(update)", char, buff, now)
+            elseif ability and not certain and not ability.naturallyUpdates then
+                -- Harder case. An uncertain inference and the inferred ability does not
+                -- update. There might not be a general way to resolve this. Currently the
+                -- only non-certain inference is VDH meta, maybe a special rule for each
+                -- corner case is practical.
+                if ability.name == 'Metamorphosis' then
+                    local updateTime = now
+                    local metaDuration = char:getAbilities()['Metamorphosis'].duration
+                    local apexDuration = char:getAbilities()['Untethered Rage'].duration
+                    buff.forceFullDuration = true
+                    buff.onFinalize = function(buff, ability)
+                        -- When did meta start its cooldown?
+                        -- The current buff is meta, but it has been applied at two
+                        -- time points by either meta or the apex talent. We need to know
+                        -- which one was the real meta to know when to start the cooldown.
+                        -- Remember that this is the certain=false case, which means that
+                        -- the buff has been running for <10s (or else we would know it is
+                        -- not the apex talent which only lasts 10s).
+                        -- Case 1: apex > meta:
+                        --     meta overwrites apex, so the total duration of the buff is:
+                        --          duration = (apex dur before update) + 20s < 30s
+                        --     The duration is <30s because the apex has been running for
+                        --     less than 10s or 
+                        -- Case 2: meta > apex: in this case, do nothing
+                        --     apex extends meta, so the total duration is:
+                        --          duration = 20s + 10s = 30s
+                        if buff.duration < metaDuration + apexDuration - ns.DURATION_TOLERANCE then
+                            buff.startTime = updateTime -- Case 1
+                        end
+                    end
+                end
             end
         else
             -- buff not in the tracked list, so it is potentially a concurrent buff.
@@ -490,7 +536,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- when pressing avatar, the new stacks would be awarded as an update rather
             -- than a new application.
             local _, _, _, _, _, HELPFUL, HARMFUL, _, _, _ =
-                fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceID)
+                fasterGetFilterFlagsForAuraInstanceId(unitTarget, auraInstanceID)
             if HARMFUL then
                 ns.eventTrackers[guid].debuff:push(now)
             elseif HELPFUL then
@@ -517,7 +563,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
 
             -- 2. gather some information and take a final swing at inference
             buff.endTime = now   -- if endTime is not nil, the buff is expiring
-            inferAndAct("AURA(remove)", char, buff, now, true)
+            inferAndAct("AURA(remove)", char, buff, now)
             buffExpiredOrReplaced(buff)
             actives[auraInstanceID] = nil
         end
