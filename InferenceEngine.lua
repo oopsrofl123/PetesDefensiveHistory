@@ -6,7 +6,7 @@ local _, ns = ...
 --
 -- The tolerance defines the maximum difference between the nominal buff
 -- duration and the measured buff duration that counts as match.
-DURATION_TOLERANCE = 0.15
+ns.DURATION_TOLERANCE = 0.15
 
 -- Some abilities cause concurrent events. Some apply other buffs or
 -- debuffs (e.g., hypothermia/ice block, forbearance/bubble) or fire other
@@ -103,16 +103,31 @@ end
 -- in the group, then there will be 2 entries of sac in this list.
 -- we want to know if THIS caster has the ability off cooldown.
 local function logicLayerAbilityOffCooldown(buff, ability, cdTracker)
-    if not ability.cdr then
+    -- XXX: TODO: better handling for resets. for now, if the ability CAN reset
+    -- we give up using its CD information in inference.
+    if not ability.reset then
         -- To cast the ability, just need 1 charge to be off cooldown. So check
         -- the oldest charge - if that one isn't available then no younger charge
-        -- can possibly be available.
+        -- can't possibly be available.
         local offCDat = cdTracker[ability.caster][ability.name]:tail()
+        -- XXX: TODO: If the ability has dynamic CDR, an accurate offCDat isn't
+        -- available. However, it is helpful to model these abilities as having
+        -- *some* amount of cooldown to remove the ability from the possible list
+        -- for at least a little while. A wild guess: even the most potent dynamic
+        -- CDR cannot reduce the cooldown of an ability by over 70%, so let's give
+        -- CDR abilities a minimum cooldown of 30% of the nominal CD.
+        if ability.cdr then
+            -- offCDat from the tracker records the full cooldown (i.e., ignores CDR)
+            -- (offCDat - ability.cooldown) is the nominal CD length. compress it to
+            -- 30%. N.B. this (and everything else) is hopelessly broken for >1charge+CDR
+            -- abilities. who cares at this point.
+            offCDat = offCDat - 0.7*ability.cooldown
+        end
 
         -- if the buff was applied before the oldest charge came off CD, then this
         -- ability had no charges available to use (was fully on CD).  Allow a small
         -- tolerance.
-        if buff.startTime + DURATION_TOLERANCE < offCDat then
+        if buff.startTime + ns.DURATION_TOLERANCE < offCDat then
             traceLogic(buff, ability,
                 "excluded (not off cd): recharging until [%0.3fs], buff applied at [%0.3fs]",
                 offCDat, buff.startTime)
@@ -136,7 +151,7 @@ local function logicLayerDurationMatches(buff, ability)
 
     local diff = getDurationDiff(buff, ability)
     local dv = buffIsBeingRemoved and ability.duration_variable or ns.DURATION_LTE
-    local tol = DURATION_TOLERANCE
+    local tol = ns.DURATION_TOLERANCE
 
     if (dv == ns.DURATION_FIXED and diff > tol) or
        (dv == ns.DURATION_LTE and diff > tol and buff.duration > ability.duration) or
