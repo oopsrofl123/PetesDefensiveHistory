@@ -9,6 +9,8 @@ local duration_variable = "duration_variable"
 local hasAbility = "hasAbility"
 local requireConcurrentBuff = "requireConcurrentBuff"
 local requireConcurrentShield = "requireConcurrentShield"
+local naturallyUpdates = "naturallyUpdates"
+local reset = "canReset"
 
 -- Why have separate class and spec trees? Some talents with equal IDs do different
 -- things for different specs. Otherwise it would be sufficient to simply have the
@@ -301,26 +303,41 @@ ns.SpecTalentModifiers = {
             { { id=187827, modifies=cdr, amount=true } },
         },
         [209258] = {
+            -- cheat death: if a meta buff is already active, this updates
+            -- the meta buff, so have to re-infer if the buff is updated.
             { { id=209258, modifies=hasAbility, amount=true } },
         },
         [1265818] = {
             { { id=187827, modifies=duration, amount=5 } },
         },
         [1270444] = {  -- vengeance apex talents
-            { { id=1270444, modifies=hasAbility, amount=true } },    -- rank 1
-            { { id=1270444, modifies=hasAbility, amount=true } },    -- rank 2
-            { { id=1270444, modifies=hasAbility, amount=true } },    -- rank 3
-            { { id=1270444, modifies=hasAbility, amount=true } },    -- rank 4
+            -- same as cheat death: if a meta buff is already active, using
+            -- the apex charge updates the meta buff, so have to re-infer.
+            -- Setting duration to DURATION_GTE is a clever hack to get the
+            -- inference system to automatically detangle the apex>meta or
+            -- meta>apex inference problem. It is wrong, but there is no harm
+            -- since no other ability could be conufsed with meta by doing this.
+            { { id=1270444, modifies=hasAbility, amount=true },                   -- rank 1
+              { id=187827, modifies=duration_variable, amount=ns.DURATION_GTE } },
+            { { id=1270444, modifies=hasAbility, amount=true },                   -- rank 2
+              { id=187827, modifies=duration_variable, amount=ns.DURATION_GTE } },
+            { { id=1270444, modifies=hasAbility, amount=true },                   -- rank 3
+              { id=187827, modifies=duration_variable, amount=ns.DURATION_GTE } },
+            { { id=1270444, modifies=hasAbility, amount=true },                   -- rank 4
+              { id=187827, modifies=duration_variable, amount=ns.DURATION_GTE } },
         },
         [204021] = {
             { { id=204021, modifies=hasAbility, amount=true } },
         },
         [207739] = {   -- burning alive. fiery brand spreads, causing updates and adding dur
-            { { id=204021, modifies=duration_variable, amount=ns.DURATION_GTE } },
+            { { id=204021, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=204021, modifies=naturallyUpdates, amount=true } },
         },
         [336639] = {   -- immo aura ticking extends brand
-            { { id=204021, modifies=duration_variable, amount=ns.DURATION_GTE } },
-            { { id=204021, modifies=duration_variable, amount=ns.DURATION_GTE } },
+            { { id=204021, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=204021, modifies=naturallyUpdates, amount=true } },
+            { { id=204021, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=204021, modifies=naturallyUpdates, amount=true } },
         },
         [389732] = {
             { { id=204021, modifies=cooldown, amount=-12 },
@@ -524,8 +541,8 @@ ns.SpecTalentModifiers = {
     -- Frost mage -----------------------------------------------------------------------------
     [64] = {
         [235219] = {  -- XXX: TODO: cold snap reset. just model as CDR for now.
-            { { id=45438, modifies=cdr, amount=true },
-              { id=414659, modifies=cdr, amount=true } },
+            { { id=45438, modifies=reset, amount=true },
+              { id=414659, modifies=reset, amount=true } },
         },
         [1244110] = {
             { { id=45438, modifies=charges, amount=1 },
