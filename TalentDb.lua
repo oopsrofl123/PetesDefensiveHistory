@@ -666,7 +666,7 @@ ns.SpecTalentModifiers = {
               { id=498, modifies=cooldown, amount=30 } }      -- but ret DP is a 90s cd
         },
         [1261562] = {
-            { { id=498, modifies=requireConcurrentBuff, amount=true } }
+            { { id=498, modifies=requireConcurrentShield, amount=true } }
         },
         [384820] = {
             { { id=6940, modifies=cooldown, amount=-60 } }
