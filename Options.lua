@@ -360,35 +360,51 @@ local orderedClasses = {
     "WARRIOR",       -- { 71, 72, 73 } }
 }
 
+local function addOptionForAbility(ability)
+    -- set default true values
+    optionsDefaults["show_" .. ability.id] = true
+    local setter = function(value)
+        PetesDefensiveHistoryOptionsDb["show_" .. ability.id] = value
+        ns:updateTrackerUI()
+    end
+    setting = Settings.RegisterProxySetting(
+        ns.optionsCategory,
+        "show_" .. ability.id,
+        Settings.VarType.Boolean,
+        ability.name,
+        true,
+        function() return ns:GetOption("show_"..ability.id) end,
+        setter)
+    Settings.CreateCheckbox(category, setting)
+    table.insert(abilitySetters, setting)
+end
+
+-- Racials first
+for englishRaceName, raceName in pairs(ns.englishRaceNameToLocalized) do
+    local abilities = ns.AbilityDb[englishRaceName]
+    if abilities and #abilities > 0 then
+        layout:AddInitializer(
+            Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name=raceName })
+        )
+        for _, ability in pairs(abilities) do
+            addOptionForAbility(ability)
+        end
+    end
+end
+
+-- Class/spec abilities
 for _, classFile in pairs(orderedClasses) do
     local abilities = ns.AbilityDb[classFile]
     local class = LOCALIZED_CLASS_NAMES_MALE[classFile] -- maps "WARRIOR" -> "Warrior" or "Guerrier"
 
-    -- XXX: TODO: not sure how to get the font string object to :SetTextColor()
-    --local classColor = RAID_CLASS_COLORS[class]
     layout:AddInitializer(
         Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name=class })
     )
 
     for _, ability in pairs(abilities) do
-        -- set default true values
-        optionsDefaults["show_" .. ability.id] = true
-        local setter = function(value)
-            PetesDefensiveHistoryOptionsDb["show_" .. ability.id] = value
-            ns:updateTrackerUI()
-        end
-        setting = Settings.RegisterProxySetting(
-            --ability,
-            ns.optionsCategory,
-            "show_" .. ability.id,
-            Settings.VarType.Boolean,
-            ability.name,
-            true,
-            function() return ns:GetOption("show_"..ability.id) end,
-            setter)
-        Settings.CreateCheckbox(category, setting)
-        abilitySetters[class .. "_" .. ability.id] = setting
+        addOptionForAbility(ability)
     end
 end
+
 
 Settings.RegisterAddOnCategory(category)

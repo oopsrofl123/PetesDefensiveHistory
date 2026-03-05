@@ -7,6 +7,16 @@ local slotToGUID = {}
 -- A list of all active auras that we want to infer
 ns.buffsForInference = {}
 
+-- XXX: TODO: hacks to shoehorn non-aura events into the tracking system
+lastNegativeAuraId = 0
+-- time in seconds to expire a non-buff event since there is no UNIT_AURA(removed)
+-- event to naturally time it out
+expireNonBuffEventsAfter = 0.5
+
+local function isNonBuffEvent(buff)
+    return buff.auraInstanceId < 0
+end
+
 -- A general event tracker: contains the history of recent actions taken
 -- by or applied to each character
 ns.eventTrackers = {}
@@ -24,7 +34,9 @@ function ns:makeEventTracker()
         buff=ns:fixedFIFO(EVENT_HISTORY_SIZE),
         debuff=ns:fixedFIFO(EVENT_HISTORY_SIZE),
         cast=ns:fixedFIFO(EVENT_HISTORY_SIZE),
-        shield=ns:fixedFIFO(EVENT_HISTORY_SIZE)
+        shield=ns:fixedFIFO(EVENT_HISTORY_SIZE),
+        combatDrop=ns:fixedFIFO(EVENT_HISTORY_SIZE),
+        combatStatus=ns:fixedFIFO(EVENT_HISTORY_SIZE),
     }
 end
 
@@ -85,6 +97,14 @@ local function fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
             --not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "IMPORTANT"),
             ----not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL")
         --)
+
+    -- XXX: TODO: super fun hack to shoe-horn non-buffs into the system. Negative aura IDs
+    -- signal to avoid calling C_UnitAuras.IsAuraFilteredOutByInstanceID. Just has to
+    -- return a consistent set of flags that we can mimic in AbilityDb (i.e., any ability
+    -- we want to ID this way must have this flag set in AbilityDb).
+    if auraInstanceId < 0 then
+        return false, false, false, false, false, nil, nil, nil, nil, nil, nil, nil
+    end
     return
         not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|IMPORTANT"),
         not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|BIG_DEFENSIVE"),
@@ -98,7 +118,9 @@ local function fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
         not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|CANCELABLE"),
         --not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "CANCELABLE")
         not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL|INCLUDE_NAME_PLATE_ONLY"),
-        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "INCLUDE_NAME_PLATE_ONLY")
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "INCLUDE_NAME_PLATE_ONLY"),
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HARMFUL|CROWD_CONTROL"),
+        not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "CROWD_CONTROL")
 end
 
 
@@ -110,17 +132,23 @@ end
 -- Multiple inference: to support continuous calls, also check `buff`
 -- for previous closest events and, if those are closer, don't overwrite
 -- them with whatever is closest in the current event buffer.
+--
+-- N.B. this function creates data *relevant to a specific buff*, it is not
+-- the global event tracker that stores event data.
 local function prepareClosestEvents(buff, eventTrackers, event)
+    -- If this buff has gone through inference before, it should already
+    -- have a closest event. Since the global event tracker is limited in
+    -- size, it is possible that the best match has slid out of the global
+    -- tracker's window. Ensure that we don't lose a better (closer) match
+    -- by starting with the previous closest match.
+    local prevTracker = buff['closest_'..event] or {}
     local closestEvents = {}
-    for guid, tracker in pairs(eventTrackers) do
-        local prevClosest = 0
-        local closest = 0
 
-        -- If there is a previous tracker, get its closest event
-        local prevTracker = buff['closest_'..event]
-        if prevTracker then
-            closest = prevTracker[guid] or closest
-        end
+    for guid, tracker in pairs(eventTrackers) do
+        -- Saving all of these in new variables just for debugging, could
+        -- all be done in closestEvents[guid].
+        local closest = prevTracker[guid] or 0
+        local prevClosest = closest  -- just for debugging. serves no purpose
 
         for _, time in pairs(tracker[event]:items()) do
             if math.abs(time - buff.startTime) < math.abs(closest - buff.startTime) then
@@ -128,7 +156,7 @@ local function prepareClosestEvents(buff, eventTrackers, event)
             end
         end
         closestEvents[guid] = closest
-        if prevClosest ~= closest then
+        if prevClosest ~= closest and prevClosest ~= 0 then
             ns:printDebug(string.format("updated closest event type=[%s], actor=[%s], [%0.3f] -> [%0.3f]",
                 event, guid, prevClosest, closest))
         end
@@ -144,13 +172,14 @@ function ns:prepareForInference(buff, eventTrackers)
     buff.closest_debuff = prepareClosestEvents(buff, eventTrackers, 'debuff')
     buff.closest_cast = prepareClosestEvents(buff, eventTrackers, 'cast')
     buff.closest_shield = prepareClosestEvents(buff, eventTrackers, 'shield')
+    buff.closest_combatDrop = prepareClosestEvents(buff, eventTrackers, 'combatDrop')
 end
 
 
 
 -- This function needs slot rather than guid to get filter flags from the Blizzard API
 local function makeAura(startTime, slot, auraInstanceID, iconId)
-    local IMPORTANT, BIG, EXTERNAL, RAID, RAIDINCOMBAT, HELPFUL, HARMFUL, CANCELABLE, HELPNAMEPLATE, NAMEPLATE  =
+    local IMPORTANT, BIG, EXTERNAL, RAID, RAIDINCOMBAT, HELPFUL, HARMFUL, CANCELABLE, HELPNAMEPLATE, NAMEPLATE, HARMCC, CC =
         fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceID)
     return {
         target=slotToGUID[slot],
@@ -171,6 +200,8 @@ local function makeAura(startTime, slot, auraInstanceID, iconId)
         CANCELABLE=CANCELABLE,
         HELPNAMEPLATE = HELPNAMEPLATE,
         NAMEPLATE = NAMEPLATE,
+        HARMCC = HARMCC,
+        CC = CC,
         numUpdates=0
     }
 end
@@ -285,12 +316,29 @@ end
 
 
 
+-- What to do when the buff expires (or is replaced)? If there was a certain inference,
+-- track in the static cooldown row, otherwise dump it in the history tray.
+-- Since dynamic CDR ability timers are rarely accurate, allow users to
+-- send those to the history tray instead. This doesn't prevent them from
+-- being glowed while active.
+local function buffExpiredOrReplaced(buff)
+    local ability, certain = ns:getAbility(buff)
+    if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
+        ns:queueCooldown(ability)
+    elseif not isNonBuffEvent(buff) then
+    --else
+        ns:addBuffToHistoryTray(buff.target, buff)
+    end
+end
+
+
+
 -- Wrapper for inferAbility that sets up various things and responds uniformly
 -- to the result. If this buff is being removed, set isFinalAttempt=true.
 -- UPDATE: to match other code, we now assume isFinalAttempt=true if buff.endTime
 -- is non-nil.
 local function inferAndAct(event, char, buff, now)
-    buffIsExpiring = buff.endTime ~= nil
+    buffIsExpiring = buff.endTime ~= nil 
 
     if not buff.certain and (buffIsExpiring or not buff.forceFullDuration) then
         buff.duration = now - buff.startTime
@@ -318,21 +366,19 @@ local function inferAndAct(event, char, buff, now)
             ns:startGlow(ability)
         end
     end
-end
-
-
-
--- What to do when the buff expires (or is replaced)? If there was a certain inference,
--- track in the static cooldown row, otherwise dump it in the history tray.
--- Since dynamic CDR ability timers are rarely accurate, allow users to
--- send those to the history tray instead. This doesn't prevent them from
--- being glowed while active.
-local function buffExpiredOrReplaced(buff)
-    local ability, certain = ns:getAbility(buff)
-    if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
-        ns:queueCooldown(ability)
-    else
-        ns:addBuffToHistoryTray(buff.target, buff)
+    -- XXX: TODO: handle non-buff events. There is no UNIT_AURA(removed) event to
+    -- naturally remove these, so remove them after a set amount of time.
+    if isNonBuffEvent(buff) then
+        -- checking duration is all that's necessary. non-event buffs don't expire any other way
+        buffIsExpiring = buffIsExpiring or buff.duration >= expireNonBuffEventsAfter
+        if buff.certain or buffIsExpiring then
+            local ability, certain = ns:getAbility(buff)
+            if ability then
+                ns:stopGlow(ability)
+            end
+            buffExpiredOrReplaced(buff)
+            ns.buffsForInference[char:getID()][buff.auraInstanceId] = nil
+        end
     end
 end
 
@@ -383,9 +429,51 @@ absorbHandler:SetScript("OnEvent", function(self, event, target)
     ns:printDebug(string.format("ABSORB(time=[%0.3f], target=[%s|%s])",
         now, target, guid))
         
-    ns.eventTrackers[guid].shield:push(GetTime())
+    ns.eventTrackers[guid].shield:push(now)
     for auraInstanceId, buff in pairs(ns.buffsForInference[guid]) do
         inferAndAct("ABSORB", char, buff, now)
+    end
+end)
+
+
+--------------------------------------------------------------------------------------
+-- Track when unit flags change
+--------------------------------------------------------------------------------------
+local flagsHandler = CreateFrame("Frame", addonName .. "UnitFlagsHandler")
+flagsHandler:RegisterEvent("UNIT_FLAGS")
+flagsHandler:SetScript("OnEvent", function(self, event, target)
+    -- Only track casts from tracked characters
+    local guid, char = ns:getTrackedCharacterBySlot(target)
+    if not guid then return end
+    local now = GetTime()
+
+    local inCombat = UnitAffectingCombat(target)
+    ns:printDebug(string.format("UNIT_FLAGS(time=[%0.3f], target=[%s|%s], inCombat=[%s])",
+        now, target, guid, tostring(inCombat)))
+
+    -- Did target just leave combat?
+    local lastInCombat = ns.eventTrackers[guid].combatStatus:head()
+    if lastInCombat == true and inCombat == false then
+        ns.eventTrackers[guid].combatDrop:push(now)
+
+        -- XXX: TODO: hack to shoehorn a non-buff event into the tracking system
+        -- will generalize later.
+        lastNegativeAuraId = lastNegativeAuraId - 1
+        local aura = makeAura(now, target, lastNegativeAuraId)
+        ns:printDebug(string.format("%d, %s, %s, %s, %s, %s, %s, %s, CANCEL: %s, NAMEPLATE: %s, %s, CC: %s, %s",
+            aura.auraInstanceId, tostring(aura.IMPORTANT), tostring(aura.BIG),
+            tostring(aura.EXTERNAL), tostring(aura.RAID), tostring(aura.RAIDINCOMBAT),
+            tostring(aura.HELPFUL), tostring(aura.HARMFUL), tostring(aura.CANCELABLE),
+            tostring(aura.HELPNAMEPLATE), tostring(aura.NAMEPLATE),
+            tostring(aura.HARMCC), tostring(aura.CC)))
+        local buff = trackBuff(aura)
+    end
+    -- Push the current status regardless of a drop
+    ns.eventTrackers[guid].combatStatus:push(inCombat)
+
+    for auraInstanceId, buff in pairs(ns.buffsForInference[guid]) do
+        inferAndAct("FLAGS("..tostring(lastInCombat).."->"..tostring(inCombat)..")",
+            char, buff, now)
     end
 end)
 
@@ -399,6 +487,8 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Ensure unitTarget is a recognized slot. This event is called for nameplates and others
     local guid, char = ns:getTrackedCharacterBySlot(unitTarget)
     if not guid then return end
+    -- XXX: TODO: later release to track CCs
+    --if guid == nil and unitTarget:sub(1,9) == 'nameplate' then guid = UnitGUID(unitTarget) end
 
     -- empty tables to make #(.) work when no auras are in the list
     local aurasAdded = updateInfo['addedAuras'] or {}
@@ -425,11 +515,12 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
 
     for _, v in pairs(aurasAdded) do
         local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
-        ns:printDebug(string.format("%d, %s, %s, %s, %s, %s, %s, %s, %s, %s",
+        ns:printDebug(string.format("%d, %s, %s, %s, %s, %s, %s, %s, CANCEL: %s, NAMEPLATE: %s, %s, CC: %s, %s",
             aura.auraInstanceId, tostring(aura.IMPORTANT), tostring(aura.BIG),
             tostring(aura.EXTERNAL), tostring(aura.RAID), tostring(aura.RAIDINCOMBAT),
             tostring(aura.HELPFUL), tostring(aura.HARMFUL), tostring(aura.CANCELABLE),
-            tostring(aura.HELPNAMEPLATE), tostring(aura.NAMEPLATE)))
+            tostring(aura.HELPNAMEPLATE), tostring(aura.NAMEPLATE),
+            tostring(aura.HARMCC), tostring(aura.CC)))
 
         -- Is this aura a buff we want to infer?
         if aura.HELPFUL and (aura.IMPORTANT or aura.BIG or aura.EXTERNAL) then

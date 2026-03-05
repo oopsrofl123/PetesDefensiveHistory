@@ -23,7 +23,7 @@ ns.DURATION_TOLERANCE = 0.15
 --      no "concurrent" action occurred.
 --   2. Similar to duration tolerance, how far from the buff application
 --      counts as "concurrent"?
-CONCURRENT_EVENT_TOLERANCE = 0.125
+CONCURRENT_EVENT_TOLERANCE = 0.050
 
 -- How much better the best possible solution must be than the second
 -- best possible solution.
@@ -230,6 +230,7 @@ local function getPossibleSolutions(char, buff, cdTracker)
            (not ability.requireConcurrentBuff or logicLayerRequireConcurrentEvent(buff, ability, "buff")) and
            (not ability.requireConcurrentDebuff or logicLayerRequireConcurrentEvent(buff, ability, "debuff")) and
            (not ability.requireConcurrentShield or logicLayerRequireConcurrentEvent(buff, ability, "shield")) and
+           (not ability.requireCombatDrop or logicLayerRequireConcurrentEvent(buff, ability, "combatDrop")) and
            (not ability.requireButtonPress or logicLayerRequireConcurrentEvent(buff, ability, "cast")) then
             traceLogic(buff, ability, "is a possible solution")
             -- All rules have passed, this ability is a possible match
@@ -405,8 +406,8 @@ function ns:inferAbility(event, char, buff, cdTracker)
     buff.inference = buff.inference + 1
 
     ns:printDebug(string.format(
-        "|cffD8B87CInfer(event=[%s], time=[%0.3f], target=[%s], attempt=[%d]) ---------------------------------|r",
-        event, GetTime(), char:getID(), buff.inference))
+        "|cffD8B87CInfer(event=[%s], time=[%0.3f], target=[%s], auraInstanceId=[%d], attempt=[%d]) ---------------------------------|r",
+        event, GetTime(), char:getID(), buff.auraInstanceId, buff.inference))
 
     -- allow the caller to override the tracked state of CDs to simulate an
     -- unknown state. useful for determining which abilities are ALWAYS

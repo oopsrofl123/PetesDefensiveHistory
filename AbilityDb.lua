@@ -15,12 +15,43 @@ ns.TARGET_SELF = 0
 ns.TARGET_OTHERS = 1
 ns.TARGET_ANY = 2
 
+-- Unlike classes, there's no englishRaceName -> localized race name table.
+-- And we don't want to use raceID (which there is a WoW API call to convert)
+-- because we'd like to key this into the same table as classes.
+--
+-- So just make the internal table we wished existed.
+ns.englishRaceNameToLocalized = {}
+
+for raceID = 1, 200 do
+    local info = C_CreatureInfo.GetRaceInfo(raceID)
+    if info then
+        ns.englishRaceNameToLocalized[info.clientFileString] = info.raceName
+    end
+end
 
 -- The unique key in this database is spell ID. It is structured by class, not by spec.
 -- The class names are the locale-indepedent names that are used to key many internal
 -- WoW tables.
 ns.AbilityDb = {
 	----------------------------------------------------------------------------------------
+    ["NightElf"] = {
+		{
+			name="Shadowmeld",
+			id=58984,
+            iconId=132089,
+			cooldown=120,
+			duration=0,
+			duration_variable=ns.DURATION_GTE,
+			charges=1,
+			cdr=false,
+            IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+            requireConcurrentBuff=true,  -- adds the shadowmeld buff
+            requireCombatDrop=true,
+		},
+    },
+
     ["DEATHKNIGHT"] = {
 		{
 			name="Anti-Magic Shell",

@@ -26,6 +26,8 @@ function ns:Character(slot)
     local name = "empty"
     local className = "empty"
     local classFile = "WARRIOR"
+    local englishRaceName = nil  -- unique and locale-independent, valid db key
+    local raceId = nil
     local specId = nil
     local specName = nil
     local talentExportString = nil
@@ -39,6 +41,7 @@ function ns:Character(slot)
             ns:printDebug("Character("..slot.."): could not get GUID") -- Should error, not recoverable
         name = UnitName(slot)
         className, classFile, _ = UnitClass(slot)
+        _, englishRaceName, raceId = UnitRace(slot)
     end
 
     ns:printDebug(string.format(
@@ -87,9 +90,19 @@ function ns:Character(slot)
 
         -- clear these out. this could be a spec change
         abilities = {}
-        possibleAbilities = {}
+        possibleAbilities = {} -- not computed here, just cleared
         for _, baseAbility in pairs(ns.AbilityDb[classFile]) do
             local ability = ns:applyTalentModifiers(classFile, specId, baseAbility, talentRanks)
+            if ability.hasAbility then
+                ability.caster = GUID
+                table.insert(abilities, ability)
+            end
+        end
+
+        -- Add racials
+        for _, baseAbility in pairs(ns.AbilityDb[englishRaceName]) do
+            local ability = ns:shallowcopy(baseAbility) -- no talents
+            ability.hasAbility = true  -- XXX: TODO: this won't be true for evoker CC racials
             if ability.hasAbility then
                 ability.caster = GUID
                 table.insert(abilities, ability)
