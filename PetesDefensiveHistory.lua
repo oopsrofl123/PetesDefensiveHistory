@@ -127,12 +127,12 @@ local function makeAura(startTime, slot, auraInstanceId, iconId)
         numUpdates=0
     }
 
-    ns:printDebug(string.format("%d, %s, %s, %s, %s, %s, %s, %s, CANCEL: %s, NAMEPLATE: %s, %s, CC: %s, %s",
-        aura.auraInstanceId, tostring(aura.IMPORTANT), tostring(aura.BIG),
-        tostring(aura.EXTERNAL), tostring(aura.RAID), tostring(aura.RAIDINCOMBAT),
-        tostring(aura.HELPFUL), tostring(aura.HARMFUL), tostring(aura.CANCELABLE),
-        tostring(aura.HELPNAMEPLATE), tostring(aura.NAMEPLATE),
-        tostring(aura.HARMCC), tostring(aura.CC)))
+    ns:printDebug(string.format("auraID=%d: %d%d%d%d%d %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d",
+        aura.auraInstanceId, ns:boolstr(aura.IMPORTANT), ns:boolstr(aura.BIG),
+        ns:boolstr(aura.EXTERNAL), ns:boolstr(aura.RAID), ns:boolstr(aura.RAIDINCOMBAT),
+        ns:boolstr(aura.HELPFUL), ns:boolstr(aura.HARMFUL), ns:boolstr(aura.CANCELABLE),
+        ns:boolstr(aura.HELPNAMEPLATE), ns:boolstr(aura.NAMEPLATE),
+        ns:boolstr(aura.HARMCC), ns:boolstr(aura.CC)))
 
     return aura
 end
@@ -543,10 +543,12 @@ end)
 -- Handle initialization and group roster updates.
 --------------------------------------------------------------------------------------
 local loader = CreateFrame("Frame", addonName .. "Loader")
+local loadNum = 1
 loader:RegisterEvent("PLAYER_ENTERING_WORLD")
 loader:RegisterEvent("GROUP_ROSTER_UPDATE")
 loader:SetScript("OnEvent", function(self, event)
-    ns:printDebug(event)
+    ns:printDebug(event.."("..loadNum..")")
+    loadNum = loadNum + 1
 
     -- Maintain the slot -> GUID map
     updateSlotToGUID()

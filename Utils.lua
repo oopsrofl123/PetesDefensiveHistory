@@ -132,3 +132,8 @@ function ns:maskSecret(value)
         return value
     end
 end
+
+
+function ns:boolstr(bool)
+    return tostring(bool and 1 or 0)
+end

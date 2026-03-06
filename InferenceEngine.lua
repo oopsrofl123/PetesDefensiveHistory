@@ -69,16 +69,16 @@ local function logicLayerAuraFlags(event, ability)
        buff.RAIDINCOMBAT ~= ability.RAIDINCOMBAT then
         traceLogic(event, ability,
             "excluded (flags): buff=(%d,%d,%d,%d,%d), ability=(%d,%d,%d,%d,%d)",
-            buff.IMPORTANT and 1 or 0,
-            buff.BIG and 1 or 0,
-            buff.EXTERNAL and 1 or 0,
-            buff.RAID and 1 or 0,
-            buff.RAIDINCOMBAT and 1 or 0,
-            ability.IMPORTANT and 1 or 0,
-            ability.BIG and 1 or 0,
-            ability.EXTERNAL and 1 or 0,
-            ability.RAID and 1 or 0,
-            ability.RAIDINCOMBAT and 1 or 0)
+            ns:boolstr(buff.IMPORTANT),
+            ns:boolstr(buff.BIG),
+            ns:boolstr(buff.EXTERNAL),
+            ns:boolstr(buff.RAID),
+            ns:boolstr(buff.RAIDINCOMBAT),
+            ns:boolstr(ability.IMPORTANT),
+            ns:boolstr(ability.BIG),
+            ns:boolstr(ability.EXTERNAL),
+            ns:boolstr(ability.RAID),
+            ns:boolstr(ability.RAIDINCOMBAT))
         return false
     end
     return true
