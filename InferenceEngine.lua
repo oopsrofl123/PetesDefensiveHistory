@@ -45,38 +45,27 @@ DURATION_CONFIDENT_DIFFERENCE = 0.5
 CASTTIME_CONFIDENT_DIFFERENCE = 0.150
 
 
--- Return a 2-tuple:
---     (inferred ability or nil, certain: true|false)
---
--- It is legal to return an ability that is not assigned with certainty, however
--- certain will never be true if ability is nil (no ability was assigned). This
--- allows us to return "working guesses" when it's useful. E.g., multiple abilities
--- can cause the metamorphosis buff and it is useful to know that the meta buff is
--- active until we can determine with certainty which ability applied the meta buff.
-function ns:getAbility(buff)
-    return buff.ability, buff.certain
-end
-
-
-
-local function traceLogic(buff, ability, message, ...)
+local function traceLogic(event, ability, message, ...)
     if not ns:GetOption('muteVerboseDebugging') then
         ns:printDebug(string.format(
             "ability=[%s], target=[%s], caster=[%s]: " .. message,
-            ability.name, buff.target, ability.caster, ...))
+            ability.name, event:getTarget(), ability.caster, ...))
     end
 end
 
 
 
 -- Do Blizzard's aura flags match?
-local function logicLayerBuffFlags(buff, ability)
+local function logicLayerAuraFlags(event, ability)
+    -- if it's a nonAuraEvent, choose a flag set that should never match with an aura event
+    local buff = event:getAura() or { IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false }
+
     if buff.IMPORTANT ~= ability.IMPORTANT or
        buff.BIG ~= ability.BIG or
        buff.EXTERNAL ~= ability.EXTERNAL or
        buff.RAID ~= ability.RAID or
        buff.RAIDINCOMBAT ~= ability.RAIDINCOMBAT then
-        traceLogic(buff, ability,
+        traceLogic(event, ability,
             "excluded (flags): buff=(%d,%d,%d,%d,%d), ability=(%d,%d,%d,%d,%d)",
             buff.IMPORTANT and 1 or 0,
             buff.BIG and 1 or 0,
@@ -102,7 +91,7 @@ end
 -- that can target the person. e.g., if two there are 2 paladins with sac
 -- in the group, then there will be 2 entries of sac in this list.
 -- we want to know if THIS caster has the ability off cooldown.
-local function logicLayerAbilityOffCooldown(buff, ability, cdTracker)
+local function logicLayerAbilityOffCooldown(event, ability, cdTracker)
     -- XXX: TODO: better handling for resets. for now, if the ability CAN reset
     -- we give up using its CD information in inference.
     if not ability.reset then
@@ -127,10 +116,10 @@ local function logicLayerAbilityOffCooldown(buff, ability, cdTracker)
         -- if the buff was applied before the oldest charge came off CD, then this
         -- ability had no charges available to use (was fully on CD).  Allow a small
         -- tolerance.
-        if buff.startTime + ns.DURATION_TOLERANCE < offCDat then
-            traceLogic(buff, ability,
-                "excluded (not off cd): recharging until [%0.3fs], buff applied at [%0.3fs]",
-                offCDat, buff.startTime)
+        if event:getTime() + ns.DURATION_TOLERANCE < offCDat then
+            traceLogic(event, ability,
+                "excluded (not off cd): recharging until [%0.3fs], event at [%0.3fs]",
+                offCDat, event:getTime())
             return false
         end
     end
@@ -139,67 +128,49 @@ end
 
 
 
-local function getDurationDiff(buff, ability)
-    return math.abs(buff.duration - ability.duration)
-end
 
+-- Was the aura's duration consistent with how the ability works?
+-- General events: come across a scenario where this applies
+local function logicLayerDurationMatches(event, ability)
+    local aura = event:getAura()
+    if aura then
+        local buffDuration = event:timeSince()
+        local diff = math.abs(buffDuration - ability.duration)
+        local dv = event:isExpiring() and ability.duration_variable or ns.DURATION_LTE
+        local tol = ns.DURATION_TOLERANCE
 
-
--- Was the buff's duration consistent with how the ability works?
-local function logicLayerDurationMatches(buff, ability)
-    local buffIsBeingRemoved = buff.endTime ~= nil
-
-    local diff = getDurationDiff(buff, ability)
-    local dv = buffIsBeingRemoved and ability.duration_variable or ns.DURATION_LTE
-    local tol = ns.DURATION_TOLERANCE
-
-    if (dv == ns.DURATION_FIXED and diff > tol) or
-       (dv == ns.DURATION_LTE and diff > tol and buff.duration > ability.duration) or
-       (dv == ns.DURATION_GTE and diff > tol and buff.duration < ability.duration) then
-        traceLogic(buff, ability,
-            "excluded (incorrect duration): buff=%0.3f, ability=%03f, duration type=%d, diff=%0.3f",
-            buff.duration, ability.duration, dv, diff)
-        return false
+        if (dv == ns.DURATION_FIXED and diff > tol) or
+           (dv == ns.DURATION_LTE and diff > tol and buffDuration > ability.duration) or
+           (dv == ns.DURATION_GTE and diff > tol and buffDuration < ability.duration) then
+            traceLogic(event, ability,
+                "excluded (incorrect duration): event=%0.3f, ability=%03f, duration type=%d, diff=%0.3f",
+                buffDuration, ability.duration, dv, diff)
+            return false
+        end
     end
     return true
 end
 
 
 
-local function getCastTimeDiff(buff, ability)
-    local closest = buff.closest_cast[ability.caster] or ns.INFINITY
-    local buffApplied = buff.startTime
-    local diff = math.abs(closest - buffApplied)
-
-    return closest, buffApplied, math.abs(closest - buffApplied)
-end
-
-
-
--- Generalized event logic layer
-local function getEventTimeDiff(buff, ability, event)
-    local closest = buff["closest_"..event][ability.caster] or ns.INFINITY
-    return closest, buff.startTime, math.abs(closest - buff.startTime)
-end
-
-local function logicLayerRequireConcurrentEvent(buff, ability, event)
-    local closest, buffApplied, diff = getEventTimeDiff(buff, ability, event)
-    -- buff.duration: hack to avoid zillions of GetTime() calls:
-    -- the "duration" is how long the buff has existed so far, not
-    -- necessarily the final length of the buff. In this usage, we want
+local function logicLayerRequireConcurrentEvent(event, ability, evidenceType)
+    --local closest, _, diff = getEventTimeDiff(event, ability, eventType)
+    local closest, diff = event:timeSinceClosest(evidenceType, ability.caster)
+    -- the "duration" is how long the event has been tracked, not necessarily
+    -- the final length of the buff, if there is one. In this usage, we want
     -- to know how long it's been since the event we want to infer happened
     -- to decide whether it's been long enough to definitively state that
     -- the other required concurrent event should have been seen by now.
-    if diff > CONCURRENT_EVENT_TOLERANCE and buff.duration > CONCURRENT_EVENT_TOLERANCE then
-        traceLogic(buff, ability,
+    if diff > CONCURRENT_EVENT_TOLERANCE and event:timeSince() > CONCURRENT_EVENT_TOLERANCE then
+        traceLogic(event, ability,
             "excluded: closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
-            event, closest, buffApplied, diff)
+            evidenceType, closest, event:getTime(), diff)
         return false
-    -- Only for spammy debugging
+    -- Only for very spammy debugging
     --else
-        --traceLogic(buff, ability,
+        --traceLogic(event, ability,
             --"accepted: closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
-            --event, closest, buffApplied, diff)
+            --eventType, closest, event:getTime(), diff)
     end
     return true
 end
@@ -207,38 +178,33 @@ end
 
 
 -- logic layers are fundamentally an AND operation: ALL rules must be followed
--- for an ability to have produced a buff.
+-- for an ability to have produced a event.
 -- based on how each ability works, determine if it could have possibly produced
--- buff.
+-- event.
 -- which ability is the best match is determined later.
-local function getPossibleSolutions(char, buff, cdTracker)
+local function getPossibleSolutions(char, event, cdTracker)
     local maxCD = -1
     local possibleSolutions = {}
 
     for _, ability in pairs(char:getPossibleAbilities()) do
-        -- it's tempting to only use possible abilities, but the heuristics
-        -- below can exclude abilities incorrectly due to the duration
-        -- tolerances. so to be sure we have SOME fallback, take the max
-        -- among all cds whether possible or not.
         maxCD = math.max(maxCD, ability.cooldown)
 
-        -- important: logical statements in lua short circuit, so additional
+        -- logical statements in lua short circuit, so additional
         -- logic layers aren't evaluated if they aren't necessary.
-        if logicLayerBuffFlags(buff, ability) and
-           logicLayerAbilityOffCooldown(buff, ability, cdTracker) and
-           logicLayerDurationMatches(buff, ability) and
-           (not ability.requireConcurrentBuff or logicLayerRequireConcurrentEvent(buff, ability, "buff")) and
-           (not ability.requireConcurrentDebuff or logicLayerRequireConcurrentEvent(buff, ability, "debuff")) and
-           (not ability.requireConcurrentShield or logicLayerRequireConcurrentEvent(buff, ability, "shield")) and
-           (not ability.requireCombatDrop or logicLayerRequireConcurrentEvent(buff, ability, "combatDrop")) and
-           (not ability.requireButtonPress or logicLayerRequireConcurrentEvent(buff, ability, "cast")) then
-            traceLogic(buff, ability, "is a possible solution")
+        if logicLayerAuraFlags(event, ability) and
+           logicLayerAbilityOffCooldown(event, ability, cdTracker) and
+           logicLayerDurationMatches(event, ability) and
+           (not ability.requireConcurrentBuff or logicLayerRequireConcurrentEvent(event, ability, "buff")) and
+           (not ability.requireConcurrentDebuff or logicLayerRequireConcurrentEvent(event, ability, "debuff")) and
+           (not ability.requireConcurrentShield or logicLayerRequireConcurrentEvent(event, ability, "shield")) and
+           (not ability.requireCombatDrop or logicLayerRequireConcurrentEvent(event, ability, "combatDrop")) and
+           (not ability.requireButtonPress or logicLayerRequireConcurrentEvent(event, ability, "cast")) then
+            traceLogic(event, ability, "is a possible solution")
             -- All rules have passed, this ability is a possible match
             local x = ns:shallowcopy(ability)
-            _, _, x.castTimeDiff = getCastTimeDiff(buff, ability)
-            -- if we aren't using duration, set the diff to 0 so no ability is considered
-            -- a better match than others.
-            x.durationDiff = buff.endTime ~= nil and getDurationDiff(buff, ability) or 0
+            _, x.castTimeDiff = event:timeSinceClosest("cast", ability.caster)
+            -- don't match on duration unless there is an expiring event
+            x.durationDiff = event:isExpiring() and math.abs(event:timeSince() - ability.duration) or 0
             table.insert(possibleSolutions, x)
         end
     end
@@ -331,10 +297,7 @@ end
 -- Special handling for DH's meta due to the apex talent. If the only 2
 -- valid abilities are meta and the apex talent, then we don't know which
 -- cooldown to initiate, but we do know that the buff attained is meta. So
--- return the buff so that we can display it now on the frames as active.
---
--- This can only happen at initial inference since the buffs have different
--- duration.
+-- return the meta ability so that we can display it now on the frames as active.
 local function confidenceLayerMetamorphosis(possibleSolutions)
     if #possibleSolutions == 2 then
         local s1 = possibleSolutions[1]
@@ -355,7 +318,7 @@ end
 
 
 
--- Given a list of possible abilities that could have produced buff, determine:
+-- Given a list of possible abilities that could have produced event, determine:
 --    1. what the best matching solution is
 --    2. whether the best matching solution is a *significantly better* match than
 --       all other possible solutions.
@@ -370,7 +333,7 @@ end
 -- important personals like DH metamorphosis. Freedom can be easily
 -- distinguished from meta after it completes via duration, but instant IDing is hard.
 -- Everyone is likely casting something every GCD, so there is a high chance that
--- both the DH and paladin cast something near the time the buff was observed.
+-- both the DH and paladin cast something near the time the event was observed.
 --
 -- If confidence is attained, return the ability otherwise return nil.
 -- Confidence layers are fundamentally an OR operation: if any of the layers can
@@ -397,17 +360,14 @@ end
 
 
 -- Use various rules about who can cast what ability on whom to narrow down
--- the possible abilities that could be "buff".
---
--- Will always produce some non-nil value for buff.cooldown - the worst it
--- could be is the maximum across all possible abilities that can target this player.
-function ns:inferAbility(event, char, buff, cdTracker)
+-- the possible abilities that could be "event".
+function ns:inferAbility(inferenceTrace, char, ev, cdTracker)
     -- track how many times we've tried to infer this ability
-    buff.inference = buff.inference + 1
+    ev:incrementInference()
 
     ns:printDebug(string.format(
-        "|cffD8B87CInfer(event=[%s], time=[%0.3f], target=[%s], auraInstanceId=[%d], attempt=[%d]) ---------------------------------|r",
-        event, GetTime(), char:getID(), buff.auraInstanceId, buff.inference))
+        "|cffD8B87CInfer(trace=[%s], time=[%0.3f], target=[%s], eventId=[%s], attempt=[%d])|r",
+        inferenceTrace, GetTime(), char:getID(), ev:getId(), ev:getInference()))
 
     -- allow the caller to override the tracked state of CDs to simulate an
     -- unknown state. useful for determining which abilities are ALWAYS
@@ -415,31 +375,29 @@ function ns:inferAbility(event, char, buff, cdTracker)
     cdTracker = cdTracker or ns.cdTracker
 
     -- all logic and ranking is performed in these two lines
-    possibleSolutions, maxCD = getPossibleSolutions(char, buff, cdTracker)
-    -- maxCD is a property of the observation because it depends on the time of
-    -- the final inference. e.g., the CD tracker state could've changed, removing
-    -- some CDs from consideration.
-    buff.maxCD = maxCD
+    possibleSolutions, maxCD = getPossibleSolutions(char, ev, cdTracker)
+    -- set maxCD at each inference in case one day it uses exclusion information
+    ev:setMaxCD(maxCD)
 
     -- assignments can be uncertain. e.g., multiple abilities with different CDs
-    -- can apply the same buff. it can be useful to know what buff is
-    -- present even if it can't be pinned to an ability.
+    -- can cause the same event. if true, it is sometimes useful to report what
+    -- *event* occurred.
     abilityMatch, certain = getConfidentMatch(possibleSolutions)
     -- Check for disableInference here, not at function start, so that maxCD can
     -- be computed for use by the history tray.
     if abilityMatch and not ns:GetOption('disableInference') then
-        buff.ability = abilityMatch
-        buff.certain = certain
+        ev:setAbility(abilityMatch)
+        ev:setCertain(certain)
     else
         ns:printDebug("couldn't infer ability")
     end
 
-    return ns:getAbility(buff)
+    return ev:getAbility()
 end
 
 
 
--- Simulate the solving problem by generating buffs that perfectly match
+-- Simulate the solving problem by generating events that perfectly match
 -- all expectations of the ability and then asking the inference engine to
 -- infer the ability.
 --
@@ -448,16 +406,18 @@ end
 function ns:zeroKnowledgeSolve()
     local now = GetTime()
 
+    -- XXX: TODO: need to build an appropriate ideal event tracker for each ability
     local idealEventTrackers = {}
     -- give every group member a cast at the perfect time, allowing the ability to
     -- pass the logic layers but never to be identified based on cast time-matching
     -- in the confidence layers.
     for guid, char in pairs(ns:getTrackedCharacters()) do
-        local tracker = ns:makeEventTracker()
+        local tracker = ns:makeEvidenceTracker()
         tracker.buff:push(now)
         tracker.cast:push(now)
         tracker.shield:push(now)
         tracker.debuff:push(now)
+        tracker.combatDrop:push(now)
         idealEventTrackers[guid] = tracker
     end
 
@@ -468,26 +428,26 @@ function ns:zeroKnowledgeSolve()
     for guid, char in pairs(ns:getTrackedCharacters()) do
         abilities = char:getPossibleAbilities()
         for _, ability in pairs(abilities) do
-            -- make the buff we would expect to see if this ability got used.
-            local buff = {
-                inference = 0,
-                target = guid,
-                startTime = now,
+            -- make the event we would expect to see if this ability got used.
+            local event = ns:Event("SIMULATE("..ability.name..")", guid)
+
+            -- make the expected buff and link it to the event
+            event:setAura({
+                auraInstanceId=-1,
+                target=guid,
                 -- XXX: TODO: to match previous behavior (old useDuration=false),
                 -- do not set the endTime field. could also re-run inference if the
-                -- first fails to simulate whether the buff would be IDed at removal.
-                --endTime = now + ability.duration,
-                duration = ability.duration,
-                IMPORTANT = ability.IMPORTANT,
-                BIG = ability.BIG,
-                EXTERNAL = ability.EXTERNAL,
-                RAID = ability.RAID,
-                RAIDINCOMBAT = ability.RAIDINCOMBAT,
-                numUpdates = 0,
-            }
+                -- first fails to simulate whether the event would be IDed at removal.
+                --aura.endTime = now + ability.duration,
+                IMPORTANT=ability.IMPORTANT,
+                BIG=ability.BIG,
+                EXTERNAL=ability.EXTERNAL,
+                RAID=ability.RAID,
+                RAIDINCOMBAT=ability.RAIDINCOMBAT
+            })
 
-            ns:prepareForInference(buff, idealEventTrackers)
-            local _, certain = ns:inferAbility("SIMULATE("..ability.name..")", char, buff, blankCDs)
+            event:prepareForInference(idealEventTrackers)
+            local _, certain = ns:inferAbility("SIMULATE("..ability.name..")", char, event, blankCDs)
             ability.solved = certain
             -- XXX: TODO: inferAbility should return the conflicting spell/caster combos
             ability.conflicts = {}

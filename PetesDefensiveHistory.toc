@@ -15,6 +15,7 @@ Utils.lua
 Options.lua
 Talents.lua
 TalentDb.lua
+Event.lua
 GroupSolutionUI.lua
 InferenceEngine.lua
 TrackerUI.lua

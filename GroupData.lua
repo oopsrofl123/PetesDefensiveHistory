@@ -3,6 +3,37 @@
 local _, ns = ...
 
 
+-- an evidence tracker for each tracked character. The data is stored in
+-- Character()s, this is just a convenience to prevent another loop over all
+-- tracked characters for every inference.
+local evidenceTrackersByGUID = {}
+
+-- Retain EVIDENCE_HISTORY_SIZE records of each tracked event type for each
+-- character. Must
+-- loop over all of these on every inference, so don't make it too
+-- large, but must be large enough to cover a reasonably large time interval.
+local EVIDENCE_HISTORY_SIZE = 8
+
+-- Make an empty event tracker
+function ns:makeEvidenceTracker()
+    return {
+        buff=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        debuff=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        cast=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        shield=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        -- Booleans of the last observed combat status (no time associated)
+        combatStatus=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        -- Times when combatStatus changed from true->false
+        combatDrop=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE)
+    }
+end        
+
+function ns:getEvidenceTrackers()
+    return evidenceTrackersByGUID
+end
+
+
+
 -- list of all relevant characters
 local trackedCharacters = {}
 
@@ -15,6 +46,8 @@ end
 function ns:getTrackedCharacters()
     return trackedCharacters
 end
+
+
 
 -- Create a character object for the group/raid member in `slot`.
 -- `slot` - "player", "party1", etc. Don't save the slot used on
@@ -43,6 +76,8 @@ function ns:Character(slot)
         className, classFile, _ = UnitClass(slot)
         _, englishRaceName, raceId = UnitRace(slot)
     end
+
+    local evidenceTracker = ns:makeEvidenceTracker()
 
     ns:printDebug(string.format(
         "Character(%s): new character GUID=[%s], name=[%s], class=[%s]",
@@ -100,7 +135,7 @@ function ns:Character(slot)
         end
 
         -- Add racials
-        for _, baseAbility in pairs(ns.AbilityDb[englishRaceName]) do
+        for _, baseAbility in pairs(ns.AbilityDb[englishRaceName] or {}) do
             local ability = ns:shallowcopy(baseAbility) -- no talents
             ability.hasAbility = true  -- XXX: TODO: this won't be true for evoker CC racials
             if ability.hasAbility then
@@ -151,6 +186,29 @@ function ns:Character(slot)
 
     function char:getPossibleAbilities() return possibleAbilities end
 
+    -- Stop tracking the character
+    function char:untrack()
+        ns:printDebug(string.format("DELETING ALL DATA for character name=[%s], GUID=[%s]",
+            name, GUID))
+        trackedCharacters[GUID] = nil
+        -- XXX: TODO: hack until these are formally folded into Character
+        ns.eventsForInference[GUID] = nil
+        evidenceTrackersByGUID[GUID] = nil
+    end
+
+
+    function char:trackEvidence(evidenceType, value)
+        evidenceTracker[evidenceType]:push(value)
+    end
+
+    function char:getEvidence(evidenceType)
+        return evidenceTracker[evidenceType]
+    end
+
+    function char:getEvidenceTracker()
+        return evidenceTracker
+    end
+
     return char
 end
 
@@ -169,8 +227,8 @@ function ns:trackCharacter(slot)
         char = ns:Character(slot)
         trackedCharacters[guid] = char
         -- XXX: TODO: hack until these are formally folded into Character
-        ns.buffsForInference[guid] = {}
-        ns.eventTrackers[guid] = ns:makeEventTracker()
+        ns.eventsForInference[guid] = {}
+        evidenceTrackersByGUID[guid] = char:getEvidenceTracker()
     end
 
     -- Update the cache of possible abilities targeting this character.
@@ -180,21 +238,6 @@ function ns:trackCharacter(slot)
         char:cachePossibleAbilities()
     end
     return char
-end
-
-
--- Stop tracking the character identified by guid
-function ns:untrackCharacter(guid)
-    local char = ns:getTrackedCharacterByGUID(guid)
-
-    if char then
-        ns:printDebug(string.format("DELETING ALL DATA for character name=[%s], GUID=[%s]",
-            char:getName(), char:getID()))
-        trackedCharacters[guid] = nil
-        -- XXX: TODO: hack until these are formally folded into Character
-        ns.buffsForInference[guid] = nil
-        ns.eventTrackers[guid] = nil
-    end
 end
 
 
