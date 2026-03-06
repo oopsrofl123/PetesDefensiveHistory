@@ -1,11 +1,199 @@
 BUGS
 ===========================================================================
+- ZKS simulation doesn't know how to create nonAuraEvents
+- continue decoupling event from buff
+    - removing "buff" from most everything in PetesDefensiveHistory.lua
+- remove lastNegativeAuraId/makeAura hack for non-aura events in shadowmeld
+- retest meld since it exercises a completely different code path
+- new bug in follower dungeon:
+    - reload UI
+    - immediately cast freedom
+    - somehow this circumvents the glow/cooldown swipe
+- continue removing event>buff.duration
+    - need to retest vdh meta (forceFullDuration?)
+- test removing infer from buff added
+- get rid of all external uses of ns.eventsForInference
+    - move poller loop into Event.lua
+- generate an event on update
+- generalized event system
+    - make inferAbility not depend on buff-specific stuff
+      fields expected by inferAbility:
+        - buff.ability
+        - buff.certain
+        - buff.target
+        - buff.{IMPORTANT,BIG,EXTERNAL,RAID,RIC}
+        - buff.startTime
+        - buff.duration
+        - buff.endTime (for isBeingRemoved)
+        - buff.closest_cast
+        - buff.inference
+        - buff.auraInstanceId (printing - events just need names)
+        - buff.maxCD
+    - events have:
+        - basic info (most of above)
+        - evidence (current event trackers)
+        - whether the event is flagged to be untracked
+    - remember:
+        - want to be able to query evidence when deciding to make an event. examples:
+            * meld: drop combat + button press + aura
+            * updates: button press + aura update
+    - getCastTimeDiff(): should this be part of Event()?
+    - generally: getEventTimeDiff/ConcurrentEvent(): these are about evidence, which
+      should be handled by Event(). the later judgment and weight of evidence by the
+      confidenceNetwork will *NOT* be delegated to Event.
+
+- WoW BUGS TO HANDLE:
+    - VDH meta: procing last resort puts meta on CD
+
+- Change how uncertain inference is handled. "uncertain" does not fully convey the situation:
+  the only current use of uncertain is VDH meta. what it means is we have identified the buff,
+  but don't know which ability caused it. this generalizes to GoAK.
+    * when a certain OR uncertain inference is made, save the ability to the event
+        - e.g., buff.ability=Metamorphosis of buff.ability=Guardian of Ancient Kings
+    * regardless of certain vs. uncertain, this event may be subject additional rounds of inference
+        - certain: buff updates (another charged used?)
+        - uncertain: buff updates, buff expiry
+    * if buff.ability is set:
+        - prune the possibleAbilities list
+        - potentially different confidence layer?
+
+
+- last big change before r1: multi-ability buffs
+    - where does the "1 buff, many abilities" bridge come in?
+    - CURRENT PROBLEM: where is the line between logic and UI?
+    - sketch hierarchy:
+EVENTS 
+    - EVENTS have a many-to-many mapping to ABILITIES
+        - 1 event -> many abilities: buff that can be updated with second charge (GoAK, VDH meta)
+        - many events -> 1 ability: AoE stops create (possibly) many debuffs, many spellcast interrupts
+    - all events go into a history
+    - Some events are tracked for inference
+        * Auras (buffs, debuffs). Debuffs on nameplates with flag=CROWD_CONTROL are CCs
+        * Spellcast interrupted (kicks, CCs)
+        * Shadowmeld (UNIT_AURA, UPDATE_STEALTH, PLAYER_REGEN_ENABLED, UNIT_THREAT_LIST_UPDATE, PLAYER_IN_COMBAT_CHANGED, etc.?)
+    Events are either :witnessed() or :tracked(); if :tracked() they need to be :inferred() and eventually :untracked()
+    1. :witness()
+    2. :track()
+    3. :getTracked()
+        need to be able to loop over the "important" events so they can be inferred, but :infer()
+        might not be an event method
+    4. :loop over evidence events "getEvidence()"?
+        the current prepareClosestEvents: need to loop over some specific set of events
+        to gather evidence for inference
+    5. :untrack()
+    **6**. :consume()
+        CRITICAL: event > ability assignments must sometimes consume events.
+        PROBLEM: ringbuffer FIFO isn't a good data structure for removing arbitrary elements
+        Examples:
+        a. must consume: GoAK vs. cheat. there are two relevant evidentiary events: a spellcast and a debuff.
+           if GoAK is used at the same time cheat procs, these events are too close to the buff add/updates
+           to use them to differentiate which happened first. but, because they're so close together, it doesn't
+           really matter which happened first, just make an assignment and move on and tolerate a <0.1s inaccuracy
+           in the CD tracker.
+           TO DO THIS: either: GoAK *consumes* the spellcast event when it is assigned or cheat *consumes* the
+           debuff when it is assigned. consumption means the evidentiary event is no longer present in a followup
+           inference.
+        b. must not consume: AoE CCs. an AoE CC cast creates one spellcast event but may cause many CCs. the point
+           is that consumption is not always correct
+          
+
+    HOW COULD THE NEW SYSTEM HELP TO HANDLE GOAK/META?
+    - do we need a system to tell the user when something happened that we couldn't figure out?
+      maybe the exclamation mark badge should be a dynamic thing?
+    GOAK:
+        - in certain cases, decoupling event tracking from visuals is why it helps
+        - in uncertain cases: C=cheat, G=GoAK
+            CASE: C>G where G cast is close enough to C proc that can't determine which was which
+                  need a VDH-like "return GoAK even though it could be cheat"
+                  if uncertain, then the two abilities were used so close together that we can't
+                  discern which caused the debuff. so just assign arbitrarily. first can always
+                  be GoAK. the CD will be off by fractions of a second.
+            ^^^ this won't work because we can't distinguish C>G from G>G without C's duration.
+                a debuff is not POSITIVE evidence of C - but lack of a debuff is POSITIVE evidence of G by excluding C
+                no spellcast is POSITIVE evidence of C - excludes G, leaving only C
+                REQUIRES CONSUMPTION TO AUTOMATICALLY RESOLVE (ARBITRARILY)
+
+    - what actions are performed on *a buff*?
+        BUFFs have a lifecycle:
+        1. add
+        2. update
+        3. remove
+        The purpose of a buff is to create structured events telling us WHEN
+        to do things. The things we do during the buff lifecycle:
+        1. infer new ability was used
+        2. UI feedback
+        BUFF API should contain -------------------------------
+            1. infer()
+                c. finalizeInference - harden the link between buff <-> ability (commit with UI feedback)
+                    d. trackCooldown - subroutine of finalize. only exists as a function for the BoP/spellward hack
+                    *** should finalizing a buff take it out of the tracked list?
+                d. inferAndAct - run infer() and react with feedback. this is necessary since there are many events
+                    that trigger inference and the reaction needs to be uniform. OTOH, the stand-alone infer() needs
+                    to exist for things like simulations
+                e. buffExpiredOrReplaced - visual reactions
+            2. make() - just alloc a standard structure
+        BUFF API should NOT contain -------------------------------
+            [3. track() - decide if the buff is one we want to infer or just an event to witness]
+                a. prepareClosestEvents  } - these should be in InferenceEngine, pass the event trackers
+                b. prepareForInference   }
+    * abilities with charges should be given DURATION_LTE
+        - this was identified as a clever hack for vdh apex meta, but really it's what describes
+          most charge abilities
+            - the only counterexample i've seen is shadow dance, which doesn't allow dance to be pressed
+              a second time while it's running
+        - setting DURATION_LTE affects other ability inferences since the duration of the charge ability
+          can now be consistent with shorter duration abilities
+
+    - what are the actions performed on *an ability*?
+        1. claim ability was used
+            a. TTS announce
+            b. glow the UI element
+            c. track the CD
+        2. claim the ability is done
+            a. unglow UI
+            b. start the cooldown swipe
+    - why do we check for buffs in update? TO SEE IF NEW ABILITIES ARE USED
+        - might need to determine all updateable abilities per spec
+    - exposing some internals of inferAbility: check was button pressed?
+    - extend buff.ability to be a list of abilities
+    - buff.ability is never used directly
+    - buff -> ability mappings are always from getAbility
+        - getAbility:
+            1. buffExpiredOrReplaced()
+                -> visual response to a buff going away
+            2. update loop: GOAL: detect whether new ability caused this update
+                -> new ability occured that caused update?
+                -> more information came in about an uncertain ability
+            3. remove loop
+                -> stop visuals
+        - buffExpiredOrReplaced
+            1. update loop - before infer
+            2. remove loop - after infer
+    - update loop: if there's a reason to associate a new ability, append to list
+        - things like finalize need to happen here so that cooldowns are known ASAP, not
+          when the buff expires (affects potentially other abilities)
+    - remove loop: go through and expire all abilities
+
+BUFF LIFECYCLE:
+
+OBSERVATION     ACTION      ABILITY             VISUALS                 DATA
+BUFF ADDED      INFER       ability occurred    GLOW+ANNOUNCE           TRACK CD
+POLL/EVENT      INFER
+POLL/EVENT      INFER
+    ...
+POLL/EVENT      INFER       another ability?    GLOW+ANNOUNCE/HIDE
+    ...
+BUFF UPDATED    INFER
+    ...
+BUFF UPDATED    INFER
+BUFF REMOVED    INFER                           HIDE
+
 - hardest part: full pass on ability testing, especially with updating. this
   is not easy to do since seemingly uninteresting talents can cause updating.
   see, e.g., the mage hero talent that causes ice cold/ice block to constantly
   update as they allow you to move
 ****** CHECK UPDATES
-****** CHECK CONCURRENTBUFF ABILITIES - SEE TalentDb - ONLY SHADOW DANCE NATURALLY HAS A CONCURRENT BUFF
+****** CHECK CONCURRENTBUFF ABILITIES - SEE TalentDb - ONLY SHADOW DANCE HAS A non-talented CONCURRENT BUFF
                  natural update?     update when press?      extend?
     - dk
     - dh
@@ -33,6 +221,7 @@ pain supp
 avatar (proc>press)
 
 - handle some special cases
+    - [UPDATE] meta vs. apex is solved. now cheat death (should be easier)
     - THE VDH META SPECIAL CASE: when meta extends, which ability was pressed first?
       this determines the cooldown. when apex>meta, the duration does not
       extend. when meta>apex, it does. so:
@@ -45,9 +234,32 @@ avatar (proc>press)
           procing the apex talent well after meta was over, meta was still considered off
           cooldown for some reason. This bug may have been an issue with not calling
           queueCooldown and is already fixed.
+    certain=true
+        [apex > meta]    doesn't happen
+        meta > apex      don't do anything, don't infer on update. it is convinced meta
+                         was cast and it is correct about the timing. it can ignore the
+                         apex talent because it's just a meta extension
+    certain=false
+        apex > meta      duration < 30
+        meta > apex      duration = 30
+
     - THE GIFT OF THE GOLDEN VALKYR SPECIAL CASE: gift of the golden valkyr can update
       goak. this should be easy because of the concurrent debuff
         - because this is recorded as an update to the previous goak
+        - if goak is active -> cheat procs, goak never gets deglowed
+            - goak gets overwritten by cheat on update because it's >1 charge
+        - goak is usually IDed fast (certain=true) because only cheat matches flags and cheat requires debuff
+            - should cheat return goak, certain=false?
+        - cheat also often IDs since its only flag match is goak and cheat doesn't require a button press
+        - overwrite/extend:
+            - cheat > goak: overwrite (becomes 8s)
+            - goak > cheat: weird extend (becomes 12s no matter goak's dur, seems like a bug)
+            - goak > goak: overwrite (becomes 8s)
+        - ok, so then these should almost always resolve correctly because of certainty. the only
+          chance for messing up is a random debuff landing within tolerance or happening to press
+          a button within tolerance of cheat
+        - cheat does not glow goak. so it also never deglows goak. seems glowing goak is the better thing
+          to do, similar to that dh talent
 
 
 - [NEEDS TESTING] concurrentBuffs: if the buff that must be applied by an ability that can be updated,
@@ -85,6 +297,18 @@ V1.0 RELEASE FEATURES
 
 V1.1 RELEASE FEATURES
 ===========================================================================
+- generalize Event to allow non-tracked characters to be event sources
+    - happens when CC is used: the source is the target (or multiple targets, for AoE)
+    - for AoE CCs: need to prevent adding tons of events for a single ability (one
+      AoE cast = possibly many mobs fire UNIT_AURA->events)
+- fold evidence tracking into Character
+
+- fix the fiery brand 2-charge problem
+    - requires a side effect-free inferAbility call to see if an update is
+      plausibly an ability use (check things like button press, cooldown
+      state, etc.) without clobbering `buff`'s state to allow inferAbility
+      to run (i.e., startTime=now, certain=false).
+
 - don't clear tracker data when party members join/leave/change positions
     - requires migrating current CD status tracking into Character and out of the
       icons that display the CDs. one reason this isn't trivial is polling: the icons
@@ -94,32 +318,49 @@ V1.1 RELEASE FEATURES
 - UNIT_DIED handler. Seems the GUID is secret - probably fires for deaths
   of NPCs as well as players. PLAYER_DEAD also fires, has no payload. would
   be better than UNIT_DIED if that includes NPCs
-    - what about PLAYER_LEAVE_COMBAT?
-    - what about PLAYER_REGEN_ENABLED? i've often seen this used to better
-      detect leaving combat
-      
+    - combine with UNIT_FLAGS-based combatDrops
 
-- fold eventTrackers, cdTrackers and buffsForInference into Character.
-    - buffsForInference: consider generalization to kicks, stops
-    - empty eventTrackers and cdTrackers need to be easily creatable for ZKS
+- Detect ability resets. E.g., detect when cold snap is used to reset ice cold/
+  ice block.
 
-- options to add
-    - font options for cooldown numbers
+- Minimap button
+    - re-anchor frames to deal with sort changes
+    - reset cooldown trackers
+
+- Options
+    - Font options for cooldown numbers
         - outlines, size, font
-    - show offensives on right
-    - color section headers by class
-    - max history tray size
+    - Support directional layouts other than horizontal+left of frame
+    - Max history tray size
+    - Show offensives on right
     - maybe add tooltips for confusing abilities like the DH apex talent
-    - support directional layouts other than horizontal+left of frame
-    - options for centerdefensivebuff icon: takeover (could be useful: some buffs
-      like bubble/evasion aren't shown, we could do better)? hide?
-        * IMPORTANT! don't remove it entirely. some defensives that can't be instant
-          identified (AMS and IBF are a good example) are displayed in the center
-          defensive icon.
-    - "omnicd mode" - moving the center debuff out of the frame
-    - add reset button to panel, have /pdh open options panel rather than reset
+    - Options to augment the centerdefensivebuff icon:
+        - Blizzard opts not to show buffs some would like to see. E.g.,
+          bubble, evasion and meta.
 
-- minimap icon especially with reset ability
+- [PROBABLY LATER] Major debugging feature: export string with all trace data from e.g., a dungeon.
+    - [In the short term, ignore everything below] Compressing data into a shareable string is great for
+      debugging, but in the near term, an uncompressed record with an explorer will be very useful. The
+      calculations below indicate that storing inference records without compression should be no problem.
+    - Some ideas about compressing inference history into a shareable string
+        - layout: one block per target guid, so every record in that block can be assumed to target
+          the same guid without wasting storage space. when caster != target, encode guids
+        - header: build guid encoding (e.g., slot indexes 1..5 in 3 bits).
+        - inferAbility: make bit string of all logic layer and confidence network results
+          for each inference call.
+            - [maybe] record large data like timestamps only for failing logic elements or passing network elements
+            - run length encoding for multiple inference calls made on the same data changes
+                - how to deal with duration changing?
+            - time stamp encoding? 4B=32b float probably. can an offset encoding help? if dungeon < 40m is the longest
+              tracker, 40*60*1k is ~2.5M ms is the max offset, needs 22 bits. so 68% compression. maybe helpful.
+        - game loop: store bit-compressed records of every aura with an interesting flag and a bit on
+          whether they were correctly inferred. ~8 bits of flags, 3 bits for slot (5 man content). header flag can
+          help 
+        - quick and dirty calc: worst case is probably prot paladin with ~10 tracked cds, 1 CPM. so 30 min
+          dungeon would be 300 inference requests. assume avg 3 inference attempts per success = 900 traced
+          events. 10 bytes per inference (how realistic is that? one time stamp is 4B) = 9kB, so base 64 encoded
+          would be a 12,000 character string. Not that bad.
+    
 
 
 
@@ -200,6 +441,11 @@ RANDOM IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
 
 
 ARCHITECTURE FEATURES ----------------------------------------------------------
+
+- fold eventTrackers, cdTrackers and buffsForInference into Character.
+    - buffsForInference: consider generalization to kicks, stops
+    - empty eventTrackers and cdTrackers need to be easily creatable for ZKS
+
 - could buff removal become an event for eventTrackers, further generalizing the
   event architecture and removing special logic in UNIT_AURA?
 
@@ -279,6 +525,25 @@ OTHER FEATURES -----------------------------------------------------------------
 
 LIMITATIONS
 ===========================================================================
+- COOLDOWN TRACKING ONLY WORKS FOR GROUP MEMBERS WITH LibSpecialization.
+  Players without LibSpec will only be tracked using the history tray mode.
+  LibSpec is embedded in common addons like bigwigs (and this addon), so many
+  people have it installed without being aware of it.
+
+- Delayed inference: some classes have abilities that can't be distinguished
+  until some time passes and more data can be collected. Despite not being
+  guessed immediately, these abilities will glow when confidence is attained.
+  This cooldown tracker does not believe the ability started at that time and
+  cooldown counters are based on when the buff was applied, not when inference
+  occurred.
+
+- Fiery brand spread and multi-charge talent: the spread and duration extending
+  talents cause the ability to update itself. When combined with the +1 charge
+  talent, it becomes difficult to know what happens when the ability is updated.
+  Did it spread? Did an immo tick extend duration? Or did the player cast the
+  second charge? There are ways to guess, but they are not 100% accurate.
+    - Technical answer: need a no-side-effects version of inferAbility.
+
 - Weird cases: like multiple paladins. Are their externals always different
   buffs or might they update? Sacs must be different since they deal damage
   to the casters, but what about freedoms?
@@ -290,10 +555,6 @@ LIMITATIONS
   naturally updates itself (e.g., paladin sentinel) since inference doesn't know
   what's going on. in this case, only the second use will be sent to the history
   tray when it expires.
-
-- Only history tray mode is available for other players that do not have LibSpec.
-  LibSpec is embedded in common addons like bigwigs (and this addon), so many
-  people will have it without knowing.
 
 - Abilities with dynamic cooldown reduction (CDR) are hard to handle. This means
   abilities that reduce their cooldown due to some event - for example, a guardian
@@ -313,45 +574,53 @@ LIMITATIONS
       second ability **begins** charging. This compounding issue makes the cooldown info
       very difficult to judge.
         Rotational CDR (definitely not trackable)
-        - disc priest: pain suppression
+        - Disc priest: pain suppression
             - CDR on PW:S casts
-        - prot pal: GoAK
+        - Prot paladin: GoAK
             - CDR on holy power spenders
-        - prot war: shield wall
+        - Prot warrior: shield wall
             - CDR on rage use and shield slams
+        - Vengeance DH: metamorphosis with the Annihilator hero talent and apex talent
+            - CDR on third voidfall meteor
         CDR on large cooldowns (e.g., resets)
-        * balance druid: incarn/celestial alignment
+        - balance druid: incarn/celestial alignment
             - keeper of the grove talent that reduces cooldown based on time spent
               with ability off CD.
-        * aug evoker: scales
+        - aug evoker: scales
             - potentially trackable since the CDR is attached to a long
               cooldown that may itself be trackable
 
 
 KNOWN BUGS
 ===========================================================================
-- Death handling is not implemented. For now, buffs that are running when the
-  unit dies may not be inferred. Support will be added later.
+- Death handling is not implemented. For now, buffs that are running **and**
+  not inferred when the unit dies will be lost. This behavior will be fixed
+  in a later update.
 
 - Changes to party sorting order aren't detected. If you change your
-  party sort (e.g., edit mode > party frames > sort), you need to /reload for
-  the cooldown trackers to update. There must be a way to handle this, but I don't
-  know how.
+  party sort (e.g., edit mode > party frames > sort), a /reload is necessary
+  to properly attach the cooldown trackers to your frames.
 
-- bug in libspec: when entering a follower dungeon with a role that doesn't match
-  your spec, the game forces you into another spec (e.g., if a paladin queues for a
-  follower dungeon as a DPS while prot, it forces the paladin's spec to ret).
-  this forced respec does not trigger a new libspec callback. same when you leave the
-  follower dungeon and it returns you to your previous spec. you must /reload for
-  talents/abilities to be updated.
+- Follower dungeon forced respecs: when entering a follower dungeon with a role
+  that doesn't match your spec, the game forces you into another spec. E.g., if a
+  prot paladin queues for a follower dungeon as a DPS, the paladin is force-
+  respecced to ret. LibSpecialization does not detect this change. A /reload will
+  resolve the issue. This will happen again when leaving the follower dungeon.
 
-- frost mage: cold snap can reset ice cold/ice block, so expect to see these abilities
-  occur sometimes when the mage has cold snap
 
 
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- SHADOWMELD: support non-buff events. Although shadowmeld creates a buff, it is an
+  unremarkable buff so it would be hard to trigger an event from it. Instead, trigger
+  a "tracked event" when a character of interest leaves combat. This tracked event
+  will occur no matter how the player left combat (death, enemies died) and will be
+  kept around for inference for 0.5s. If, in that 0.5s, other evidence is gathered
+  that indicates shadowmeld, good for us.
+    - Events for shadowmeld: UNIT_AURA, UNIT_FLAGS (combat drop), SPELLCAST_SUCCEEDED
+    - This is a general framework that can support kicks and CCs as well
+
 - extendable abilities
     - can the one buff=one ability system be extended to one buff=>0 abilities?
       some important constraints
