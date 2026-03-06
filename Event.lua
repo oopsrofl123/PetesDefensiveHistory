@@ -21,6 +21,7 @@ function ns:Event(newTrace, newSource)
 
     local trace = newTrace
     local source = newSource
+    local char = ns:getTrackedCharacterByGUID(source)
     local inference = 0
     local certain = false
     local ability = nil
@@ -45,6 +46,10 @@ function ns:Event(newTrace, newSource)
 
     -- The event's "source" is the target for auras. Allow both terms for ease of understanding
     function e:getSource() return source end
+
+    function e:getSlot() return ns:cosmeticOnlyMapGUIDToSlot(source) end
+
+    function e:getCharacter() return char end
 
     function e:getMaxCD() return maxCD end
 
@@ -116,7 +121,7 @@ function ns:Event(newTrace, newSource)
             closestEvidence[guid][evidenceType] = closest
             if prevClosest ~= closest and prevClosest ~= 0 then
                 ns:printDebug(string.format("updated closest evidenceType=[%s], actor=[%s], [%0.3f] -> [%0.3f]",
-                    evidenceType, source, prevClosest, closest))
+                    evidenceType, ns:cosmeticOnlyMapGUIDToSlot(source), prevClosest, closest))
             end
         end
     end
@@ -158,7 +163,7 @@ end
 function ns:trackAura(trace, aura)
     ns:printDebug(string.format(
         'trackAura(%s): time=[%0.3f], ID=[%d], target=[%s], flags=(IMP=%d, BIG=%d, EXT=%d, RAID=%d, RIC=%d, HELP=%d, HARM=%d, CANCEL=%d, HELPNAMEPLATE=%d, NAMEPLATE=%d, HARMCC=%d, CC=%d)',
-        trace, aura.startTime, aura.auraInstanceId, aura.target,
+        trace, aura.startTime, aura.auraInstanceId, ns:cosmeticOnlyMapGUIDToSlot(aura.target),
         aura.IMPORTANT and 1 or 0,
         aura.BIG and 1 or 0, aura.EXTERNAL and 1 or 0,
         aura.RAID and 1 or 0, aura.RAIDINCOMBAT and 1 or 0,
@@ -183,6 +188,6 @@ function ns:manageEvents(updateTrace, guid)
     local char = ns:getTrackedCharacterByGUID(guid)
 
     for _, ev in pairs(ns.eventsForInference[guid]) do
-        ns:inferAndAct(updateTrace, char, ev, now)
+        ns:inferAndAct(updateTrace, ev, now)
     end
 end
