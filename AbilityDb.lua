@@ -37,6 +37,7 @@ ns.AbilityDb = {
     ["NightElf"] = {
 		{
 			name="Shadowmeld",
+            alias="Meld",
 			id=58984,
             iconId=132089,
 			cooldown=120,
@@ -47,7 +48,7 @@ ns.AbilityDb = {
             IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            requireConcurrentBuff=true,  -- adds the shadowmeld buff
+            requireBuff=true,  -- adds the shadowmeld buff
             requireCombatDrop=true,
 		},
     },
@@ -55,6 +56,7 @@ ns.AbilityDb = {
     ["DEATHKNIGHT"] = {
 		{
 			name="Anti-Magic Shell",
+            alias='AMS',
 			id=48707,
             iconId=136120,
 			cooldown=60,
@@ -65,10 +67,11 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            requireConcurrentShield=true,
+            requireShield=true,
 		},
 		{
 			name="Icebound Fortitude",
+            alias='IBF',
 			id=48792,
             iconId=237525,
 			cooldown=120,
@@ -82,6 +85,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Vampiric Blood",
+            alias='V.Blood',
 			id=55233,
             iconId=136168,
 			cooldown=90,
@@ -98,10 +102,11 @@ ns.AbilityDb = {
             -- XXX: TODO: this buff might not be related to vamp blood - it tracks the
             -- damage that will be used to calculate death strike's next heal. maybe it's
             -- applied in my testing because i'm not in combat.
-            -- requireConcurrentBuff=true,
+            -- requireBuff=true,
 		},
 		{
 			name="Pillar of Frost",
+            alias='Pillar',
 			id=51271,
             iconId=458718,
 			cooldown=45,
@@ -136,6 +141,7 @@ ns.AbilityDb = {
         -- to get a meta buff or if the actual cooldown as used.
 		{
 			name="Metamorphosis",
+            alias='Meta',
 			id=187827,
             iconId=1247263,
 			cooldown=120,
@@ -162,13 +168,14 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             -- any meta that happens without a button press is cheat death
             requireButtonPress=false,
-            requireConcurrentDebuff=true,
+            requireDebuff=true,
 		},
         -- Apex talent: allows meta to be cast but it only lasts 10s. So we can't ever
         -- know which meta is cast (and whether it incurred a cooldown) until after the
         -- buff completes.
 		{
 			name="Untethered Rage",
+            alias='U.Rage',
 			id=1270444,
             iconId=7636527,
 			cooldown=1,
@@ -182,6 +189,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Fiery Brand",
+            alias='F.Brand',
 			id=204021,
             iconId=1344647,
 			cooldown=60,
@@ -213,6 +221,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Celestial Alignment",
+            alias='C.Alignment',
 			--id=383410,  -- the celestial alignment buff in-game
             id=194223,
             iconId=136060,
@@ -227,6 +236,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Incarnation: Chosen of Elune",
+            alias='Incarn:Elune',
 			id=102560,
             --id=390414   -- this is the in-game incarn buff spell ID
             iconId=571586,
@@ -255,6 +265,7 @@ ns.AbilityDb = {
         },
 		{
 			name="Incarnation: Avatar of Ashamane",
+            alias='Incarn:Ashamane',
 			id=102543,
             iconId=571586,
 			cooldown=180,
@@ -282,6 +293,7 @@ ns.AbilityDb = {
         },
 		{
 			name="Incarnation: Guardian of Ursoc",
+            alias='Incarn:Ursoc',
 			id=102558,
             iconId=571586,
 			cooldown=180,
@@ -341,6 +353,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Obsidian Scales",
+            alias='O.Scales',
 			id=363916,
             iconId=1394891,
 			cooldown=90,
@@ -356,6 +369,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Time Dilation",
+            alias='T.Dilation',
 			id=357170,
             iconId=4622478,
 			cooldown=60,
@@ -373,6 +387,7 @@ ns.AbilityDb = {
     ["HUNTER"] = {
 		{
 			name="Survival of the Fittest",
+            alias='SotF',
 			id=264735,
             iconId=136094,
 			cooldown=90,
@@ -425,6 +440,7 @@ ns.AbilityDb = {
         -- mirror images by duration.
 		{
 			name="Arcane Surge",
+            alias='A.Surge',
 			id=365350,
             iconId=4667417,
 			cooldown=90,
@@ -449,7 +465,7 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            requireConcurrentDebuff=true,
+            requireDebuff=true,
         },
 		{
 			name="Ice Cold",
@@ -463,10 +479,11 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            requireConcurrentDebuff=true,
+            requireDebuff=true,
 		},
 		{
 			name="Mirror Image",
+            alias='M.Image',
 			id=55342,
             iconId=135994,
 			cooldown=120,
@@ -480,6 +497,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Alter Time",
+            alias='A.Time',
 			id=342245,
             iconId=609811,
 			cooldown=50,
@@ -493,6 +511,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Combustion",
+            alias='Bust',
 			id=190319,
             iconId=135824,
 			cooldown=120,
@@ -525,6 +544,7 @@ ns.AbilityDb = {
 		-- },
         {
 			name="Life Cocoon",
+            alias='L.Cocoon',
 			id=116849,
             iconId=627485,
 			cooldown=120,
@@ -542,6 +562,7 @@ ns.AbilityDb = {
     ["PALADIN"] = {
 		{
 			name="Blessing of Sacrifice",
+            alias='Sac',
 			id=6940,
             iconId=135966,
 			cooldown=120,
@@ -556,6 +577,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Divine Protection",
+            alias='D.Protection',
 			id=498,
             iconId=524353,
 			cooldown=60,
@@ -566,10 +588,11 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            requireConcurrentShield=true
+            requireShield=true
 		},
 		{
 			name="Divine Shield",
+            alias='Bubble',
 			id=642,
             iconId=524354,
 			cooldown=300,
@@ -580,10 +603,11 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            requireConcurrentDebuff=true,
+            requireDebuff=true,
 		},
 		{
 			name="Blessing of Protection",
+            alias='BoP',
 			id=1022,
             iconId=135964,
 			cooldown=300,
@@ -594,10 +618,11 @@ ns.AbilityDb = {
             IMPORTANT=false, BIG=false, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
 			targets=ns.TARGET_ANY,
             requireButtonPress=true,
-            requireConcurrentDebuff=true,
+            requireDebuff=true,
 		},
 		{
 			name="Blessing of Spellwarding",
+            alias='Spellward',
 			id=204018,
             iconId=135880,
 			cooldown=300,
@@ -608,13 +633,14 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=true, RAID=true, RAIDINCOMBAT=false,
 			targets=ns.TARGET_ANY,
             requireButtonPress=true,
-            requireConcurrentDebuff=true,
+            requireDebuff=true,
 		},
         ---------------------------------------------------------------------------------------
         -- END Forbearance spells
         ---------------------------------------------------------------------------------------
 		{
 			name="Blessing of Freedom",
+            alias='Freedom',
 			id=1044,
             iconId=135968,
 			cooldown=25,
@@ -643,6 +669,7 @@ ns.AbilityDb = {
         },
         {
             name='Avenging Crusader',
+            alias='Av.Crusader',
 			id=216331,
             iconId=589117,
 			cooldown=60,
@@ -656,6 +683,7 @@ ns.AbilityDb = {
         },
 		{
 			name="Avenging Wrath",
+            alias='Av.Wrath',
 			id=31884,
             iconId=135875,
 			cooldown=120,
@@ -669,6 +697,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Ardent Defender",
+            alias='A.Defender',
 			id=31850,
             iconId=135870,
 			cooldown=90,
@@ -682,6 +711,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Guardian of Ancient Kings",
+            alias='GoAK',
 			id=86659,
             iconId=135919,
 			cooldown=180,
@@ -696,6 +726,7 @@ ns.AbilityDb = {
 		-- GoAK from cheat death talent
 		{
 			name="Gift of the Golden Valkyr",
+            alias='GoAK cheat',
 			id=393108,
             iconId=1349535,   -- blizzard shows the GoAK icon on bigdefensives. show the talent instead
 			cooldown=45,
@@ -707,7 +738,7 @@ ns.AbilityDb = {
             IMPORTANT=false, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=false,
-            requireConcurrentDebuff=true,
+            requireDebuff=true,
 		},
 		{
 			name="Sentinel",
@@ -729,6 +760,7 @@ ns.AbilityDb = {
     ["PRIEST"] = {
 		{
 			name="Desperate Prayer",
+            alias='D.Prayer',
 			id=19236,
             iconId=237550,
 			cooldown=90,
@@ -742,6 +774,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Pain Suppression",
+            alias='P.Supp',
 			id=33206,
             iconId=135936,
 			cooldown=180,
@@ -758,6 +791,7 @@ ns.AbilityDb = {
         -- cast time but is affected by haste.
 		{
 			name="Divine Hymn",
+            alias='D.Hymn',
 			id=64843,
             iconId=237540,
 			cooldown=180,
@@ -771,6 +805,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Guardian Spirit",
+            alias='G.Spirit',
 			id=47788,
             iconId=237542,
 			cooldown=180,
@@ -802,6 +837,7 @@ ns.AbilityDb = {
     ["ROGUE"] = {
 		{
 			name="Cloak of Shadows",
+            alias='Cloak',
 			id=31224,
             iconId=136177,
 			cooldown=120,
@@ -832,6 +868,7 @@ ns.AbilityDb = {
         -- rush, could infer prep was used if rush is used again before CD is up.
 		{
 			name="Adrenaline Rush",
+            alias='A.Rush',
 			id=13750,
             iconId=136206,
 			cooldown=180,
@@ -851,6 +888,7 @@ ns.AbilityDb = {
         -- many of those buffs are talents. would need to detect them to count concurrent buffs
 		{
 			name="Shadow Dance",
+            alias='S.Dance',
 			id=185313,
             iconId=236279,
 			cooldown=20,
@@ -861,11 +899,12 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            requireConcurrentBuff=true,
+            requireBuff=true,
 		},
         -- XXX: TODO: to differentiate from dance, blades doesn't apply any other auras in the same event, 
 		{
 			name="Shadow Blades",
+            alias='S.Blades',
 			id=121471,
             iconId=376022,
 			cooldown=90,
@@ -884,6 +923,7 @@ ns.AbilityDb = {
     ["SHAMAN"] = {
 		{
 			name="Astral Shift",
+            alias='A.Shift',
 			id=108271,
             iconId=538565,
 			cooldown=120,
@@ -918,6 +958,7 @@ ns.AbilityDb = {
     ["WARLOCK"] = {
 		{
 			name="Unending Resolve",
+            alias='U.Resolve',
 			id=104773,
             iconId=136150,
 			cooldown=180,
@@ -952,6 +993,7 @@ ns.AbilityDb = {
     ["WARRIOR"] = {
 		{
 			name="Die by the Sword",
+            alias='DieBTSword',
 			id=118038,
             iconId=132336,
 			cooldown=120,
@@ -982,6 +1024,7 @@ ns.AbilityDb = {
         -- button press.
         {
 			name="Avatar of the Storm",
+            alias='Avatar(proc)',
 			id=437134,
             iconId=432002,
 			cooldown=1,
@@ -995,6 +1038,7 @@ ns.AbilityDb = {
         },
 		{
 			name="Enraged Regeneration",
+            alias='E.Regen',
 			id=184364,
             iconId=132345,
 			cooldown=120,

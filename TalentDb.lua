@@ -7,8 +7,8 @@ local cooldown = "cooldown"
 local duration = "duration"
 local duration_variable = "duration_variable"
 local hasAbility = "hasAbility"
-local requireConcurrentBuff = "requireConcurrentBuff"
-local requireConcurrentShield = "requireConcurrentShield"
+local requireBuff = "requireBuff"
+local requireShield = "requireShield"
 local naturallyUpdates = "naturallyUpdates"
 local reset = "canReset"
 
@@ -80,8 +80,8 @@ ns.ClassTalentModifiers = {
         },
         [385786] = {  -- adds a shield buff to barkskin. rank 2's shield is bigger but
                       -- that's irrelevant.
-            { { id=22812, modifies=requireConcurrentShield, amount=true } },   -- rank 1
-            { { id=22812, modifies=requireConcurrentShield, amount=true } },   -- rank 2
+            { { id=22812, modifies=requireShield, amount=true } },   -- rank 1
+            { { id=22812, modifies=requireShield, amount=true } },   -- rank 2
         }
     },
 
@@ -164,10 +164,10 @@ ns.ClassTalentModifiers = {
         -- wrath buff concurrently, perhaps helping to distinguish wings from
         -- other (10000)-flagged auras.
         [1241288] = {
-            { { id=255937, modifies=requireConcurrentBuff, amount=true },
-              { id=216331, modifies=requireConcurrentBuff, amount=true },
-              { id=31884, modifies=requireConcurrentBuff, amount=true },
-              { id=389539, modifies=requireConcurrentBuff, amount=true } } 
+            { { id=255937, modifies=requireBuff, amount=true },
+              { id=216331, modifies=requireBuff, amount=true },
+              { id=31884, modifies=requireBuff, amount=true },
+              { id=389539, modifies=requireBuff, amount=true } } 
         },
         [1044] = {
             { { id=1044, modifies=hasAbility, amount=true } }
@@ -474,8 +474,8 @@ ns.SpecTalentModifiers = {
         },
         -- XXX: TODO: this ability does add a buff, but it is not in the same UNIT_AURA event
         --[407243] = {
-            --{ { id=363916, modifies=requireConcurrentBuff, amount=true } },  -- rank 1
-            --{ { id=363916, modifies=requireConcurrentBuff, amount=true } },  -- rank 2
+            --{ { id=363916, modifies=requireBuff, amount=true } },  -- rank 1
+            --{ { id=363916, modifies=requireBuff, amount=true } },  -- rank 2
         --},
         [404977] = { -- -20s CDR for ALL spells
             { { id=363916, modifies=cdr, amount=true } }
@@ -527,7 +527,7 @@ ns.SpecTalentModifiers = {
             { { id=190319, modifies=duration_variable, amount=ns.DURATION_GTE } },
         },
         [383634] = { -- adds a buff (Fiery Rush) to combustion
-            { { id=190319, modifies=requireConcurrentBuff, amount=true } },
+            { { id=190319, modifies=requireBuff, amount=true } },
         },
         [1257443] = {  -- apex talent r4 extends combustion duration
             { { } },    -- rank 1
@@ -666,7 +666,7 @@ ns.SpecTalentModifiers = {
               { id=498, modifies=cooldown, amount=30 } }      -- but ret DP is a 90s cd
         },
         [1261562] = {
-            { { id=498, modifies=requireConcurrentShield, amount=true } }
+            { { id=498, modifies=requireShield, amount=true } }
         },
         [384820] = {
             { { id=6940, modifies=cooldown, amount=-60 } }
@@ -856,7 +856,7 @@ ns.SpecTalentModifiers = {
             { { id=871, modifies=hasAbility, amount=true } },
         },
         [1243659] = {  -- last stand adds a buff to shield wall
-            { { id=871, modifies=requireConcurrentBuff, amount=true } },
+            { { id=871, modifies=requireBuff, amount=true } },
         },
         [397103] = {
             { { id=871, modifies=cooldown, amount=-60 },
