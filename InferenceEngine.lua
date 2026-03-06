@@ -49,7 +49,9 @@ local function traceLogic(event, ability, message, ...)
     if not ns:GetOption('muteVerboseDebugging') then
         ns:printDebug(string.format(
             "ability=[%s], target=[%s], caster=[%s]: " .. message,
-            ability.name, event:getTarget(), ability.caster, ...))
+            ability.alias or ability.name,
+            event:getSlot(),
+            ns:cosmeticOnlyMapGUIDToSlot(ability.caster), ...))
     end
 end
 
@@ -153,9 +155,17 @@ end
 
 
 
-local function logicLayerRequireConcurrentEvent(event, ability, evidenceType)
-    --local closest, _, diff = getEventTimeDiff(event, ability, eventType)
-    local closest, diff = event:timeSinceClosest(evidenceType, ability.caster)
+local function logicLayerRequireEvent(event, ability, evidenceType, eventActor)
+    if eventActor == "caster" then
+        eventActor = ability.caster
+    elseif eventActor == "target" then
+        eventActor = event:getTarget()
+    else
+        print("PROGRAMMER ERROR: bad eventActor in logicLayerRequireEvent")
+    end
+
+    local closest, diff = event:timeSinceClosest(evidenceType, eventActor)
+    
     -- the "duration" is how long the event has been tracked, not necessarily
     -- the final length of the buff, if there is one. In this usage, we want
     -- to know how long it's been since the event we want to infer happened
@@ -163,8 +173,8 @@ local function logicLayerRequireConcurrentEvent(event, ability, evidenceType)
     -- the other required concurrent event should have been seen by now.
     if diff > CONCURRENT_EVENT_TOLERANCE or event:timeSince() > CONCURRENT_EVENT_TOLERANCE then
         traceLogic(event, ability,
-            "excluded: closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
-            evidenceType, closest, event:getTime(), diff)
+            "excluded: actor=[%s], closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
+            ns:cosmeticOnlyMapGUIDToSlot(actor), evidenceType, closest, event:getTime(), diff)
         return false
     -- Only for very spammy debugging
     --else
@@ -182,7 +192,8 @@ end
 -- based on how each ability works, determine if it could have possibly produced
 -- event.
 -- which ability is the best match is determined later.
-local function getPossibleSolutions(char, event, cdTracker)
+local function getPossibleSolutions(event, cdTracker)
+    local char = event:getCharacter() -- Character object, not GUID string
     local maxCD = -1
     local possibleSolutions = {}
 
@@ -194,11 +205,11 @@ local function getPossibleSolutions(char, event, cdTracker)
         if logicLayerAuraFlags(event, ability) and
            logicLayerAbilityOffCooldown(event, ability, cdTracker) and
            logicLayerDurationMatches(event, ability) and
-           (not ability.requireConcurrentBuff or logicLayerRequireConcurrentEvent(event, ability, "buff")) and
-           (not ability.requireConcurrentDebuff or logicLayerRequireConcurrentEvent(event, ability, "debuff")) and
-           (not ability.requireConcurrentShield or logicLayerRequireConcurrentEvent(event, ability, "shield")) and
-           (not ability.requireCombatDrop or logicLayerRequireConcurrentEvent(event, ability, "combatDrop")) and
-           (not ability.requireButtonPress or logicLayerRequireConcurrentEvent(event, ability, "cast")) then
+           (not ability.requireBuff or logicLayerRequireEvent(event, ability, "buff", "target")) and
+           (not ability.requireDebuff or logicLayerRequireEvent(event, ability, "debuff", "target")) and
+           (not ability.requireShield or logicLayerRequireEvent(event, ability, "shield", "target")) and
+           (not ability.requireCombatDrop or logicLayerRequireEvent(event, ability, "combatDrop", "target")) and
+           (not ability.requireButtonPress or logicLayerRequireEvent(event, ability, "cast", "caster")) then
             traceLogic(event, ability, "is a possible solution")
             -- All rules have passed, this ability is a possible match
             local x = ns:shallowcopy(ability)
@@ -343,11 +354,20 @@ end
 -- XXX: TODO: Would be nice to do a consistency check across confidence layers to
 -- make sure the confident ones agree with each other.
 local function getConfidentMatch(possibleSolutions)
-    ns:printDebug("getConfidentMatch("..#possibleSolutions..")")
-    match = confidenceLayerOnlyOnePossible(possibleSolutions) or
-        confidenceLayerCastTime(possibleSolutions) or
-        confidenceLayerDuration(possibleSolutions) or
-        confidenceLayerMetamorphosis(possibleSolutions)
+    local match = false
+
+    -- This if statement is only to prevent printing the confidence traces when there
+    -- are 0 possible solutions. Otherwise the code below handles the 0 solution
+    -- situation perfectly well.
+    if #possibleSolutions > 0 then
+        ns:printDebug("getConfidentMatch("..#possibleSolutions..")")
+        match = confidenceLayerOnlyOnePossible(possibleSolutions) or
+            confidenceLayerCastTime(possibleSolutions) or
+            confidenceLayerDuration(possibleSolutions) or
+            confidenceLayerMetamorphosis(possibleSolutions)
+    else
+        ns:printDebug("getConfidentMatch("..#possibleSolutions..").. skipping")
+    end
 
     -- for convenience: unpack the 2 tuple
     if match then
@@ -361,13 +381,14 @@ end
 
 -- Use various rules about who can cast what ability on whom to narrow down
 -- the possible abilities that could be "event".
-function ns:inferAbility(inferenceTrace, char, ev, cdTracker)
+function ns:inferAbility(inferenceTrace, ev, cdTracker)
     -- track how many times we've tried to infer this ability
     ev:incrementInference()
 
     ns:printDebug(string.format(
-        "|cffD8B87CInfer(trace=[%s], time=[%0.3f], target=[%s], eventId=[%s], attempt=[%d])|r",
-        inferenceTrace, GetTime(), char:getID(), ev:getId(), ev:getInference()))
+        "|cffD8B87CInfer(time=[%0.3f], tr(poll)=[%s], tr(event)=[%s], target=[%s], eventId=[%s], attempt=[%d])|r",
+        GetTime(), inferenceTrace, ev:getTrace(),
+        ev:getSlot(), ev:getId(), ev:getInference()))
 
     -- allow the caller to override the tracked state of CDs to simulate an
     -- unknown state. useful for determining which abilities are ALWAYS
@@ -375,7 +396,7 @@ function ns:inferAbility(inferenceTrace, char, ev, cdTracker)
     cdTracker = cdTracker or ns.cdTracker
 
     -- all logic and ranking is performed in these two lines
-    possibleSolutions, maxCD = getPossibleSolutions(char, ev, cdTracker)
+    possibleSolutions, maxCD = getPossibleSolutions(ev, cdTracker)
     -- set maxCD at each inference in case one day it uses exclusion information
     ev:setMaxCD(maxCD)
 
@@ -447,7 +468,7 @@ function ns:zeroKnowledgeSolve()
             })
 
             event:prepareForInference(idealEventTrackers)
-            local _, certain = ns:inferAbility("SIMULATE("..ability.name..")", char, event, blankCDs)
+            local _, certain = ns:inferAbility("SIMULATE("..ability.name..")", event, blankCDs)
             ability.solved = certain
             -- XXX: TODO: inferAbility should return the conflicting spell/caster combos
             ability.conflicts = {}
