@@ -161,7 +161,7 @@ local function logicLayerRequireConcurrentEvent(event, ability, evidenceType)
     -- to know how long it's been since the event we want to infer happened
     -- to decide whether it's been long enough to definitively state that
     -- the other required concurrent event should have been seen by now.
-    if diff > CONCURRENT_EVENT_TOLERANCE and event:timeSince() > CONCURRENT_EVENT_TOLERANCE then
+    if diff > CONCURRENT_EVENT_TOLERANCE or event:timeSince() > CONCURRENT_EVENT_TOLERANCE then
         traceLogic(event, ability,
             "excluded: closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
             evidenceType, closest, event:getTime(), diff)
@@ -170,7 +170,7 @@ local function logicLayerRequireConcurrentEvent(event, ability, evidenceType)
     --else
         --traceLogic(event, ability,
             --"accepted: closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
-            --eventType, closest, event:getTime(), diff)
+            --evidenceType, closest, event:getTime(), diff)
     end
     return true
 end
