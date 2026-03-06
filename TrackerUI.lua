@@ -87,26 +87,28 @@ end
 
 
 
--- Used to have a GUID argument: if the aura is going to the tracker, then it
+-- Used to have a GUID argument: if the event is going to the tracker, then it
 -- wasn't IDed, so it always goes to the target.
-function ns:addAuraToHistoryTray(aura)
-    local index = GUIDToIndex[aura.target]
+function ns:addEventToHistoryTray(event)
+    local index = GUIDToIndex[event:getSource()]
     local tray = ns.trackerUI[index].historyTray
+    local aura = event:getAura()
 
     -- Don't do anything if the user disabled the history tray
     if ns:GetOption('disableHistoryTray') then return end
 
-    ns:printDebug("aura instance ID " .. aura.auraInstanceId ..
-        " added to history tray "..index.." after "..aura.duration.."s")
+    ns:printDebug("aura instance ID " .. event:getId() ..
+        " added to history tray "..index.." after ".. event:timeSince().."s")
 
     -- Empty the youngest history slot
     shiftHistoryTrayLeftFrom(tray.items)
     
     -- Now that space has been made, add this ability to the tracker
     item = tray.items[MAX_HISTORY]
-    item.startTime = aura.startTime
-    item.maxCD = aura.maxCD
-    item.icon:SetTexture(aura.secretTexture)
+    item.startTime = event:getTime()
+    item.maxCD = event:getMaxCD()
+    -- If an aura 
+    item.icon:SetTexture(aura and aura.secretTexture or DEFAULT_ICON)
     item.icon:Show()
     item.timer:Show()
     item:Show()

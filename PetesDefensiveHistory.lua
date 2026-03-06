@@ -227,7 +227,7 @@ local function eventExpiredOrReplaced(ev)
     if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
         ns:queueCooldown(ability)
     elseif not ev:isNonAuraEvent() then
-        ns:addAuraToHistoryTray(ev:getAura())
+        ns:addEventToHistoryTray(ev)
     end
 end
 
