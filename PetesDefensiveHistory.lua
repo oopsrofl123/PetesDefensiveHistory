@@ -1,12 +1,20 @@
 -- get addon namespace
 local addonName, ns = ...
 
--- Other files shouldn't directly access this
-local slotToGUID = {}
-
 -- time in seconds to expire a non-buff event since there is no UNIT_AURA(removed)
 -- event to naturally time it out
 expireNonAuraEventsAfter = 0.5
+
+-- Other files shouldn't directly access this
+local slotToGUID = {}
+-- Converting GUID -> slot (=player, party1, arena1, etc) is FOR COSMETIC
+-- PURPOSES ONLY. DO NOT BASE ANY LOGIC ON UNITS.
+local GUIDToSlot = {}
+
+function ns:cosmeticOnlyMapGUIDToSlot(guid)
+    return GUIDToSlot[guid] or "unknown"
+end
+
 
 -- Is slot tracked? If so, return the stable GUID and character object. The
 -- GUID may exist before the Character object, so (non-nil, nil) returns are
@@ -32,12 +40,22 @@ local function updateSlotToGUID()
         if UnitExists(slot) then
             local guid = UnitGUID(slot)
             slotToGUID[slot] = guid
+            GUIDToSlot[guid] = slot
             -- Is this the first time we've seen this guid?
             if not ns:getTrackedCharacterByGUID(guid) then
                 ns:trackCharacter(slot)
             end
         else
+            -- Since the character is no longer in the group (UnitExists=false),
+            -- can't map slot-> GUID. So have to reverse-lookup the slot in the
+            -- GUIDToSlot table to delete it
+            local staleGUID = slotToGUID[slot]
             slotToGUID[slot] = nil
+            for k, v in pairs(GUIDToSlot) do
+                if v == slot then
+                    GUIDToSlot[v] = nil
+                end
+            end
         end
     end
 
@@ -193,7 +211,8 @@ local function finalizeInference(ev, ability)
 
     ns:printDebug(string.format(
         "|cff00CDCDFINALIZED(time=[%0.3f], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
-            GetTime(), ev:getInference(), ability.caster, ability.name, ev:getTime()))
+            GetTime(), ev:getInference(), ns:cosmeticOnlyMapGUIDToSlot(ability.caster),
+            ability.alias or ability.name, ev:getTime()))
 
     trackCooldown(ev, ability)
 
@@ -235,10 +254,10 @@ end
 
 -- Main update function for tracked events. Runs inference if appropriate and
 -- removes them from tracking when their lifetime is over.
-function ns:inferAndAct(inferenceTrace, char, ev, now)
+function ns:inferAndAct(inferenceTrace, ev, now)
     if not ev:isCertain() and (ev:isExpiring() or not ev.forceFullDuration) then
         ev:prepareForInference()
-        local ability, certain = ns:inferAbility(inferenceTrace, char, ev)
+        local ability, certain = ns:inferAbility(inferenceTrace, ev)
         if certain then
             finalizeInference(ev, ability)
         end
@@ -264,6 +283,18 @@ end
 -- EVENT HANDLERS
 --====================================================================================
 
+local function traceHandler(event, now, unit, message, ...)
+    --fmtString = "|cFFEB4EF7%s(time=[%0.3f], source=[%s])"
+    fmtString = "|cFFFF55FF%s(time=[%0.3f], source=[%s])"
+    if message ~= nil then
+        fmtString = fmtString..": "..message
+    end
+    fmtString = fmtString.."|r"
+
+    ns:printDebug(string.format(fmtString, event, now, unit, ...))
+end
+
+
 --------------------------------------------------------------------------------------
 -- Track player spell casts
 --------------------------------------------------------------------------------------
@@ -275,10 +306,9 @@ castHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID
     if not guid then return end
     local now = GetTime()
 
-    ns:printDebug(string.format("SPELLCAST(time=[%0.3f], caster=[%s|%s], %s, %s)",
-        now, caster, guid,
-        tostring(ns:maskSecret(spellID)), tostring(ns:maskSecret(castBarID))))
-        
+    traceHandler("SPELLCAST", now, caster, "%s, %s",
+        tostring(ns:maskSecret(spellID)), tostring(ns:maskSecret(castBarID)))
+
     char:trackEvidence('cast', now)
 
     ns:manageEvents("CAST", guid)
@@ -296,9 +326,8 @@ absorbHandler:SetScript("OnEvent", function(self, event, target)
     if not guid then return end
     local now = GetTime()
 
-    ns:printDebug(string.format("ABSORB(time=[%0.3f], target=[%s|%s])",
-        now, target, guid))
-        
+    traceHandler("ABSORB", now, target)
+
     char:trackEvidence('shield', now)
 
     ns:manageEvents("ABSORB", guid)
@@ -317,8 +346,7 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
     local now = GetTime()
 
     local inCombat = UnitAffectingCombat(target)
-    ns:printDebug(string.format("UNIT_FLAGS(time=[%0.3f], target=[%s|%s], inCombat=[%s])",
-        now, target, guid, tostring(inCombat)))
+    traceHandler("FLAGS", now, target, "inCombat=[%s]", tostring(inCombat))
 
     -- Check previously witnessed inCombat state. Did target leave combat?
     local lastInCombat = char:getEvidence('combatStatus'):head()
@@ -355,8 +383,8 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     local aurasUpdated = updateInfo['updatedAuraInstanceIDs'] or {}
     local now = GetTime()
 
-    ns:printDebug(string.format('AURA(time=[%0.3f], target=[%s|%s], added=[%d], updated=[%d], removed=[%d])',
-        now, unitTarget, guid, #aurasAdded, #aurasUpdated, #aurasRemoved))
+    traceHandler("AURA", now, unitTarget, "added=[%d], updated=[%d], removed=[%d]",
+        #aurasAdded, #aurasUpdated, #aurasRemoved)
 
     -- Convenience mode for collecting data about buff rules. Shows all buffs and debuffs added,
     -- including secret data that would not normally be available.
@@ -430,7 +458,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 eventExpiredOrReplaced(ev)
                 buff.startTime = now   -- must reset or inference machinery will skip
                 buff.certain = false   -- must reset or inference machinery will skip
-                ns:inferAndAct("AURA(update)", char, ev, now)
+                ns:inferAndAct("AURA(update)", ev, now)
             elseif ability and not certain and not ability.naturallyUpdates then
                 -- Harder case. An uncertain inference and the inferred ability does not
                 -- update. There might not be a general way to resolve this. Currently the
@@ -502,11 +530,11 @@ end)
 -- Unlike other events, the poller isn't fired for any specific player, so manage
 -- events for every tracked character.
 --------------------------------------------------------------------------------------
-local pollrate = 0.25
+local pollrate = 2 --0.25
 poller = C_Timer.NewTicker(pollrate, function()
     local now = GetTime()
     for guid, char in pairs(ns:getTrackedCharacters()) do
-        ns:manageEvents("POLL("..pollrate..", "..guid..")", guid)
+        ns:manageEvents("POLL("..pollrate..", "..ns:cosmeticOnlyMapGUIDToSlot(guid)..")", guid)
     end
 end)
 
