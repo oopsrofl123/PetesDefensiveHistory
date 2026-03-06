@@ -46,6 +46,8 @@ function ns:Event(newTrace, newSource)
     -- The event's "source" is the target for auras. Allow both terms for ease of understanding
     function e:getSource() return source end
 
+    function e:getMaxCD() return maxCD end
+
     function e:getTarget() return source end
 
     function e:getAura() return aura end
