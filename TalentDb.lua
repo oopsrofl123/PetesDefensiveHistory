@@ -220,6 +220,9 @@ ns.ClassTalentModifiers = {
         [457022] = {
             { { id=31224, modifies=duration, amount=2 } }
         },
+        [382513] = {  -- vanish charges
+            { { id=1856, modifies=charges, amount=1 } },
+        },
     },
 
 
@@ -736,9 +739,15 @@ ns.SpecTalentModifiers = {
 
     -- Assassination rogue -----------------------------------------------------------------
     [259] = {
+        [2823] = {
+            { { id=1856, modifies=hasAbility, amount=true } },   -- give vanish
+        },
     },
     -- Outlaw rogue ------------------------------------------------------------------------
     [260] = {
+        [279876] = {
+            { { id=1856, modifies=hasAbility, amount=true } },   -- give vanish
+        },
         [13750] = {
             { { id=13750, modifies=hasAbility, amount=true } },
         },
@@ -755,7 +764,8 @@ ns.SpecTalentModifiers = {
     -- Subtlety rogue ---------------------------------------------------------------------
     [261] = {
         [91023] = {   -- root sub talent
-            { { id=185313, modifies=hasAbility, amount=true } },   -- give shadow dance
+            { { id=185313, modifies=hasAbility, amount=true },   -- give shadow dance
+              { id=1856, modifies=hasAbility, amount=true } },   -- give vanish
         },
         [394930] = {
             { { id=185313, modifies=charges, amount=1 } },
@@ -773,6 +783,20 @@ ns.SpecTalentModifiers = {
         },
         [121471] = {
             { { id=121471, modifies=hasAbility, amount=true } }
+        },
+        [196976] = {  -- gives master of shadows buff on dance
+            { { id=185313, modifies=requireBuff, amount=true } },
+        },
+        [382514] = {  -- gives fade to nothing on dance
+            { { id=185313, modifies=requireBuff, amount=true },
+              { id=1856, modifies=requireBuff, amount=true } },
+        },
+        [385722] = {  -- gives silent storm on dance
+            { { id=185313, modifies=requireBuff, amount=true },
+              { id=1856, modifies=requireBuff, amount=true } },
+        },
+        [382515] = {  -- vanish gives a shield
+            { { id=1856, modifies=requireShield, amount=true } },
         },
     },
 
