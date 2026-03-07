@@ -134,6 +134,7 @@ function ns:maskSecret(value)
 end
 
 
+-- Lua-ese for true -> "1", false -> "0"
 function ns:boolstr(bool)
     return tostring(bool and 1 or 0)
 end
