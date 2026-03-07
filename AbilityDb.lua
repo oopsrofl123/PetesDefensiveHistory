@@ -835,6 +835,21 @@ ns.AbilityDb = {
 
 	----------------------------------------------------------------------------------------
     ["ROGUE"] = {
+        {
+			name="Vanish",
+			id=1856,
+            iconId=132331,
+			cooldown=120,
+			duration=3,   -- there is an associated 3s aura in addition to stealth
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+            requireBuff=true,         -- the vanish aura is on top of stealth
+            requireCombatDrop=true,
+		},
 		{
 			name="Cloak of Shadows",
             alias='Cloak',
