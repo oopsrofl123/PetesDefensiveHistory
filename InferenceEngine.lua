@@ -48,7 +48,7 @@ CASTTIME_CONFIDENT_DIFFERENCE = 0.150
 local function traceLogic(event, ability, message, ...)
     if not ns:GetOption('muteVerboseDebugging') then
         ns:printDebug(string.format(
-            "ability=[%s], target=[%s], caster=[%s]: " .. message,
+            "|cFF888888ability=[%s], target=[%s], caster=[%s]: " .. message .. "|r",
             ability.alias or ability.name,
             event:getSlot(),
             ns:cosmeticOnlyMapGUIDToSlot(ability.caster), ...))
@@ -96,7 +96,7 @@ end
 local function logicLayerAbilityOffCooldown(event, ability, cdTracker)
     -- XXX: TODO: better handling for resets. for now, if the ability CAN reset
     -- we give up using its CD information in inference.
-    if not ability.reset then
+    if not ability.canReset then
         -- To cast the ability, just need 1 charge to be off cooldown. So check
         -- the oldest charge - if that one isn't available then no younger charge
         -- can't possibly be available.
@@ -155,26 +155,24 @@ end
 
 
 
-local function logicLayerRequireEvent(event, ability, evidenceType, eventActor)
-    if eventActor == "caster" then
-        eventActor = ability.caster
-    elseif eventActor == "target" then
-        eventActor = event:getTarget()
+local function eventOccurred(event, ability, evidenceType, evidenceActor, permissive)
+    if evidenceActor == "caster" then
+        evidenceActor = ability.caster
+    elseif evidenceActor == "target" then
+        evidenceActor = event:getTarget()
     else
-        print("PROGRAMMER ERROR: bad eventActor in logicLayerRequireEvent")
+        print("PROGRAMMER ERROR: bad evidenceActor in eventOccurred")
     end
 
-    local closest, diff = event:timeSinceClosest(evidenceType, eventActor)
-    
-    -- the "duration" is how long the event has been tracked, not necessarily
-    -- the final length of the buff, if there is one. In this usage, we want
-    -- to know how long it's been since the event we want to infer happened
-    -- to decide whether it's been long enough to definitively state that
-    -- the other required concurrent event should have been seen by now.
-    if diff > CONCURRENT_EVENT_TOLERANCE or event:timeSince() > CONCURRENT_EVENT_TOLERANCE then
+    local closest, diff = event:timeSinceClosest(evidenceType, evidenceActor)
+
+    -- Tolerate at most CONCURRENT_EVENT_TOLERANCE seconds between the event and the
+    -- required concurrent evidence. But until that much time passes, it is unknown whether
+    -- the required concurrent evidence will pop up. So wait that long before rejecting.
+    if diff > CONCURRENT_EVENT_TOLERANCE and (not permissive or event:timeSince() > CONCURRENT_EVENT_TOLERANCE) then
         traceLogic(event, ability,
             "excluded: actor=[%s], closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
-            ns:cosmeticOnlyMapGUIDToSlot(actor), evidenceType, closest, event:getTime(), diff)
+            ns:cosmeticOnlyMapGUIDToSlot(evidenceActor), evidenceType, closest, event:getTime(), diff)
         return false
     -- Only for very spammy debugging
     --else
@@ -205,11 +203,11 @@ local function getPossibleSolutions(event, cdTracker)
         if logicLayerAuraFlags(event, ability) and
            logicLayerAbilityOffCooldown(event, ability, cdTracker) and
            logicLayerDurationMatches(event, ability) and
-           (not ability.requireBuff or logicLayerRequireEvent(event, ability, "buff", "target")) and
-           (not ability.requireDebuff or logicLayerRequireEvent(event, ability, "debuff", "target")) and
-           (not ability.requireShield or logicLayerRequireEvent(event, ability, "shield", "target")) and
-           (not ability.requireCombatDrop or logicLayerRequireEvent(event, ability, "combatDrop", "target")) and
-           (not ability.requireButtonPress or logicLayerRequireEvent(event, ability, "cast", "caster")) then
+           (not ability.requireBuff or eventOccurred(event, ability, "buff", "target", true)) and
+           (not ability.requireDebuff or eventOccurred(event, ability, "debuff", "target", true)) and
+           (not ability.requireShield or eventOccurred(event, ability, "shield", "target", true)) and
+           (not ability.requireCombatDrop or eventOccurred(event, ability, "combatDrop", "target", true)) and
+           (not ability.requireButtonPress or eventOccurred(event, ability, "cast", "caster", true)) then
             traceLogic(event, ability, "is a possible solution")
             -- All rules have passed, this ability is a possible match
             local x = ns:shallowcopy(ability)
@@ -228,7 +226,7 @@ end
 local function traceConfidence(layerName, message, ...)
     if not ns:GetOption('muteVerboseDebugging') then
         ns:printDebug(string.format(
-            "confidenceLayer(%s): " .. message,
+            "|cFF888888confidenceLayer(%s): " .. message .. "|r",
             layerName, ...))
     end
 end
@@ -337,15 +335,6 @@ end
 -- Keep in mind that it is VERY common for defensives that there's only one possible
 -- matching ability, even without duration knowledge.
 --
--- When there are multiple possible abilities, the instant identification rate will
--- be low.
--- A good illustration is blessing of freedom: it is NOT flagged as an external, can
--- be cast on anyone, and has a (1,0,0) flag set, which is a common flag set for
--- important personals like DH metamorphosis. Freedom can be easily
--- distinguished from meta after it completes via duration, but instant IDing is hard.
--- Everyone is likely casting something every GCD, so there is a high chance that
--- both the DH and paladin cast something near the time the event was observed.
---
 -- If confidence is attained, return the ability otherwise return nil.
 -- Confidence layers are fundamentally an OR operation: if any of the layers can
 -- *confidently* (this word is doing a lot of work here) distinguish between abilities,
@@ -378,6 +367,22 @@ local function getConfidentMatch(possibleSolutions)
 end
 
 
+-- Assessment of some requirements changes with time. Buff flags never change,
+-- but whether a concurrent debuff or button press occurs does change because
+-- these are often not delivered in the same WoW API event. Some time must be
+-- given to determine if they will or won't happen. Until that time passes, the
+-- logic layer checks are actually "maybe" rather than true. But it is incorrect
+-- to exclude abilities that are maybes because that could cause other abilities
+-- to be chosen erroneously.
+local function abilityMeetsRequirements(event, ability)
+    return
+        (not ability.requireBuff or eventOccurred(event, ability, "buff", "target", false)) and
+        (not ability.requireDebuff or eventOccurred(event, ability, "debuff", "target", false)) and
+        (not ability.requireShield or eventOccurred(event, ability, "shield", "target", false)) and
+        (not ability.requireCombatDrop or eventOccurred(event, ability, "combatDrop", "target", false)) and
+        (not ability.requireButtonPress or eventOccurred(event, ability, "cast", "caster", false))
+end
+
 
 -- Use various rules about who can cast what ability on whom to narrow down
 -- the possible abilities that could be "event".
@@ -386,7 +391,7 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     ev:incrementInference()
 
     ns:printDebug(string.format(
-        "|cffD8B87CInfer(time=[%0.3f], tr(poll)=[%s], tr(event)=[%s], target=[%s], eventId=[%s], attempt=[%d])|r",
+        "|cffEFD097Infer(time=[%0.3f], tr(poll)=[%s], tr(event)=[%s], target=[%s], eventId=[%s], attempt=[%d])|r",
         GetTime(), inferenceTrace, ev:getTrace(),
         ev:getSlot(), ev:getId(), ev:getInference()))
 
@@ -400,13 +405,26 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     -- set maxCD at each inference in case one day it uses exclusion information
     ev:setMaxCD(maxCD)
 
+    -- the job of the confidence system is to compare multiple solutions and determine
+    -- which is best, if that is possible.
     -- assignments can be uncertain. e.g., multiple abilities with different CDs
     -- can cause the same event. if true, it is sometimes useful to report what
     -- *event* occurred.
     abilityMatch, certain = getConfidentMatch(possibleSolutions)
+
+    -- finally: are the ability requirements actually met? possibleSolutions returns all
+    -- abilities that cannot be positively excluded. for example, if an ability requires a
+    -- concurrent debuff, we aren't sure that the debuff didn't happen until a short period
+    -- after the event occurred. if infer() is called during that short period, the ability
+    -- is still *possible*.
+    local reqsMet = false
+    if abilityMatch then
+        reqsMet = abilityMeetsRequirements(ev, abilityMatch)
+    end
+
     -- Check for disableInference here, not at function start, so that maxCD can
     -- be computed for use by the history tray.
-    if abilityMatch and not ns:GetOption('disableInference') then
+    if reqsMet and not ns:GetOption('disableInference') then
         ev:setAbility(abilityMatch)
         ev:setCertain(certain)
     else
