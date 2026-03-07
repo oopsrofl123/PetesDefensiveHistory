@@ -12,7 +12,12 @@ local evidenceTrackersByGUID = {}
 -- character. Must
 -- loop over all of these on every inference, so don't make it too
 -- large, but must be large enough to cover a reasonably large time interval.
-local EVIDENCE_HISTORY_SIZE = 8
+--
+-- XXX: TODO: Increasing the evidence queue size. Some abilities generate really
+-- massive numbers of events (bubble taunt generates a zillion SPELLCASTs).
+-- The correct solution is probably to check :head() and refuse to push duplicate
+-- time stamps..
+local EVIDENCE_HISTORY_SIZE = 12
 
 -- Make an empty event tracker
 function ns:makeEvidenceTracker()
@@ -81,7 +86,7 @@ function ns:Character(slot)
 
     ns:printDebug(string.format(
         "Character(%s): new character GUID=[%s], name=[%s], class=[%s]",
-        slot, GUID, name, classFile))
+        slot, GUID, name, tostring(classFile)))
 
     -- Unsettable values --------------------------------------------------------
     -- Return the stable ID that is unique across factions and servers. This is
@@ -201,6 +206,19 @@ function ns:Character(slot)
         evidenceTracker[evidenceType]:push(value)
     end
 
+    -- IMPORTANT!! some auras are returned by neither the helpful nor harmful
+    -- filters. This does not necessarily agree with isHelpful or isHarmful
+    -- annotations in this payload (which are secret anyway).
+    -- If you think an aura should be present in the trackers but isn't, it likely
+    -- is neither HELPFUL nor HARMFUL. Example: coagulating blood (id=463730)
+    function char:trackAuraEvidence(slot, auraInstanceId, now)
+        if ns:isBuff(slot, auraInstanceId) then
+            char:trackEvidence('buff', now)
+        elseif ns:isDebuff(slot, auraInstanceId) then
+            char:trackEvidence('debuff', now)
+        end
+    end
+
     function char:getEvidence(evidenceType)
         return evidenceTracker[evidenceType]
     end
@@ -276,8 +294,12 @@ local internalGroupSpecs = {}    -- internal use by LibSpecialization
 LibSpecialization.RegisterGroup(internalGroupSpecs, 
     function(specId, role, position, playerName, talentExportString)
         local slot = ns:nameToSlot(playerName)
+        -- This can happen when libspec fires so early that some party frame
+        -- names are still "Unknown"
         if not slot then
-            ns:printDebug('trackCharacter(): FATAL: failed to map player name=['..playerName..'] to slot')
+            ns:printDebug('trackCharacter(): FATAL: failed to map player name=['..playerName..'] to slot=['..tostring(slot)..']')
+            -- The rest of this will throw errors with slot=nil, so don't bother
+            return
         end
 
         local char = ns:trackCharacter(slot)
@@ -301,5 +323,4 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
         -- Update various UI elements:
         ns:updateTrackerUI()
         ns:updateGroupSolutionUI()
-    end
-)
+    end)
