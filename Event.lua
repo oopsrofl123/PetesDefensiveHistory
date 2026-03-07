@@ -6,9 +6,28 @@ local lastNonBuffEventId = 1
 -- A list of all active auras that we want to infer
 ns.eventsForInference = {}
 
--- Return nil if either the guid or auraInstanceId is untracked
+-- Return nil if either the guid or auraInstanceId is untracked. Auras (keyed by
+-- auraInstanceId) can be related to multiple events (e.g., an ability with charges
+-- being used multiple times without letting the buff fall). Returns the MOST RECENT
+-- event in those cases.
 function ns:getAuraEventByGUID(auraInstanceId, guid)
-    return (ns.eventsForInference[guid] or {})["aura"..auraInstanceId]
+    evBatch = (ns.eventsForInference[guid] or {})["aura"..auraInstanceId]
+    if evBatch then
+        return evBatch[#evBatch] -- last event
+    end
+    return nil
+end
+
+
+-- Handle event batches
+function ns:expireAuraEventByGUID(auraInstanceId, guid, when)
+    evBatch = (ns.eventsForInference[guid] or {})["aura"..auraInstanceId]
+    if evBatch then
+        if #evBatch>1 then ns:printDebug("expiring batch size="..#evBatch.." for id=aura"..auraInstanceId) end
+        for _, event in pairs(evBatch) do
+            event:setExpiration(when)
+        end
+    end
 end
 
 
@@ -31,7 +50,7 @@ function ns:Event(newTrace, newSource)
     local maxCD = ns.INFINITY
 
     -- Optional fields
-    local aura
+    local aura = nil
 
     function e:incrementInference()
         inference = inference + 1
@@ -90,7 +109,7 @@ function ns:Event(newTrace, newSource)
         
     function e:isExpiring() return expiration and GetTime() >= expiration or false end
 
-    function e:setExpiration(newExpiration) expiration = newExpiration end
+    function e:setExpiration(when) expiration = when end
 
     function e:isNonAuraEvent() return aura == nil end
 
@@ -146,10 +165,23 @@ function ns:Event(newTrace, newSource)
         return closest, math.abs(closest - time)
     end
 
-    -- Can't do this in constructor because the common use case of :setAura()
-    -- changes getId().
+    -- Can't do this in constructor because the common use case of :setAura() changes getId().
+    -- Some events are related and are thus batched under the same ID. A good example is a
+    -- buff from an ability with charges. The first charge use creates the buff (and a matching
+    -- event) and if the ability is used again while the first buff still exists, the buff is
+    -- updated (not added) and a second matching event is created for the update. These two
+    -- events originate from the same auraInstanceId and will thus be tracked together as a
+    -- batch.
+    --
+    -- Batches assist in complicated inference that requires data sharing across events. E.g.,
+    -- VDH meta with the apex talent and cheat death. All 3 can occur during the same buff
+    -- lifecycle, making it difficult to determine the timing of each ability use (and thus
+    -- the cooldown).
     function e:track()
-        ns.eventsForInference[self:getSource()][self:getId()] = self
+        if not ns.eventsForInference[self:getSource()][self:getId()] then
+            ns.eventsForInference[self:getSource()][self:getId()] = {}
+        end
+        table.insert(ns.eventsForInference[self:getSource()][self:getId()], self)
     end
 
     function e:untrack()
@@ -162,16 +194,21 @@ end
 
 function ns:trackAura(trace, aura)
     ns:printDebug(string.format(
-        'trackAura(%s): time=[%0.3f], ID=[%d], target=[%s], flags=(IMP=%d, BIG=%d, EXT=%d, RAID=%d, RIC=%d, HELP=%d, HARM=%d, CANCEL=%d, HELPNAMEPLATE=%d, NAMEPLATE=%d, HARMCC=%d, CC=%d)',
+        'trackAura(%s): time=[%0.3f], ID=[%d], target=[%s], flags=[%d%d%d%d%d %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d]',
         trace, aura.startTime, aura.auraInstanceId, ns:cosmeticOnlyMapGUIDToSlot(aura.target),
-        aura.IMPORTANT and 1 or 0,
-        aura.BIG and 1 or 0, aura.EXTERNAL and 1 or 0,
-        aura.RAID and 1 or 0, aura.RAIDINCOMBAT and 1 or 0,
-        aura.HELPFUL and 1 or 0, aura.HARMFUL and 1 or 0,
-        aura.CANCELABLE and 1 or 0,
-        aura.HELPNAMEPLATE and 1 or 0, aura.NAMEPLATE and 1 or 0,
-        aura.HARMCC and 1 or 0, aura.CC and 1 or 0)
-    )       
+        ns:boolstr(aura.IMPORTANT), ns:boolstr(aura.BIG),
+        ns:boolstr(aura.EXTERNAL), ns:boolstr(aura.RAID), ns:boolstr(aura.RAIDINCOMBAT),
+        ns:boolstr(aura.HELPFUL), ns:boolstr(aura.HARMFUL), ns:boolstr(aura.CANCELABLE),
+        ns:boolstr(aura.HELPNAMEPLATE), ns:boolstr(aura.NAMEPLATE),
+        ns:boolstr(aura.HARMCC), ns:boolstr(aura.CC)))
+        --aura.IMPORTANT and 1 or 0,
+        --aura.BIG and 1 or 0, aura.EXTERNAL and 1 or 0,
+        --aura.RAID and 1 or 0, aura.RAIDINCOMBAT and 1 or 0,
+        --aura.HELPFUL and 1 or 0, aura.HARMFUL and 1 or 0,
+        --aura.CANCELABLE and 1 or 0,
+        --aura.HELPNAMEPLATE and 1 or 0, aura.NAMEPLATE and 1 or 0,
+        --aura.HARMCC and 1 or 0, aura.CC and 1 or 0)
+    --)       
 
     local ev = ns:Event(trace, aura.target)
     ev:setAura(aura)
@@ -187,7 +224,21 @@ function ns:manageEvents(updateTrace, guid)
     local now = GetTime()
     local char = ns:getTrackedCharacterByGUID(guid)
 
-    for _, ev in pairs(ns.eventsForInference[guid]) do
-        ns:inferAndAct(updateTrace, ev, now)
+    -- Tracking structure: each character has a list of events keyed by either
+    -- an associated aura (via auraInstanceId) or an internally assigned numeric ID.
+    -- An aura instance ID can map to multiple events that sometimes have data that
+    -- can be shared between events to aid inference. E.g.: VDH metamorphosis will
+    -- generate one auraInstanceId for: regular meta button press, apex talent meta
+    -- button press, cheat death. Each will generate an event. By processing 3 events
+    -- together it is possible to figure out which ability generated which event.
+    for evId, evBatch in pairs(ns.eventsForInference[guid]) do
+        -- XXX: TODO: some debugging while this is a new feature
+        for _, ev in pairs(evBatch) do
+            ns:inferAndAct(updateTrace, ev, now)
+        end
     end
+
+local n=0
+    for evId, evBatch in pairs(ns.eventsForInference[guid]) do n=n+1 end
+print("("..updateTrace..') #ns.eventsForInference['..guid..']='..n)
 end

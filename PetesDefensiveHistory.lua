@@ -70,15 +70,17 @@ local function updateSlotToGUID()
 end
 
 
+-- Convenience functions: speed up some specific cases that only care about one flag
+function ns:isBuff(slot, auraInstanceId)
+    return not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HELPFUL")
+end
+
+function ns:isDebuff(slot, auraInstanceId)
+    return not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, "HARMFUL")
+end
+
 
 local function fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
-    -- XXX: TODO: super fun hack to shoe-horn non-buffs into the system. Negative aura IDs
-    -- signal to avoid calling C_UnitAuras.IsAuraFilteredOutByInstanceID. Just has to
-    -- return a consistent set of flags that we can mimic in AbilityDb (i.e., any ability
-    -- we want to ID this way must have this flag set in AbilityDb).
-    if auraInstanceId < 0 then
-        return false, false, false, false, false, nil, nil, nil, nil, nil, nil, nil
-    end
     local function getFlag(filter)
         return not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, filter)
     end
@@ -90,7 +92,7 @@ local function fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
         getFlag("HELPFUL|RAID_IN_COMBAT"),
         getFlag("HELPFUL"),
         getFlag("HARMFUL"),
-        -- Some buffs we track are not cancelable (like GoAK). Unfortunately this filter
+        -- Some auras we track are not cancelable (like GoAK). Unfortunately this filter
         -- does not correctly reflect that  for GoAK. But maybe it is correct for others?
         getFlag("HELPFUL|CANCELABLE"),
         getFlag("HELPFUL|INCLUDE_NAME_PLATE_ONLY"),
@@ -188,9 +190,6 @@ local function finalizeInference(ev, ability)
             ability.name, ability.caster, ev:getSource()))
     end
 
-    -- XXX: TODO: undo
-    local buff = ev:getAura()
-
     -- Optionally announce the ability with TTS, but only if it isn't expiring
     -- and was IDed quickly enough (1.5s since it was used).
     if not ev:isExpiring() and ev:timeSince() < 1.5 and ns:GetOption('enableTTS') and
@@ -236,7 +235,7 @@ end
 
 
 
--- What to do when the buff expires (or is replaced)? If there was a certain inference,
+-- What to do when the event expires (or is replaced)? If there was a certain inference,
 -- track in the static cooldown row, otherwise dump it in the history tray.
 -- Since dynamic CDR ability timers are rarely accurate, allow users to
 -- send those to the history tray instead. This doesn't prevent them from
@@ -246,6 +245,10 @@ local function eventExpiredOrReplaced(ev)
     if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
         ns:queueCooldown(ability)
     elseif not ev:isNonAuraEvent() then
+        -- Can't add these for two reasons: (1) non-aura events don't have a texture to show,
+        -- (2) many non-aura events fire that aren't interesting. E.g., every time anyone leaves
+        -- combat is a non-aura event. Some of those are vanishes and shadowmelds but most are
+        -- nothing.
         ns:addEventToHistoryTray(ev)
     end
 end
@@ -357,7 +360,7 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
         char:trackEvidence('combatDrop', now)
 
         local ev = ns:Event("FLAGS", guid)
-        -- Since this event is not tied to a buff, how long to keep it around?
+        -- Since this event is not tied to an aura, how long to keep it around?
         ev:setExpiration(now + expireNonAuraEventsAfter)
         ev:track()
     end
@@ -386,8 +389,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     traceHandler("AURA", now, unitTarget, "added=[%d], updated=[%d], removed=[%d]",
         #aurasAdded, #aurasUpdated, #aurasRemoved)
 
-    -- Convenience mode for collecting data about buff rules. Shows all buffs and debuffs added,
-    -- including secret data that would not normally be available.
+    -- Mode for data collecting, e.g., out of combat. Shows secret values.
     if ns:GetOption('dataMiningMode') and unitTarget == "player" then
         for _, v in pairs(aurasAdded) do
             ns:printDebug("DATA MINING: aura added ID=" .. v.auraInstanceID)
@@ -395,129 +397,46 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 ns.compactPrinter(v)
             end
         end
-        ns:printDebug("DATA MINING: aura instance IDs updated: " .. ns.compactFormatter(aurasUpdated))
-        ns:printDebug("DATA MINING: aura instance IDs removed: " .. ns.compactFormatter(aurasRemoved))
+        ns:printDebug("DATA MINING: auraInstanceIDs updated: "..ns.compactFormatter(aurasUpdated))
+        ns:printDebug("DATA MINING: auraInstanceIDs removed: "..ns.compactFormatter(aurasRemoved))
     end
 
     for _, v in pairs(aurasAdded) do
         local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
-
-        -- Is this aura a buff we want to infer?
         if aura.HELPFUL and (aura.IMPORTANT or aura.BIG or aura.EXTERNAL) then
-            local ev = ns:trackAura("AURA(add)", aura)
+            -- This aura is important, likely from a big cooldown
+            ns:trackAura("AURA(add)", aura)
         else
-            -- This is not an aura we want to track, so it counts as a concurrent event
-            -- IMPORTANT!! some auras are returned by neither the helpful nor harmful
-            -- filters. This does not necessarily agree with isHelpful or isHarmful
-            -- annotations in this payload (which are secret anyway).
-            -- If you think a buff should be present in the trackers but isn't, it likely
-            -- falls is neither HELPFUL nor HARMFUL. Example: coagulating blood (id=463730)
-            if aura.HARMFUL then
-                char:trackEvidence('debuff', now)
-            elseif aura.HELPFUL then
-                char:trackEvidence('buff', now)
-            end
+            -- The aura isn't flagged, but it could be concurrent evidence
+            char:trackAuraEvidence(unitTarget, v.auraInstanceID, now)
         end
     end
 
     for _, auraInstanceId in pairs(aurasUpdated) do
         local ev = ns:getAuraEventByGUID(auraInstanceId, guid)
-        local buff = ev and ev:getAura() or nil
-        -- needs to become an event
-        if buff then
+        if ev then
             ns:printDebug("|cff00ff00++++++++++++++ target=" .. unitTarget ..
                 ": updating " .. ev:getId() .. "|r")
-            buff.numUpdates = buff.numUpdates + 1
-            local ability, certain = ev:getAbility()
-            -- LIMITATION: when inference fails (or more likely, is turned off) we can't
-            -- do anything because the ability could naturally update. an example of this
-            -- is when a charge>1 ability is pressed a second time while it's already
-            -- running. if it wasn't inferred (or the user disabled inference), then we
-            -- can't send the first charge to the history tray because it would need to
-            -- happen now and we don't know if this is a natural update. in the end, only
-            -- the second use will be sent to the history tray (on expiry).
-            --
-            -- XXX: TODO: this is the crux of the fiery brand 2-charge problem. It
-            -- naturally self-updates and has 2 charges. The only way to distinguish
-            -- a charge use is to detect a very close button press (and even this is
-            -- not 100% accurate), but the machinery to do that is in inferAbility. We
-            -- can't call inferAbility here without causing side effects.
-            --
-            -- It looks like a no-side-effects version of inferAbility is needed so this
-            -- rule and others can be tested without committing to previous results.
-            if certain and not ability.naturallyUpdates and ability.charges > 1 then
-                -- The easy case: the first use of the ability with IDed with certainty and
-                -- the cooldown has already been tracked. If this buff does NOT naturally
-                -- update and it has >1 charges, then maybe it was pressed a second time,
-                -- expending a second charge. Try to infer again.
-                -- ability.charges > 1 is not a check that there is a charge available for
-                -- use, the inference engine does that.
-                --
-                -- Whether the upcoming inference succeeds or not, the previous certain
-                -- inference is being voided and replaced.
-                eventExpiredOrReplaced(ev)
-                buff.startTime = now   -- must reset or inference machinery will skip
-                buff.certain = false   -- must reset or inference machinery will skip
-                ns:inferAndAct("AURA(update)", ev, now)
-            elseif ability and not certain and not ability.naturallyUpdates then
-                -- Harder case. An uncertain inference and the inferred ability does not
-                -- update. There might not be a general way to resolve this. Currently the
-                -- only non-certain inference is VDH meta, maybe a special rule for each
-                -- corner case is practical.
-                if ability.name == 'Metamorphosis' then
-                    local updateTime = now
-                    local metaDuration = char:getAbilities()['Metamorphosis'].duration
-                    local apexDuration = char:getAbilities()['Untethered Rage'].duration
-                    ev.forceFullDuration = true
-                    ev.onFinalize = function(event, ability)
-                        -- When did meta start its cooldown?
-                        -- The current buff is meta, but it has been applied at two
-                        -- time points by either meta or the apex talent. We need to know
-                        -- which one was the real meta to know when to start the cooldown.
-                        -- Remember that this is the certain=false case, which means that
-                        -- the buff has been running for <10s (or else we would know it is
-                        -- not the apex talent which only lasts 10s).
-                        -- Case 1: apex > meta:
-                        --     meta overwrites apex, so the total duration of the buff is:
-                        --          duration = (apex dur before update) + 20s < 30s
-                        --     The duration is <30s because the apex has been running for
-                        --     less than 10s or 
-                        -- Case 2: meta > apex: in this case, do nothing
-                        --     apex extends meta, so the total duration is:
-                        --          duration = 20s + 10s = 30s
-                        if event:timeSince() < metaDuration + apexDuration - ns.DURATION_TOLERANCE then
-                            -- XXX: TODO: BROKEN! THIS DOES NOT WORK AND NEVER DID!
-                            event.startTime = updateTime -- Case 1
-                        end
-                    end
-                end
-            end
+
+            -- XXX: TODO: likely violates assumptions about certain inferences.  needs testing.
+            -- make an event no matter what. let inferBatch figure out what it all means.
+            local aura = ev:getAura()     -- This is an AuraEvent. There is always an aura.
+            local newAura = makeAura(now, unitTarget, aura.auraInstanceId, aura.secretTexture)
+            ns:trackAura("AURA(update)", newAura)
         else
-            -- buff not in the tracked list, could they be concurrently applied buffs?
+            -- concurrent buff/debuff evidence can also come from updates.
             -- E.g., warrior thunder blast stacks: these can be farmed outside of Avatar
             -- but are also awarded when pressing avatar.
-            -- There are auras that are neither HELPFUL or HARMFUL
-            local _, _, _, _, _, HELPFUL, HARMFUL, _, _, _ =
-                fasterGetFilterFlagsForAuraInstanceId(unitTarget, auraInstanceId)
-            if HARMFUL then
-                char:trackEvidence('debuff', now)
-            elseif HELPFUL then
-                char:trackEvidence('buff', now)
-            end
+            char:trackAuraEvidence(unitTarget, auraInstanceId, now)
         end
     end
 
-    -- Flag events tracking expiring buffs for expiration
+    -- Aura expiration is when the associated event expires
     for _, auraInstanceId in pairs(aurasRemoved) do
-        local ev = ns:getAuraEventByGUID(auraInstanceId, guid)
-        if ev then
-            ev:setExpiration(now)
-        end
+        ns:expireAuraEventByGUID(auraInstanceId, guid, now)
     end
 
-    -- Final step: loop through all buffs on this character that are still not IDed.
-    -- Important note: getting here means the buff has not been removed yet, so
-    -- that resolution still must wait for a later UNIT_AURA event.
+    -- Run inference on all outstanding events for this character
     ns:manageEvents("AURA", guid)
 end)
 
