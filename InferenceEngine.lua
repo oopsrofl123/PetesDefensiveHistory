@@ -142,11 +142,12 @@ end
 -- Do Blizzard's aura flags match?
 local function logicLayerAuraFlags(event, ability)
     -- if it's a nonAuraEvent, choose a flag set that should never match with an aura event
-    local aura = event:getAura() or { IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false }
+    local aura = event:getAura()
+    local auraFlags = aura and aura.flags or "00000"
 
-    if aura.flags ~= ability.flags then
+    if auraFlags ~= ability.flags then
         traceLogic(event, ability, "excluded (flags): aura=(%s), ability=(%s)",
-                   aura.flags, ability.flags)
+                   auraFlags, ability.flags)
         return false
     end
     return true
