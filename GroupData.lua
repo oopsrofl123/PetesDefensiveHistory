@@ -293,16 +293,35 @@ end
 -- All LibSpecialization code below
 -------------------------------------------------------------------------------
 
+-- libspec only returns name as a string - no other information to identify which
+-- group member the spec data is from. so must match libspec's name format
+local function nameToSlot(playerName)
+    for index=1, 5 do
+        local slot = ns:indexToSlot(index)
+        if UnitExists(slot) then
+            local name, realm = UnitNameUnmodified(slot)
+            if realm then
+                name = Ambiguate(name.."-"..realm, "none")
+            end
+            if name == playerName then
+                return slot
+            end
+        end
+    end
+    return nil
+end
+
+
 local LibSpecialization = LibStub("LibSpecialization")
 local internalGroupSpecs = {}    -- internal use by LibSpecialization
 LibSpecialization.RegisterGroup(internalGroupSpecs, 
     function(specId, role, position, playerName, talentExportString)
-        local slot = ns:nameToSlot(playerName)
-        -- This can happen when libspec fires so early that some party frame
-        -- names are still "Unknown"
+        local slot = nameToSlot(playerName)
+
+        -- LibSpec returns name in a specific format. If we fail to match it to a
+        -- valid frame, just have to proceed without spec data.
         if not slot then
-            ns:printDebug('trackCharacter(): FATAL: failed to map player name=['..playerName..'] to slot=['..tostring(slot)..']')
-            -- The rest of this will throw errors with slot=nil, so don't bother
+            ns:printDebug('trackCharacter(): FATAL: failed to map player name=['..playerName..'] to a slot. proceeding without spec info')
             return
         end
 

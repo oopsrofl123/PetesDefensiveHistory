@@ -23,17 +23,6 @@ function ns:indexToSlot(index)
 end
 
 
-function ns:nameToSlot(name)
-    for index=1, 5 do
-        local slot = ns:indexToSlot(index)
-        if UnitExists(slot) and UnitName(slot) == name then
-            return slot
-        end
-    end
-    return nil
-end
-
-
 -- Initialize a history item with blank values and hide it. Do not perform
 -- allocation or do potentially unsafe things like move or reanchor elements.
 local function clearHistoryItem(item)
