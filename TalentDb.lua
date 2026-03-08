@@ -622,7 +622,8 @@ ns.SpecTalentModifiers = {
             { { id=31884, modifies=hasAbility, amount=true } }
         },
         [389539] = {
-            { { id=389539, modifies=hasAbility, amount=true } }
+            { { id=389539, modifies=hasAbility, amount=true },
+              { id=389539, modifies=naturallyUpdates, amount=true } },
         },
         [86659] = {
             { { id=86659, modifies=hasAbility, amount=true } }
