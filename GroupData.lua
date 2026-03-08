@@ -104,10 +104,14 @@ function ns:Character(slot)
     -- Return the class color for this character as a triplet (r,g,b)
     -- Suitable as direct input in: SetColor(getClassColor())
     function char:getClassColor()
-        -- RAID_CLASS_COLORS returns a table with lots of other info in it. Have to
-        -- pare down to just r, g, b.
-        local coldata = RAID_CLASS_COLORS[classFile]
-        return coldata.r, coldata.g, coldata.b
+        if classFile then
+            -- RAID_CLASS_COLORS returns a table with lots of other info in it. Have to
+            -- pare down to just r, g, b.
+            local coldata = RAID_CLASS_COLORS[classFile]
+            return coldata.r, coldata.g, coldata.b
+        else
+            return 1, 1, 1
+        end
     end
 
     -- Return the current player/partyX alias assigned to this character. This
