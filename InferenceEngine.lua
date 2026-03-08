@@ -45,6 +45,88 @@ DURATION_CONFIDENT_DIFFERENCE = 0.5
 CASTTIME_CONFIDENT_DIFFERENCE = 0.150
 
 
+-- Make a permanent record for each inference attempt that can be used immediately
+-- for print/logging and later for analysis. At the moment, very reluctant to store
+-- a reference to the original event or character since these records are meant to
+-- be kept for a long time.
+function ns:InferenceRecord(now, trace, event)
+    local r = {}
+    local inferenceTime = now
+    local inferenceTrace = trace                -- code path leading to this inference
+    local inferenceAttempt = event:getInference()  -- attempt number
+    local eventTime = event:getTime()
+    local eventTrace = event:getTrace()         -- code path that created the event
+    local eventId = event:getId()
+    local eventSource = event:getSource()
+    local eventSlot = event:getSlot()
+    local logicLayersByAbility = {}
+    local confidenceLayers = {}
+    local requiredEvidence = {}
+    local ability
+    local certain = false
+
+    function r:setAbility(ab) ability = ab end
+
+    function r:setCertain(cert) certain = cert end
+
+    function r:setLogicLayersByAbility(logic) logicLayersByAbility = logic end
+
+    function r:setConfidenceLayers(conf) confidenceLayers = conf end
+
+    function r:setRequiredEvidence(reqs) requiredEvidence = reqs end
+
+    function r:toString()
+        return string.format(
+            "|cffEFD097Infer(time=[%0.3f], tr(inference)=[%s], tr(event)=[%s], source=[%s], eventId=[%s], attempt=[%d])|r",
+            inferenceTime, inferenceTrace, eventTrace,
+            eventSlot, eventId, inferenceAttempt)
+    end
+
+    local function logicStringForAbility(abilityId, logicSummary, compact)
+        -- supposedly building a table -> table.concat is faster than piecewise `..`
+        local t = { abilityId .. ":" }
+        for name, pass in pairs(logicSummary.logic) do
+            local s = (pass and "|cFFAFD5AB" or "|cFFFA003F") ..
+                      (compact and ns.logicLayerAliases[name] or name) .. "|r"
+            table.insert(t, s)
+        end
+        result = "[" .. table.concat(t, compact and "" or ",") .. "]"
+        return result
+    end
+
+    function r:logicString(passing, compact)
+        compact = compact or true
+
+        -- supposedly building a table -> table.concat is faster than piecewise `..`
+        local t = {}
+        for abilityId, logicSummary in pairs(logicLayersByAbility) do
+            if logicSummary.pass == passing then
+                table.insert(t, logicStringForAbility(abilityId, logicSummary, compact))
+            end
+        end
+        return table.concat(t, " ")
+    end
+
+    function r:confidenceString()
+        local result = ""
+        return result
+    end
+
+    function r:reqString()
+        local result = ""
+        for reqName, req in pairs(requiredEvidence) do
+            if result ~= "" then result = result .. " " end
+            result = result .. string.format("[%s%s=%0.3f|r]",
+                req.pass and "|cFFAFD5AB" or "|cFFFA003F", reqName, req.timeSince)
+        end
+        return result
+    end
+
+    return r
+end
+
+
+
 local function traceLogic(event, ability, message, ...)
     if not ns:GetOption('muteVerboseDebugging') then
         ns:printDebug(string.format(
@@ -60,25 +142,11 @@ end
 -- Do Blizzard's aura flags match?
 local function logicLayerAuraFlags(event, ability)
     -- if it's a nonAuraEvent, choose a flag set that should never match with an aura event
-    local buff = event:getAura() or { IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false }
+    local aura = event:getAura() or { IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false }
 
-    if buff.IMPORTANT ~= ability.IMPORTANT or
-       buff.BIG ~= ability.BIG or
-       buff.EXTERNAL ~= ability.EXTERNAL or
-       buff.RAID ~= ability.RAID or
-       buff.RAIDINCOMBAT ~= ability.RAIDINCOMBAT then
-        traceLogic(event, ability,
-            "excluded (flags): buff=(%d,%d,%d,%d,%d), ability=(%d,%d,%d,%d,%d)",
-            ns:boolstr(buff.IMPORTANT),
-            ns:boolstr(buff.BIG),
-            ns:boolstr(buff.EXTERNAL),
-            ns:boolstr(buff.RAID),
-            ns:boolstr(buff.RAIDINCOMBAT),
-            ns:boolstr(ability.IMPORTANT),
-            ns:boolstr(ability.BIG),
-            ns:boolstr(ability.EXTERNAL),
-            ns:boolstr(ability.RAID),
-            ns:boolstr(ability.RAIDINCOMBAT))
+    if aura.flags ~= ability.flags then
+        traceLogic(event, ability, "excluded (flags): aura=(%s), ability=(%s)",
+                   aura.flags, ability.flags)
         return false
     end
     return true
@@ -130,7 +198,6 @@ end
 
 
 
-
 -- Was the aura's duration consistent with how the ability works?
 -- General events: come across a scenario where this applies
 local function logicLayerDurationMatches(event, ability)
@@ -155,13 +222,13 @@ end
 
 
 
-local function eventOccurred(event, ability, evidenceType, evidenceActor, permissive)
+local function evidenceWitnessed(event, ability, evidenceType, evidenceActor, permissive)
     if evidenceActor == "caster" then
         evidenceActor = ability.caster
     elseif evidenceActor == "target" then
         evidenceActor = event:getTarget()
     else
-        print("PROGRAMMER ERROR: bad evidenceActor in eventOccurred")
+        print("PROGRAMMER ERROR: bad evidenceActor in evidenceWitnessed")
     end
 
     local closest, diff = event:timeSinceClosest(evidenceType, evidenceActor)
@@ -173,16 +240,24 @@ local function eventOccurred(event, ability, evidenceType, evidenceActor, permis
         traceLogic(event, ability,
             "excluded: actor=[%s], closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
             ns:cosmeticOnlyMapGUIDToSlot(evidenceActor), evidenceType, closest, event:getTime(), diff)
-        return false
-    -- Only for very spammy debugging
-    --else
-        --traceLogic(event, ability,
-            --"accepted: closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
-            --evidenceType, closest, event:getTime(), diff)
+        return false, diff
     end
-    return true
+    return true, diff
 end
 
+
+-- 1 letter aliases for compact log strings
+ns.logicLayerAliases = {
+    buff='B',
+    cast='P',         -- p for button _p_ress
+    combatDrop='C',
+    cooldown='d',     -- d for cool_d_own
+    duration='U',     -- U for d_U_ration
+    debuff='D',
+    flags='F',
+    shield='S',
+}
+    
 
 
 -- logic layers are fundamentally an AND operation: ALL rules must be followed
@@ -194,20 +269,46 @@ local function getPossibleSolutions(event, cdTracker)
     local char = event:getCharacter() -- Character object, not GUID string
     local maxCD = -1
     local possibleSolutions = {}
+    local logicLayersByAbility = {}
 
     for _, ability in pairs(char:getPossibleAbilities()) do
         maxCD = math.max(maxCD, ability.cooldown)
 
-        -- logical statements in lua short circuit, so additional
-        -- logic layers aren't evaluated if they aren't necessary.
-        if logicLayerAuraFlags(event, ability) and
-           logicLayerAbilityOffCooldown(event, ability, cdTracker) and
-           logicLayerDurationMatches(event, ability) and
-           (not ability.requireBuff or eventOccurred(event, ability, "buff", "target", true)) and
-           (not ability.requireDebuff or eventOccurred(event, ability, "debuff", "target", true)) and
-           (not ability.requireShield or eventOccurred(event, ability, "shield", "target", true)) and
-           (not ability.requireCombatDrop or eventOccurred(event, ability, "combatDrop", "target", true)) and
-           (not ability.requireButtonPress or eventOccurred(event, ability, "cast", "caster", true)) then
+        local logic = {}
+
+        -- As with confidence and reqs, don't just test these requirements, store them
+        -- so a comprehensive record can be kept for logging and analysis later.
+        --
+        -- XXX: when adding more layers, must add an alias mapping in logicLayerAliases
+        logic['flags'] = logicLayerAuraFlags(event, ability)
+        logic['cooldown'] = logicLayerAbilityOffCooldown(event, ability, cdTracker)
+        logic['duration'] = logicLayerDurationMatches(event, ability)
+        if ability.requireBuff then
+            logic['buff'] = evidenceWitnessed(event, ability, "buff", "target", true)
+        end
+        if ability.requireDebuff then
+            logic['debuff'] = evidenceWitnessed(event, ability, "debuff", "target", true)
+        end
+        if ability.requireShield then
+            logic['shield'] = evidenceWitnessed(event, ability, "shield", "target", true)
+        end
+        if ability.requireCombatDrop then
+            logic['combatDrop'] = evidenceWitnessed(event, ability, "combatDrop", "target", true)
+        end
+        if ability.requireButtonPress then
+            logic['cast'] = evidenceWitnessed(event, ability, "cast", "caster", true)
+        end
+
+        local allPass = true
+        for _, pass in pairs(logic) do allPass = allPass and pass end
+
+        local abId = ability.alias or ability.name
+        if ability.caster ~= event:getSource() then
+            abId = abId .. "_" .. ns:cosmeticOnlyMapGUIDToSlot(ability.caster)
+        end
+        logicLayersByAbility[abId] = { pass=allPass, logic=logic}
+
+        if allPass then
             traceLogic(event, ability, "is a possible solution")
             -- All rules have passed, this ability is a possible match
             local x = ns:shallowcopy(ability)
@@ -218,7 +319,7 @@ local function getPossibleSolutions(event, cdTracker)
         end
     end
 
-    return possibleSolutions, maxCD
+    return possibleSolutions, maxCD, logicLayersByAbility
 end
 
 
@@ -367,6 +468,11 @@ local function getConfidentMatch(possibleSolutions)
 end
 
 
+local function makeReq(pass, timeSince)
+    return { pass=pass, timeSince=timeSince }
+end
+
+
 -- Assessment of some requirements changes with time. Buff flags never change,
 -- but whether a concurrent debuff or button press occurs does change because
 -- these are often not delivered in the same WoW API event. Some time must be
@@ -374,26 +480,49 @@ end
 -- logic layer checks are actually "maybe" rather than true. But it is incorrect
 -- to exclude abilities that are maybes because that could cause other abilities
 -- to be chosen erroneously.
-local function abilityMeetsRequirements(event, ability)
-    return
-        (not ability.requireBuff or eventOccurred(event, ability, "buff", "target", false)) and
-        (not ability.requireDebuff or eventOccurred(event, ability, "debuff", "target", false)) and
-        (not ability.requireShield or eventOccurred(event, ability, "shield", "target", false)) and
-        (not ability.requireCombatDrop or eventOccurred(event, ability, "combatDrop", "target", false)) and
-        (not ability.requireButtonPress or eventOccurred(event, ability, "cast", "caster", false))
+--
+-- N.B. unlike in the logic layers, these evidenceWitnessed calls use permissive=false
+local function abilityMeetsRequirements(ev, ab)
+    local reqs = {}
+    local reqsMet = true
+
+    -- Don't just compute, store for logging output/dumping/performance analysis
+    if ab.requireBuff then
+        reqs['buff'] = makeReq(evidenceWitnessed(ev, ab, "buff", "target", false))
+        reqsMet = reqsMet and reqs['buff'].pass
+    end
+    if ab.requireDebuff then
+        reqs['debuff'] = makeReq(evidenceWitnessed(ev, ab, "debuff", "target", false))
+        reqsMet = reqsMet and reqs['debuff'].pass
+    end
+    if ab.requireShield then
+        reqs['shield'] = makeReq(evidenceWitnessed(ev, ab, "shield", "target", false))
+        reqsMet = reqsMet and reqs['shield'].pass
+    end
+    if ab.requireCombatDrop then
+        reqs['combatDrop'] = makeReq(evidenceWitnessed(ev, ab, "combatDrop", "target", false))
+        reqsMet = reqsMet and reqs['combatDrop'].pass
+    end
+    if ab.requireButtonPress then
+        reqs['cast'] = makeReq(evidenceWitnessed(ev, ab, "cast", "caster", false))
+        reqsMet = reqsMet and reqs['cast'].pass
+    end
+
+    return reqsMet, reqs
 end
 
 
 -- Use various rules about who can cast what ability on whom to narrow down
 -- the possible abilities that could be "event".
 function ns:inferAbility(inferenceTrace, ev, cdTracker)
+    local now = GetTime()
     -- track how many times we've tried to infer this ability
     ev:incrementInference()
 
-    ns:printDebug(string.format(
-        "|cffEFD097Infer(time=[%0.3f], tr(poll)=[%s], tr(event)=[%s], target=[%s], eventId=[%s], attempt=[%d])|r",
-        GetTime(), inferenceTrace, ev:getTrace(),
-        ev:getSlot(), ev:getId(), ev:getInference()))
+    -- permanent record of inference for logging/analysis
+    local record = ns:InferenceRecord(now, inferenceTrace, ev)
+
+    ns:printDebug(record:toString())
 
     -- allow the caller to override the tracked state of CDs to simulate an
     -- unknown state. useful for determining which abilities are ALWAYS
@@ -401,9 +530,12 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     cdTracker = cdTracker or ns.cdTracker
 
     -- all logic and ranking is performed in these two lines
-    possibleSolutions, maxCD = getPossibleSolutions(ev, cdTracker)
+    possibleSolutions, maxCD, logicLayersByAbility = getPossibleSolutions(ev, cdTracker)
     -- set maxCD at each inference in case one day it uses exclusion information
     ev:setMaxCD(maxCD)
+    record:setLogicLayersByAbility(logicLayersByAbility)
+    ns:printDebug("PASS: "..record:logicString(true))
+    ns:printDebug("FAIL: "..record:logicString(false))
 
     -- the job of the confidence system is to compare multiple solutions and determine
     -- which is best, if that is possible.
@@ -411,6 +543,8 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     -- can cause the same event. if true, it is sometimes useful to report what
     -- *event* occurred.
     abilityMatch, certain = getConfidentMatch(possibleSolutions)
+    record:setAbility(abilityMatch)
+    record:setCertain(certain)
 
     -- finally: are the ability requirements actually met? possibleSolutions returns all
     -- abilities that cannot be positively excluded. for example, if an ability requires a
@@ -419,8 +553,11 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     -- is still *possible*.
     local reqsMet = false
     if abilityMatch then
-        reqsMet = abilityMeetsRequirements(ev, abilityMatch)
+        reqsMet, reqs = abilityMeetsRequirements(ev, abilityMatch)
+        record:setRequiredEvidence(reqs)
+        ns:printDebug("evidence: " .. record:reqString())
     end
+
 
     -- Check for disableInference here, not at function start, so that maxCD can
     -- be computed for use by the history tray.
@@ -470,8 +607,10 @@ function ns:zeroKnowledgeSolve()
             -- make the event we would expect to see if this ability got used.
             local event = ns:Event("SIMULATE("..ability.name..")", guid)
 
-            -- make the expected buff and link it to the event
-            event:setAura({
+            -- make the expected aura
+            -- XXX: TODO: must be kept up-to-date with makeAura(). can't use makeAura
+            -- directly because it expects an actual aura instance ID to query flags from.
+            local aura = {
                 auraInstanceId=-1,
                 target=guid,
                 -- XXX: TODO: to match previous behavior (old useDuration=false),
@@ -482,8 +621,11 @@ function ns:zeroKnowledgeSolve()
                 BIG=ability.BIG,
                 EXTERNAL=ability.EXTERNAL,
                 RAID=ability.RAID,
-                RAIDINCOMBAT=ability.RAIDINCOMBAT
-            })
+                RAIDINCOMBAT=ability.RAIDINCOMBAT,
+            }
+            aura.flags = ns:flagString(aura)
+            -- and link it to the event
+            event:setAura(aura)
 
             event:prepareForInference(idealEventTrackers)
             local _, certain = ns:inferAbility("SIMULATE("..ability.name..")", event, blankCDs)
