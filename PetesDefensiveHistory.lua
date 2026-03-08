@@ -126,7 +126,6 @@ local function makeAura(startTime, slot, auraInstanceId, iconId)
         NAMEPLATE=NAMEPLATE,
         HARMCC=HARMCC,
         CC=CC,
-        numUpdates=0
     }
     -- Precompute the flag string, which is just concatenated 1s and 0s of the flags
     -- we actually match on. Makes comparisons and record keeping easier.
