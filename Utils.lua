@@ -138,3 +138,10 @@ end
 function ns:boolstr(bool)
     return tostring(bool and 1 or 0)
 end
+
+
+-- x is an event or ability
+function ns:flagString(x)
+    return ns:boolstr(x.IMPORTANT)..ns:boolstr(x.BIG)..ns:boolstr(x.EXTERNAL)..ns:boolstr(x.RAID)..
+ns:boolstr(x.RAIDINCOMBAT)
+end
