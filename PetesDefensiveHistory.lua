@@ -43,6 +43,7 @@ local function updateSlotToGUID()
             GUIDToSlot[guid] = slot
             -- Is this the first time we've seen this guid?
             if not ns:getTrackedCharacterByGUID(guid) then
+print("updateSlotToGUID -> trackCharacter("..tostring(index)..", "..tostring(slot)..", "..tostring(guid)..", UnitName="..UnitName(slot)..")")
                 ns:trackCharacter(slot)
             end
         else

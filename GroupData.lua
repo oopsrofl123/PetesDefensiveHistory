@@ -85,8 +85,8 @@ function ns:Character(slot)
     local evidenceTracker = ns:makeEvidenceTracker()
 
     ns:printDebug(string.format(
-        "Character(%s): new character GUID=[%s], name=[%s], class=[%s]",
-        slot, GUID, name, tostring(classFile)))
+        "Character(%s): new character GUID=[%s], name=[%s], class=[%s], raceId=[%s], raceName=[%s]",
+        slot, GUID, name, tostring(classFile), tostring(raceId), tostring(englishRaceName)))
 
     -- Unsettable values --------------------------------------------------------
     -- Return the stable ID that is unique across factions and servers. This is
@@ -306,6 +306,7 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
             return
         end
 
+print("LibSpec callback -> trackCharacter("..playerName..")")
         local char = ns:trackCharacter(slot)
 
         -- Use the (possibly new) spec ID and talents to determine which abilities
