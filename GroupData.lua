@@ -190,7 +190,7 @@ function ns:Character(slot)
                 table.insert(possibleAbilities, ability)
             end
         end
-        ns:printDebug("cached "..#possibleAbilities.." targeting character=["..name.."]")
+        --ns:printDebug("cached "..#possibleAbilities.." targeting character=["..name.."]")
     end
 
     function char:getPossibleAbilities() return possibleAbilities end
