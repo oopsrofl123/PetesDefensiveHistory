@@ -237,8 +237,4 @@ function ns:manageEvents(updateTrace, guid)
             ns:inferAndAct(updateTrace, ev, now)
         end
     end
-
-local n=0
-    for evId, evBatch in pairs(ns.eventsForInference[guid]) do n=n+1 end
-print("("..updateTrace..') #ns.eventsForInference['..guid..']='..n)
 end
