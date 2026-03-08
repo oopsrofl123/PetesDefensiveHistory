@@ -128,10 +128,12 @@ local function makeAura(startTime, slot, auraInstanceId, iconId)
         CC=CC,
         numUpdates=0
     }
+    -- Precompute the flag string, which is just concatenated 1s and 0s of the flags
+    -- we actually match on. Makes comparisons and record keeping easier.
+    aura.flags = ns:flagString(aura)
 
-    ns:printDebug(string.format("auraID=%d: %d%d%d%d%d %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d",
-        aura.auraInstanceId, ns:boolstr(aura.IMPORTANT), ns:boolstr(aura.BIG),
-        ns:boolstr(aura.EXTERNAL), ns:boolstr(aura.RAID), ns:boolstr(aura.RAIDINCOMBAT),
+    ns:printDebug(string.format("auraID=%d: %s %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d",
+        aura.auraInstanceId, aura.flags,
         ns:boolstr(aura.HELPFUL), ns:boolstr(aura.HARMFUL), ns:boolstr(aura.CANCELABLE),
         ns:boolstr(aura.HELPNAMEPLATE), ns:boolstr(aura.NAMEPLATE),
         ns:boolstr(aura.HARMCC), ns:boolstr(aura.CC)))
@@ -418,11 +420,16 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             ns:printDebug("|cff00ff00++++++++++++++ target=" .. unitTarget ..
                 ": updating " .. ev:getId() .. "|r")
 
-            -- XXX: TODO: likely violates assumptions about certain inferences.  needs testing.
-            -- make an event no matter what. let inferBatch figure out what it all means.
-            local aura = ev:getAura()     -- This is an AuraEvent. There is always an aura.
-            local newAura = makeAura(now, unitTarget, aura.auraInstanceId, aura.secretTexture)
-            ns:trackAura("AURA(update)", newAura)
+            -- Screen out one very specific case: abilities that are known to naturally
+            -- update but have only 1 charge. E.g., Sentinel.
+            local ability, certain = ev:getAbility()
+            if not ability or not (certain and ability.charges < 2 and ability.naturallyUpdates) then
+                -- XXX: TODO: likely violates assumptions about certain inferences.  needs testing.
+                -- make an event no matter what. let inferBatch figure out what it all means.
+                local aura = ev:getAura()     -- This is an AuraEvent. There is always an aura.
+                local newAura = makeAura(now, unitTarget, aura.auraInstanceId, aura.secretTexture)
+                ns:trackAura("AURA(update)", newAura)
+            end
         else
             -- concurrent buff/debuff evidence can also come from updates.
             -- E.g., warrior thunder blast stacks: these can be farmed outside of Avatar
@@ -479,6 +486,14 @@ end)
 
 
 do
+    -- Add precomputed flag strings to the abilities in AbilityDb so they don't have to be
+    -- recomputed on each inference.
+    for category, abilities in pairs(ns.AbilityDb) do
+        for _, ability in pairs(abilities) do
+            ability.flags = ns:flagString(ability)
+        end
+    end
+
     updateSlotToGUID()
 
     -- Addons are loaded after all blizzard frames, so can allocate everything now.
