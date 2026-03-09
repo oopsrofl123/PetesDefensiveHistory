@@ -211,8 +211,9 @@ local function finalizeInference(ev, ability)
     end
 
     ns:printDebug(string.format(
-        "|cff00CDCDFINALIZED(time=[%0.3f], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
-            GetTime(), ev:getInference(), ns:cosmeticOnlyMapGUIDToSlot(ability.caster),
+        "|cff00CDCDFINALIZED(time=[%0.3f], event=[%s/%d], attempt=[%d]): [%s] cast [%s] at [%0.3f]|r",
+            GetTime(), ev:getId(), ev:getBatchId(), ev:getInference(),
+            ns:cosmeticOnlyMapGUIDToSlot(ability.caster),
             ability.alias or ability.name, ev:getTime()))
 
     trackCooldown(ev, ability)
@@ -262,12 +263,18 @@ end
 function ns:inferAndAct(inferenceTrace, ev, now)
     if not ev:isCertain() and (ev:isExpiring() or not ev.forceFullDuration) then
         ev:prepareForInference()
-        local ability, certain = ns:inferAbility(inferenceTrace, ev)
+        local ability, certain = ns:inferAbility(inferenceTrace, ev, ns.cdTracker)
         if certain then
             finalizeInference(ev, ability)
+        elseif ability and not certain then
+            ns:printDebug(string.format(
+                "|cff00CDCDUNCERTAIN(time=[%0.3f], event=[%s/%d], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
+                now, ev:getId(), ev:getBatchId(), ev:getInference(),
+                ns:cosmeticOnlyMapGUIDToSlot(ability.caster),
+                ability.alias or ability.name, ev:getTime()))
         end
         if ability and not ev:isExpiring() then
-            ns:startGlow(ability)
+            ns:startGlow(ev:getAuraAbility())
         end
     end
 
@@ -275,7 +282,7 @@ function ns:inferAndAct(inferenceTrace, ev, now)
     if ev:isExpiring() then
         local ability, certain = ev:getAbility()
         if ability then
-            ns:stopGlow(ability)
+            ns:stopGlow(ev:getAuraAbility())
         end
         eventExpiredOrReplaced(ev)
         ev:untrack()
