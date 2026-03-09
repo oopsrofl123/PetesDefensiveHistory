@@ -158,6 +158,7 @@ ns.AbilityDb = {
 		{
 			name="Last Resort",
 			id=209258,
+            appliesOtherAura=187827,
             iconId=1348655,
 			cooldown=480,
 			duration=15,
@@ -166,7 +167,6 @@ ns.AbilityDb = {
 			cdr=false,
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
-            -- any meta that happens without a button press is cheat death
             requireButtonPress=false,
             requireDebuff=true,
 		},
@@ -177,6 +177,7 @@ ns.AbilityDb = {
 			name="Untethered Rage",
             alias='U.Rage',
 			id=1270444,
+            appliesOtherAura=187827,
             iconId=7636527,
 			cooldown=1,
 			duration=10,
@@ -728,13 +729,13 @@ ns.AbilityDb = {
 			name="Gift of the Golden Valkyr",
             alias='GoAK cheat',
 			id=393108,
-            iconId=1349535,   -- blizzard shows the GoAK icon on bigdefensives. show the talent instead
+            appliesOtherAura=86659,
+            iconId=1349535,
 			cooldown=45,
 			duration=4,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            -- match GoAK - cheat death procs a shorter GoAK that is not flagged BIG_DEFENSIVE
             IMPORTANT=false, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=false,
@@ -1037,13 +1038,15 @@ ns.AbilityDb = {
 		},
         -- hero talent proc that grants avatar, but does not trigger avatar's CD. is a
         -- button press.
+        -- XXX: TODO: avatar of the storm can't proc during avatar
         {
 			name="Avatar of the Storm",
             alias='Avatar(proc)',
 			id=437134,
+            appliesOtherAura=107574,
             iconId=432002,
 			cooldown=1,
-			duration=4,
+			duration=6,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
