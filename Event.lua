@@ -78,6 +78,8 @@ function ns:Event(newTrace, newSource)
 
     function e:getTime() return time end
 
+    function e:getBatchId() return batchId end
+
     -- event IDs don't account for the source because event trackers are already
     -- keyed by source. maybe they shouldn't be?
     function e:getId()
@@ -97,6 +99,21 @@ function ns:Event(newTrace, newSource)
     -- can cause the metamorphosis buff and it is useful to know that the meta buff is
     -- active until we can determine with certainty which ability applied the meta buff.
     function e:getAbility() return ability, certain end
+
+    -- Some abilities apply auras from different abilities. E.g., Avatar of the Storm is
+    -- a proc that applies the Avatar buff. Those abilities often glow the icon of the
+    -- buff, not the ability that caused it.
+    function e:getAuraAbility()
+        if ability and ability.appliesOtherAura then
+            local char = ns:getTrackedCharacterByGUID(ability.caster)
+            for _, otherAbility in pairs(char:getAbilities()) do
+                if otherAbility.id == ability.appliesOtherAura then
+                    return otherAbility
+                end
+            end
+        end
+        return ability
+    end
 
     -- Trivial setters
     function e:setAbility(newAbility) ability = newAbility end
@@ -182,6 +199,7 @@ function ns:Event(newTrace, newSource)
             ns.eventsForInference[self:getSource()][self:getId()] = {}
         end
         table.insert(ns.eventsForInference[self:getSource()][self:getId()], self)
+        batchId = #(ns.eventsForInference[self:getSource()][self:getId()])
     end
 
     function e:untrack()
@@ -194,21 +212,12 @@ end
 
 function ns:trackAura(trace, aura)
     ns:printDebug(string.format(
-        'trackAura(%s): time=[%0.3f], ID=[%d], target=[%s], flags=[%d%d%d%d%d %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d]',
+        'trackAura(%s): time=[%0.3f], ID=[%d], target=[%s], flags=[%s %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d]',
         trace, aura.startTime, aura.auraInstanceId, ns:cosmeticOnlyMapGUIDToSlot(aura.target),
-        ns:boolstr(aura.IMPORTANT), ns:boolstr(aura.BIG),
-        ns:boolstr(aura.EXTERNAL), ns:boolstr(aura.RAID), ns:boolstr(aura.RAIDINCOMBAT),
+        aura.flags,
         ns:boolstr(aura.HELPFUL), ns:boolstr(aura.HARMFUL), ns:boolstr(aura.CANCELABLE),
         ns:boolstr(aura.HELPNAMEPLATE), ns:boolstr(aura.NAMEPLATE),
         ns:boolstr(aura.HARMCC), ns:boolstr(aura.CC)))
-        --aura.IMPORTANT and 1 or 0,
-        --aura.BIG and 1 or 0, aura.EXTERNAL and 1 or 0,
-        --aura.RAID and 1 or 0, aura.RAIDINCOMBAT and 1 or 0,
-        --aura.HELPFUL and 1 or 0, aura.HARMFUL and 1 or 0,
-        --aura.CANCELABLE and 1 or 0,
-        --aura.HELPNAMEPLATE and 1 or 0, aura.NAMEPLATE and 1 or 0,
-        --aura.HARMCC and 1 or 0, aura.CC and 1 or 0)
-    --)       
 
     local ev = ns:Event(trace, aura.target)
     ev:setAura(aura)
