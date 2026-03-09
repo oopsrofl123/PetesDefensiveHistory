@@ -164,7 +164,7 @@ function ns:Character(slot)
 
     function char:getTalents() return talentRanks end
 
-    -- If `target` is nil, return an named list of all abilities castable by
+    -- If `target` is nil, return a named list of all abilities castable by
     -- this character. Otherwise, return all abilities this character can cast
     -- on `target`.
     function char:getAbilities(target)
