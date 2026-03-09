@@ -59,6 +59,7 @@ function ns:InferenceRecord(now, trace, event)
     local eventId = event:getId()
     local eventSource = event:getSource()
     local eventSlot = event:getSlot()
+    local batchId = event:getBatchId()
     local logicLayersByAbility = {}
     local confidenceLayers = {}
     local requiredEvidence = {}
@@ -77,9 +78,9 @@ function ns:InferenceRecord(now, trace, event)
 
     function r:toString()
         return string.format(
-            "|cffEFD097Infer(time=[%0.3f], tr(inference)=[%s], tr(event)=[%s], source=[%s], eventId=[%s], attempt=[%d])|r",
+            "|cffEFD097Infer(time=[%0.3f], tr(inference)=[%s], tr(event)=[%s], source=[%s], eventId=[%s/%d], attempt=[%d])|r",
             inferenceTime, inferenceTrace, eventTrace,
-            eventSlot, eventId, inferenceAttempt)
+            eventSlot, eventId, batchId, inferenceAttempt)
     end
 
     local function logicStringForAbility(abilityId, logicSummary, compact)
@@ -107,9 +108,26 @@ function ns:InferenceRecord(now, trace, event)
         return table.concat(t, " ")
     end
 
-    function r:confidenceString()
-        local result = ""
-        return result
+    function r:confidenceString(compact)
+        local t = {}
+        local ab = confidenceLayers.ability
+        local cert = confidenceLayers.certain
+        for _, match in pairs(confidenceLayers.layers) do
+            local layerName, ability, certain = unpack(match)
+            local s = (ability and "|cFFAFD5AB" or "|cFFFA003F") ..
+                      (compact and ns.confidenceLayerAliases[layerName] or layerName) ..
+                      (certain and "" or "*") .. "|r"
+            table.insert(t, s)
+        end
+
+        local match = "nil"
+        if ab then
+            match = (ab.alias or ab.name) .. "," ..
+                (cert and "certain" or "uncertain") .. "," ..
+                confidenceLayers.matchLayer
+        end
+        return string.format("CONF: #S=%d match=[%s], layers=[%s]",
+            confidenceLayers.numPossible, match, table.concat(t, ''))
     end
 
     function r:reqString()
@@ -204,6 +222,14 @@ end
 local function logicLayerDurationMatches(event, ability)
     local aura = event:getAura()
     if aura then
+        if not event:isExpiring() and ability.duration_variable == ns.DURATION_GTE then
+            -- There is no invalid duration in this case. Since the event is not yet
+            -- expiring, any value <= its nominal duration is accepted. But since the
+            -- ability is DURATION_GTE, any value >= its nominal duration is also accepted.
+            -- So any number works.
+            return true
+        end
+
         local buffDuration = event:timeSince()
         local diff = math.abs(buffDuration - ability.duration)
         local dv = event:isExpiring() and ability.duration_variable or ns.DURATION_LTE
@@ -351,19 +377,19 @@ end
 
 ----------------------------------------------------------------------------
 -- Confidence layers return one of:
---   1. nil
---   2. (ability, certain=true|false)
+--   1. {layerName, nil, false}
+--   2. {layerName, ability, certain=true|false}
 ----------------------------------------------------------------------------
 
 local function confidenceLayerOnlyOnePossible(possibleSolutions)
     if #possibleSolutions == 1 then
         traceConfidence('onlyOnePossible', 'success: #possibleSolutions=%d',
             #possibleSolutions)
-        return { possibleSolutions[1], true }
+        return { "oneSolution", possibleSolutions[1], true }
     else
         traceConfidence('onlyOnePossible', 'failure: #possibleSolutions=%d',
             #possibleSolutions)
-        return nil
+        return { "oneSolution", nil, false }
     end
 end
 
@@ -377,11 +403,11 @@ local function confidenceLayerDuration(possibleSolutions)
     if second.durationDiff - best.durationDiff >= DURATION_CONFIDENT_DIFFERENCE then
         traceConfidence('duration', 'success: best=%0.3f, second=%0.3f, required diff=%0.3f',
             best.durationDiff, second.durationDiff, DURATION_CONFIDENT_DIFFERENCE)
-        return { best, true }
+        return { "duration", best, true }
     else
         traceConfidence('duration', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
             best.durationDiff, second.durationDiff, DURATION_CONFIDENT_DIFFERENCE)
-        return nil
+        return { "duration", nil, false }
     end
 end
 
@@ -395,39 +421,76 @@ local function confidenceLayerCastTime(possibleSolutions)
         function(a, b) return a.castTimeDiff <= b.castTimeDiff end)
 
     if second.castTimeDiff - best.castTimeDiff >= CASTTIME_CONFIDENT_DIFFERENCE then
-        return { best, true }
+        return { "castTime", best, true }
     else
         traceConfidence('castTime', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
             best.castTimeDiff, second.castTimeDiff, CASTTIME_CONFIDENT_DIFFERENCE)
-        return nil
+        return { "castTime", nil, false }
     end
 end
 
 
 
--- Special handling for DH's meta due to the apex talent. If the only 2
--- valid abilities are meta and the apex talent, then we don't know which
--- cooldown to initiate, but we do know that the buff attained is meta. So
--- return the meta ability so that we can display it now on the frames as active.
-local function confidenceLayerMetamorphosis(possibleSolutions)
-    if #possibleSolutions == 2 then
-        local s1 = possibleSolutions[1]
-        local s2 = possibleSolutions[2]
-        if (s1.name == "Metamorphosis" and s2.name == "Untethered Rage") or
-           (s2.name == "Metamorphosis" and s1.name == "Untethered Rage") then
-            return { (s1.name == "Metamorphosis" and s1 or s2), false }
+-- Attempt uncertain inference. "Uncertain" is a poor term. It really means "we know
+-- something useful now, but need more data".
+-- There are several cases where multiple abilities apply the same aura:
+--    1. VDH meta is also applied by the apex talent and cheat death
+--    2. Prot paladin GoAK is also applied by cheat death
+--    3. Warrior Avatar is also applied by a hero talent proc
+-- If all abilities apply the same buff, instantly ID the buff and glow it while
+-- waiting for more data to figure out what cooldown to trigger.
+local function confidenceLayerAbilitiesApplySameAura(possibleSolutions)
+    local theAbility
+    local otherAura
+
+    -- is possibleSolutions a list of abilities that all give the same aura? for this to
+    -- be true:
+    --      1. exactly one ability does not have an appliesOtherAura field
+    --      2. all other abilities have the same appliesOtherAura spell ID
+    for _, ability in pairs(possibleSolutions) do
+        if ability.appliesOtherAura then
+            if not otherAura then
+                otherAura = ability.appliesOtherAura
+            end
+
+            if otherAura ~= ability.appliesOtherAura then
+                traceConfidence('sameAura', 'failure: otherAbility1=%d, otherAbility2=%d',
+                    otherAura, ability.appliesOtherAura)
+                return { 'uncertainSameAura', nil, false }
+            end
+        else
+            -- if theAbility isn't nil, then another ability without an
+            -- appliesOtherAura field is in the list.
+            if theAbility then
+                traceConfidence('sameAura', 'failure: theAbility1=%s, theAbility2=%s',
+                    theAbility.alias or theAbility.name, ability.alias or ability.name)
+                return { 'uncertainSameAura', nil, false }
+            else
+                theAbility = ability
+            end
         end
-        traceConfidence('Metamorphosis', 'failure: not the two correct possible solutions s1=[%s], s2=[%s]',
-            s1.name, s2.name)
-        return nil
-    else
-        traceConfidence('Metamorphosis', 'failure: #possibleSolutions=%d (not 2)',
-            #possibleSolutions)
-        return nil
     end
+    --      3. the ability exists, is unique and matches the shared appliesOtherAura ID
+    if not theAbility then
+        traceConfidence('sameAura', 'failure: theAbility1=nil')
+        return { 'uncertainSameAura', nil, false }
+    end
+    if theAbility.id ~= otherAura then
+        traceConfidence('sameAura', 'failure: theAbility1=%d, otherAura=%d',
+            theAbility.id, otherAura)
+        return { 'uncertainSameAura', nil, false }
+    end
+
+    return { 'uncertainSameAura', theAbility, false }
 end
 
 
+ns.confidenceLayerAliases = {
+    oneSolution='1',
+    castTime='P',
+    duration='U',
+    uncertainSameAura='u'
+}
 
 -- Given a list of possible abilities that could have produced event, determine:
 --    1. what the best matching solution is
@@ -445,27 +508,28 @@ end
 -- XXX: TODO: Would be nice to do a consistency check across confidence layers to
 -- make sure the confident ones agree with each other.
 local function getConfidentMatch(possibleSolutions)
-    local match = false
+    local conf= {}
+    local ability, certain = nil, false
 
-    -- This if statement is only to prevent printing the confidence traces when there
-    -- are 0 possible solutions. Otherwise the code below handles the 0 solution
-    -- situation perfectly well.
-    if #possibleSolutions > 0 then
-        ns:printDebug("getConfidentMatch("..#possibleSolutions..")")
-        match = confidenceLayerOnlyOnePossible(possibleSolutions) or
-            confidenceLayerCastTime(possibleSolutions) or
-            confidenceLayerDuration(possibleSolutions) or
-            confidenceLayerMetamorphosis(possibleSolutions)
-    else
-        ns:printDebug("getConfidentMatch("..#possibleSolutions..").. skipping")
+    conf.numPossible = #possibleSolutions
+    conf.layers = {}
+    -- order matters, so can't use a named table
+    table.insert(conf.layers, confidenceLayerOnlyOnePossible(possibleSolutions))
+    table.insert(conf.layers, confidenceLayerCastTime(possibleSolutions))
+    table.insert(conf.layers, confidenceLayerDuration(possibleSolutions))
+    table.insert(conf.layers, confidenceLayerAbilitiesApplySameAura(possibleSolutions))
+
+    -- XXX: TODO: first match wins. maybe better strategy in the future
+    for _, match in pairs(conf.layers) do
+        if match[2] then
+            conf.matchLayer, ability, certain = unpack(match)
+            break
+        end
     end
 
-    -- for convenience: unpack the 2 tuple
-    if match then
-        return match[1], match[2]
-    else
-        return nil
-    end
+    conf.ability = ability
+    conf.certain = certain
+    return ability, certain, conf
 end
 
 
@@ -525,11 +589,6 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
 
     ns:printDebug(record:toString())
 
-    -- allow the caller to override the tracked state of CDs to simulate an
-    -- unknown state. useful for determining which abilities are ALWAYS
-    -- uniquely identifiable.
-    cdTracker = cdTracker or ns.cdTracker
-
     -- all logic and ranking is performed in these two lines
     possibleSolutions, maxCD, logicLayersByAbility = getPossibleSolutions(ev, cdTracker)
     -- set maxCD at each inference in case one day it uses exclusion information
@@ -543,26 +602,28 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     -- assignments can be uncertain. e.g., multiple abilities with different CDs
     -- can cause the same event. if true, it is sometimes useful to report what
     -- *event* occurred.
-    abilityMatch, certain = getConfidentMatch(possibleSolutions)
+    abilityMatch, certain, conf = getConfidentMatch(possibleSolutions)
     record:setAbility(abilityMatch)
     record:setCertain(certain)
+    record:setConfidenceLayers(conf)
+    ns:printDebug(record:confidenceString(true))
 
     -- finally: are the ability requirements actually met? possibleSolutions returns all
     -- abilities that cannot be positively excluded. for example, if an ability requires a
     -- concurrent debuff, we aren't sure that the debuff didn't happen until a short period
     -- after the event occurred. if infer() is called during that short period, the ability
     -- is still *possible*.
-    local reqsMet = false
-    if abilityMatch then
+    local reqsMet = true   -- uncertain inferences don't need to meet reqs
+    if abilityMatch and certain then
         reqsMet, reqs = abilityMeetsRequirements(ev, abilityMatch)
         record:setRequiredEvidence(reqs)
-        ns:printDebug("evidence: " .. record:reqString())
+        ns:printDebug("REQS: " .. record:reqString())
     end
 
 
     -- Check for disableInference here, not at function start, so that maxCD can
     -- be computed for use by the history tray.
-    if reqsMet and not ns:GetOption('disableInference') then
+    if abilityMatch and reqsMet and not ns:GetOption('disableInference') then
         ev:setAbility(abilityMatch)
         ev:setCertain(certain)
     else
@@ -629,7 +690,7 @@ function ns:zeroKnowledgeSolve()
             event:setAura(aura)
 
             event:prepareForInference(idealEventTrackers)
-            local _, certain = ns:inferAbility("SIMULATE("..ability.name..")", event, blankCDs)
+            local _, certain = ns:inferAbility("SIMULATE("..ability.name..")", event, blankCDs, 1)
             ability.solved = certain
             -- XXX: TODO: inferAbility should return the conflicting spell/caster combos
             ability.conflicts = {}
