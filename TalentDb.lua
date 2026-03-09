@@ -853,13 +853,13 @@ ns.SpecTalentModifiers = {
         [383468] = {
             { { id=184364, modifies=duration, amount=8 } },
         },
-        [1270724] = {  -- thunder blast extends dur +2
+        [1270724] = {  -- thunder blast extends dur +2. the extension is an aura update
             { { id=107574, modifies=duration_variable, amount=ns.DURATION_GTE },
-              { id=437134, modifies=duration_variable, amount=ns.DURATION_GTE } },
+              { id=107574, modifies=naturallyUpdates, amount=true },
+              { id=437134, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=437134, modifies=naturallyUpdates, amount=true } },
         },
-        [437134] = {   -- hero talent procs avatar for 4s and gives 2 thunder blasts
-            -- XXX: TODO: the 2 thunder blasts are concurrent buffs, but they could be
-            -- updated rather than new. need to support this
+        [437134] = {   -- Avatar of the Storm: hero talent that procs avatar for 4s
             { { id=437134, modifies=hasAbility, amount=true } },
         },
     },
@@ -868,13 +868,13 @@ ns.SpecTalentModifiers = {
         [107574] = {
             { { id=107574, modifies=hasAbility, amount=true } },
         },
-        [1270724] = {  -- thunder blast extends dur +2
+        [1270724] = {  -- thunder blast extends dur +2. the extension is an aura update
             { { id=107574, modifies=duration_variable, amount=ns.DURATION_GTE },
-              { id=437134, modifies=duration_variable, amount=ns.DURATION_GTE } },
+              { id=107574, modifies=naturallyUpdates, amount=true },
+              { id=437134, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=437134, modifies=naturallyUpdates, amount=true } },
         },
-        [437134] = {   -- hero talent procs avatar for 4s
-            -- XXX: TODO: the 2 thunder blasts are concurrent buffs, but they could be
-            -- updated rather than new. need to support this
+        [437134] = {   -- Avatar of the Storm: hero talent that procs avatar for 4s
             { { id=437134, modifies=hasAbility, amount=true } },
         },
         [871] = {
