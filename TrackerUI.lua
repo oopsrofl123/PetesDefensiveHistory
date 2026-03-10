@@ -9,6 +9,29 @@ local DEFAULT_ICON = 134400    -- Question mark
 ns.trackerUI = {}  -- The UI elements next to the frames
 
 
+-- Make frame pools for the UI elements
+-- XXX: TODO: None of these pools properly reset the widgets they receive. So far it
+-- doesn't matter because only cooldown trackers release to or acquire from them, but
+-- surely one day something will break.
+local framePool = CreateFramePool("Frame", UIParent)
+
+local cooldownFramePool = CreateFramePool("Cooldown", UIParent, "CooldownFrameTemplate")
+
+local gameFontNormalPool =
+    CreateObjectPool(function() return UIParent:CreateFontString(nil, 'ARTWORK', 'GameFontNormal') end)
+
+local gameFontNormalSmallPool =
+    CreateObjectPool(function() return UIParent:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall') end)
+
+local numberFontNormalSmallPool =
+    CreateObjectPool(function() return UIParent:CreateFontString(nil, 'ARTWORK', 'numberFontNormalSmall') end)
+
+local texturePool = CreateTexturePool(UIParent, 'ARTWORK', 0, nil,
+    function(pool, frame)
+        frame:SetVertexColor(1, 1, 1)
+    end)
+
+
 function ns:indexToFrame(index)
     if DandersFrames then
         return _G["DandersPartyHeaderUnitButton" .. index]
@@ -187,16 +210,141 @@ end
 
 
 
+
+
+
+local function sizeHistoryItem(item)
+    local iconSize = ns:GetOption('iconSize')
+    local textSize = ns:GetOption('textSize')
+    item:SetSize(iconSize, iconSize)
+
+    if item.countUp then
+        item.timer:SetFont(item.timer:GetFont(), textSize, "THICKOUTLINE")
+    else
+        item.swipeTexture.timer:SetFont(item.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
+        item.swipeTexture.chargeLabel:SetFont(item.swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
+        item.warningbg:SetSize(iconSize/2, iconSize/2)
+        item.warning:SetSize(iconSize/2, iconSize/2)
+    end
+end
+
+
+
+-- alloc* functions must not depend on any runtime data
+local function allocCountUpTimer(parent)
+    local textSize = ns:GetOption('textSize')
+    local timer = gameFontNormalPool:Acquire()
+    timer:SetParent(parent)
+    timer:SetDrawLayer("OVERLAY")
+
+    timer:SetPoint("CENTER", parent, 0, 0)
+    timer:SetTextColor(1,1,1)
+    timer:SetFont(timer:GetFont(), textSize, "THICKOUTLINE")
+    parent:SetScript("OnUpdate", function(self)
+        if self.startTime and self.maxCD then
+            local elapsed = GetTime() - self.startTime
+            if elapsed <= self.maxCD then
+                timer:SetFormattedText("%.0f", elapsed)
+            else
+                timer:SetText("")
+                if ns:GetOption('hideHistoryItemsAtMaxCd') then
+                    self:Hide()  -- hide the whole icon+timer
+                end
+            end
+        else
+            timer:SetText("")
+        end
+    end)
+    return timer
+end
+
+
+
+-- alloc* functions must not depend on any runtime data
+local function allocCountDownTimer(parent, frameName)
+    local textSize = ns:GetOption('textSize')
+    local swipeTexture = cooldownFramePool:Acquire()
+
+    swipeTexture:SetParent(parent)
+    swipeTexture:SetAllPoints()
+    -- hide blizzard's countdown text so we can control the size
+    swipeTexture:SetHideCountdownNumbers(true)
+
+    swipeTexture.timer = gameFontNormalPool:Acquire()
+    swipeTexture.timer:SetParent(swipeTexture)
+    swipeTexture.timer:SetDrawLayer('OVERLAY')
+    
+    swipeTexture.timer:SetTextColor(1,1,1)
+    swipeTexture.timer:SetPoint("CENTER", parent, 0, 0)
+    swipeTexture.timer:SetFont(swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
+
+    swipeTexture.chargeLabel = numberFontNormalSmallPool:Acquire()
+    swipeTexture.chargeLabel:SetParent(swipeTexture)
+    swipeTexture.chargeLabel:SetDrawLayer('OVERLAY')
+    
+    swipeTexture.chargeLabel:SetTextColor(1,1,1)
+    swipeTexture.chargeLabel:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -1, 0)
+    swipeTexture.chargeLabel:SetFont(swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
+
+    local warningbg = texturePool:Acquire()
+    warningbg:SetParent(parent)
+    warningbg:SetDrawLayer('OVERLAY', 0)
+    
+    warningbg:SetPoint('CENTER', parent.icon, 'TOPLEFT', 4, -1)
+    warningbg:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask")
+    warningbg:SetVertexColor(0,0,0,1)
+
+    local warning = texturePool:Acquire()
+    warning:SetParent(parent)
+    warning:SetDrawLayer('OVERLAY', 1)
+    warning:SetPoint('CENTER', parent.icon, 'TOPLEFT', 4, -1)
+    warning:SetAtlas("QuestNormal")
+    warning:SetVertexColor(1, 0, 0)
+
+    -- Handle a couple of things:
+    --    1. update cooldown timer text
+    --    2. handle cooldown charges: monitor the cooldown FIFO to catch
+    --       when a cooldown completes. if it does, pop the CD and check
+    --       if the FIFO is empty. if it isn't, start a new swipe with the
+    --       next CD in the queue.
+    parent:SetScript("OnUpdate", function(self)
+        local now = GetTime()
+        if self.numQueued > 0 then
+            local untilAvailable = self.startTime + self.cooldown - now
+            if untilAvailable > 0 then
+                swipeTexture.timer:SetFormattedText("%.0f", untilAvailable)
+            else
+                swipeTexture:SetDrawSwipe(false)
+                self.numQueued = self.numQueued - 1
+                if self.numQueued > 0 then
+                    self.startTime = now
+                    swipeTexture:SetCooldown(now, self.cooldown)
+                end
+            end
+            swipeTexture.chargeLabel:SetText(self.charges - self.numQueued)
+        else
+            swipeTexture.timer:SetText("")
+        end
+    end)
+
+    return swipeTexture, warningbg, warning
+end
+
+
+
 -- Allocate a blank history item and allocate all of its subcomponents. The
 -- history item and all subcomponents are :Hide()ed. Callers should :Show()
 -- desired elements based on whether the ability represented by this history
 -- item is known.
-function allocHistoryItem(row, index, countUp)
+-- alloc* functions must not depend on any runtime data
+local function allocHistoryItem(parent, index, countUp)
     local frameName = "item" .. index
-    local f = CreateFrame("Frame", frameName, row)
-    local textSize = ns:GetOption('textSize')
+    local f = framePool:Acquire()
+    f:SetParent(parent)
 
-    f.icon = f:CreateTexture(nil, "ARTWORK")
+    f.icon = texturePool:Acquire()
+    f.icon:SetParent(f)
+    f.icon:SetDrawLayer('ARTWORK', 0)
     f.icon:SetAllPoints()
 
     -- Is this a count-up history tray item or a count-down cooldown tracker item?
@@ -205,80 +353,9 @@ function allocHistoryItem(row, index, countUp)
     -- to the swipe texture.
     f.countUp = countUp
     if countUp then
-        -- Count-up history mode timer
-        f.timer = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        f.timer:SetPoint("CENTER", f, 0, 0)
-        f.timer:SetTextColor(1,1,1)
-        f.timer:SetFont(f.timer:GetFont(), textSize, "THICKOUTLINE")
-        f:SetScript("OnUpdate", function(self)
-            if self.startTime and self.maxCD then
-                local elapsed = GetTime() - self.startTime
-                if elapsed <= self.maxCD then
-                    self.timer:SetFormattedText("%.0f", elapsed)
-                else
-                    self.timer:SetText("")
-                    if ns:GetOption('hideHistoryItemsAtMaxCd') then
-                        self:Hide()  -- hide the whole icon+timer
-                    end
-                end
-            else
-                self.timer:SetText("")
-            end
-        end)
+        f.timer = allocCountUpTimer(f)
     else
-        -- Count-down timer and cooldown swipe for identified spells
-        f.swipeTexture = CreateFrame("Cooldown", frameName .. "CDSwipe", f, "CooldownFrameTemplate")
-        f.swipeTexture:SetAllPoints()
-        -- hide blizzard's countdown text so we can control the size
-        f.swipeTexture:SetHideCountdownNumbers(true)
-
-        f.swipeTexture.timer = f.swipeTexture:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        f.swipeTexture.timer:SetTextColor(1,1,1)
-        f.swipeTexture.timer:SetPoint("CENTER", f, 0, 0)
-        f.swipeTexture.timer:SetFont(f.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
-
-        f.swipeTexture.chargeLabel = f.swipeTexture:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
-        f.swipeTexture.chargeLabel:SetTextColor(1,1,1)
-        f.swipeTexture.chargeLabel:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -1, 0)
-        f.swipeTexture.chargeLabel:SetFont(f.swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
-
-        f.warningbg = f:CreateTexture(nil, "OVERLAY", nil, 0)
-        f.warningbg:SetPoint('CENTER', f.icon, 'TOPLEFT', 4, -1)
-        f.warningbg:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask")
-        --f.warningbg:SetVertexColor(233/255, 214/255, 167/255, 0.9)
-        f.warningbg:SetVertexColor(0,0,0,1)
-
-        f.warning = f:CreateTexture(nil, "OVERLAY", nil, 1)
-        f.warning:SetPoint('CENTER', f.icon, 'TOPLEFT', 4, -1)
-        f.warning:SetAtlas("QuestNormal")
-        f.warning:SetVertexColor(1, 0, 0)
-
-        -- Handle a couple of things:
-        --    1. update cooldown timer text
-        --    2. handle cooldown charges: monitor the cooldown FIFO to catch
-        --       when a cooldown completes. if it does, pop the CD and check
-        --       if the FIFO is empty. if it isn't, start a new swipe with the
-        --       next CD in the queue.
-        f:SetScript("OnUpdate", function(self)
-            local now = GetTime()
-            if self.numQueued > 0 then
-                local untilAvailable = self.startTime + self.cooldown - now
-                if untilAvailable > 0 then
-                    self.swipeTexture.timer:SetFormattedText("%.0f", untilAvailable)
-                else
-                    self.swipeTexture:SetDrawSwipe(false)
-                    self.numQueued = self.numQueued - 1
-                    if self.numQueued > 0 then
-                        self.startTime = now
-                        self.swipeTexture:SetCooldown(now, self.cooldown)
-                    end
-                end
-                self.swipeTexture.chargeLabel:SetText(self.charges - self.numQueued)
-            else
-                self.swipeTexture.timer:SetText("")
-            end
-        end)
-
+        f.swipeTexture, f.warningbg, f.warning = allocCountDownTimer(f, frameName)
         -- Show a spell tooltip on the history item
         f:SetScript("OnEnter", function(self)
             if ns:GetOption('showTooltips') then
@@ -298,20 +375,18 @@ function allocHistoryItem(row, index, countUp)
 end
 
 
-
-local function sizeHistoryItem(item)
-    local iconSize = ns:GetOption('iconSize')
-    local textSize = ns:GetOption('textSize')
-    item:SetSize(iconSize, iconSize)
-
+local function releaseHistoryItem(item)
+    texturePool:Release(item.icon)
     if item.countUp then
-        item.timer:SetFont(item.timer:GetFont(), textSize, "THICKOUTLINE")
+        gameFontNormalPool:Release(item.timer)
     else
-        item.swipeTexture.timer:SetFont(item.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
-        item.swipeTexture.chargeLabel:SetFont(item.swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
-        item.warningbg:SetSize(iconSize/2, iconSize/2)
-        item.warning:SetSize(iconSize/2, iconSize/2)
+        gameFontNormalPool:Release(item.swipeTexture.timer)
+        numberFontNormalSmallPool:Release(item.swipeTexture.chargeLabel)
+        texturePool:Release(item.warningbg)
+        texturePool:Release(item.warning)
+        cooldownFramePool:Release(item.swipeTexture)
     end
+    framePool:Release(item)
 end
 
 
@@ -373,13 +448,15 @@ local function updateStaticRow(index)
 
     -- If there are any abilities tracked that are no longer trackable (e.g.,
     -- the player changed spec, group changed, new external interferes, etc.)
-    for name, _ in pairs(row.items) do
+    for name, item in pairs(row.items) do
         if not abilities[name] then
             -- XXX: TODO: WARNING! this leaks frames! need a frame pool
             -- since frames cannot be deallocated.
-            row.items[name]:ClearAllPoints()
-            row.items[name]:Hide()
-            --row.items[name] = nil  -- XXX: TODO: wait for frame pool implementation
+            item:ClearAllPoints()
+            item:Hide()
+print('about to release')
+            releaseHistoryItem(item)
+            row.items[name] = nil
         end
     end
 
@@ -490,30 +567,41 @@ end
 
 
 local function allocTrackerUIForSlot(index)
-    local tracker = CreateFrame("Frame", addonName .. "TrackerUI" .. index, UIParent)
+    local tracker = framePool:Acquire()
+    tracker:SetParent(UIParent)
     tracker.index = index
 
     -- Debug mode transparent background
-    tracker.bg = tracker:CreateTexture(nil, "BACKGROUND")
+    tracker.bg = texturePool:Acquire()
+    tracker.bg:SetParent(tracker)
+    tracker.bg:SetDrawLayer('BACKGROUND', 0)
 
     -- Debug mode text showing the detected class/spec
-    tracker.specLabel = tracker:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    tracker.specLabel = gameFontNormalSmallPool:Acquire()
+    tracker.specLabel:SetParent(tracker)
+    tracker.specLabel:SetDrawLayer('OVERLAY')
     tracker.specLabel:SetTextColor(1,1,1)
 
     -- Debug mode text showing the CompactPartyFrameMember..i mapping
-    tracker.indexLabel = tracker:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+    tracker.indexLabel = numberFontNormalSmallPool:Acquire()
+    tracker.indexLabel:SetParent(tracker)
+    tracker.indexLabel:SetDrawLayer('OVERLAY')
     tracker.indexLabel:SetTextColor(1,1,1)
 
-    tracker.indexLabel.bg = tracker:CreateTexture()
+    tracker.indexLabel.bg = texturePool:Acquire()
+    tracker.indexLabel.bg:SetParent(tracker)
+    tracker.indexLabel.bg:SetDrawLayer('ARTWORK', 0)
     tracker.indexLabel.bg:SetAllPoints()
     tracker.indexLabel.bg:SetColorTexture(1,0,0)
 
     -- The static cooldown tracker is just an empty list to be filled with icons
-    tracker.staticRow = CreateFrame("Frame", "StaticRow", tracker)
+    tracker.staticRow = framePool:Acquire()
+    tracker.staticRow:SetParent(tracker)
     tracker.staticRow.items = {}
 
     -- The history tray
-    tracker.historyTray = CreateFrame("Frame", "HistoryTray", tracker)
+    tracker.historyTray = framePool:Acquire()
+    tracker.historyTray:SetParent(tracker)
     tracker.historyTray.items = {}
     for i=1, MAX_HISTORY do
         tracker.historyTray.items[i] = allocHistoryItem(tracker.historyTray, index, i, true)
@@ -531,7 +619,5 @@ function ns:allocHistoryGrid()
     for index=1, 5 do
         local tracker = allocTrackerUIForSlot(index)
         ns.trackerUI[index] = tracker
-        tracker:Show()
     end
-    ns:updateTrackerUI()
 end
