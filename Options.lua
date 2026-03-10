@@ -2,6 +2,12 @@
 local addonName, ns = ...
 
 local optionsDefaults = {
+    enable = true,
+    enableSolo = true,
+    enableParty = true,
+    enableArena = false,
+    enableRaid = false,
+
     iconSize = 32,
     iconSpacing = 3,
     textSize = 15,
@@ -18,7 +24,8 @@ local optionsDefaults = {
 	debugVisuals = false,
 	debugLogging = false,
     dataMiningMode = false,
-    muteVerboseLogging = true
+    muteVerboseLogging = true,
+    runGC = false,
 }
 
 PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or optionsDefaults
@@ -37,6 +44,98 @@ end
 
 
 ns.optionsCategory, layout = Settings.RegisterVerticalLayoutCategory(addonName)
+
+layout:AddInitializer(
+    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Active inference content' })
+)
+
+-- Options that change whether the addon is currently active need to handle data
+-- cleanup and UI hiding. Inactive could mean the addon is totally disabled or it
+-- is only inactive in this content (e.g., a raid).
+--
+-- Return a valid setter function.
+local function makeActiveSetter(varName, value)
+    local function setter(value)
+print('calling active setter for varName='..varName..", value="..tostring(value))
+ns:printMemUsage('makeActiveSetter')
+        local before = PetesDefensiveHistoryOptionsDb[varName] 
+        PetesDefensiveHistoryOptionsDb[varName] = value
+        if before ~= ns:addonIsActive() then
+            if ns:addonIsActive() then
+                ns:enableAddon()
+            else
+                ns:disableAddon()
+            end
+        end
+    end
+    return setter
+end
+
+-- Disable the addon entirely
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "enable",
+    Settings.VarType.Boolean,
+    "Enable",
+    optionsDefaults['enable'],
+    function() return ns:GetOption('enable') end,
+    makeActiveSetter('enable')
+)
+toplevel =Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Enable the addon. Disabling the addon prevents all event processing and deletes all collected data, including player info, including talents, tracked cooldowns and event histories.")
+
+
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "enableSolo",
+    Settings.VarType.Boolean,
+    "Solo",
+    optionsDefaults['enableSolo'],
+    function() return ns:GetOption('enableSolo') end,
+    makeActiveSetter('enableSolo')
+)
+child = Settings.CreateCheckbox(ns.optionsCategory, setting, "Enable while solo.")
+child:SetParentInitializer(toplevel)
+
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "enableParty",
+    Settings.VarType.Boolean,
+    "Party",
+    optionsDefaults['enableParty'],
+    function() return ns:GetOption('enableParty') end,
+    makeActiveSetter('enableParty')
+)
+child = Settings.CreateCheckbox(ns.optionsCategory, setting, "Enable in non-raid, non-arena group content.")
+child:SetParentInitializer(toplevel)
+
+-- XXX: TODO: Arena and raids. not supported yet (needs different frame names)
+--local setting = Settings.RegisterProxySetting(
+    --ns.optionsCategory,
+    --"enableArena",
+    --Settings.VarType.Boolean,
+    --"Arena",
+    --optionsDefaults['enableArena'],
+    --function() return ns:GetOption('enableArena') end,
+    --makeActiveSetter('enableArena'),
+    --function() return false end
+--)
+--child = Settings.CreateCheckbox(ns.optionsCategory, setting, "Enable in arenas.")
+--child:SetParentInitializer(toplevel)
+--
+--local setting = Settings.RegisterProxySetting(
+    --ns.optionsCategory,
+    --"enableRaid",
+    --Settings.VarType.Boolean,
+    --"Raid",
+    --optionsDefaults['enableRaid'],
+    --function() return ns:GetOption('enableRaid') end,
+    --makeActiveSetter('enableRaid')
+--)
+--child = Settings.CreateCheckbox(ns.optionsCategory, setting, "Enable in raids.")
+--child:SetParentInitializer(toplevel)
+
+
 
 layout:AddInitializer(
     Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Appearance and behavior' })
@@ -291,6 +390,21 @@ local setting = Settings.RegisterProxySetting(
 Settings.CreateCheckbox(ns.optionsCategory, setting,
     "Mute certain extremely verbose debugging messages.")
 
+
+-- Don't log extremely spammy messages like talent ranks and ability inference
+-- during the zero knowledge solve.
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "runGC",
+    Settings.VarType.Boolean,
+    "Run additional GCs",
+    optionsDefaults['runGC'],
+    function() return ns:GetOption('runGC') end,
+    function(value) PetesDefensiveHistoryOptionsDb.runGC = value  end
+)
+
+Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Run garbage collection when tearing down/setting up the UI. Helps to find memory leaks.")
 
 Settings.RegisterAddOnCategory(ns.optionsCategory, "PetesDefensiveHistoryOptionsDb")
 
