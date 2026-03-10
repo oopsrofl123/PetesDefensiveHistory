@@ -202,6 +202,7 @@ function ns:Character(slot)
         trackedCharacters[GUID] = nil
         -- XXX: TODO: hack until these are formally folded into Character
         ns.eventsForInference[GUID] = nil
+        ns.cdTracker[GUID] = nil
         evidenceTrackersByGUID[GUID] = nil
     end
 
@@ -293,6 +294,8 @@ end
 -- All LibSpecialization code below
 -------------------------------------------------------------------------------
 
+local LibSpecialization = LibStub("LibSpecialization")
+
 -- libspec only returns name as a string - no other information to identify which
 -- group member the spec data is from. so must match libspec's name format
 local function nameToSlot(playerName)
@@ -312,7 +315,11 @@ local function nameToSlot(playerName)
 end
 
 
-local LibSpecialization = LibStub("LibSpecialization")
+function ns:sendLibSpecRequest()
+    LibSpecialization.RequestGroupSpecialization()
+end
+
+
 local internalGroupSpecs = {}    -- internal use by LibSpecialization
 LibSpecialization.RegisterGroup(internalGroupSpecs, 
     function(specId, role, position, playerName, talentExportString)
@@ -325,7 +332,6 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
             return
         end
 
-print("LibSpec callback -> trackCharacter("..playerName..")")
         local char = ns:trackCharacter(slot)
 
         -- Use the (possibly new) spec ID and talents to determine which abilities
@@ -344,7 +350,5 @@ print("LibSpec callback -> trackCharacter("..playerName..")")
         -- affects the group solution UI.
         ns:zeroKnowledgeSolve()
 
-        -- Update various UI elements:
-        ns:updateTrackerUI()
-        ns:updateGroupSolutionUI()
+        ns:respondToRosterUpdate()
     end)
