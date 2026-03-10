@@ -98,6 +98,10 @@ end
 
 -- based on example code here:
 -- https://warcraft.wiki.gg/wiki/API_C_ClassTalents.InitializeViewLoadout
+--
+-- XXX: TODO: traversing this tree allocates about ~1Mb of temporary tables.
+-- WoW is not particularly aggressive about garbage collection, so it may be
+-- desirable to force a GC during some addon enable/disable events.
 local function buildTalentToSpellMap(specId)
     local talentmap = {}
     local configId = Constants.TraitConsts.VIEW_TRAIT_CONFIG_ID  -- convenience
@@ -118,7 +122,7 @@ local function buildTalentToSpellMap(specId)
         for _, nodeId in ipairs(C_Traits.GetTreeNodes(treeId)) do
             local node = C_Traits.GetNodeInfo(configId, nodeId)
             if node and node.ID ~= 0 then    -- node.ID=0 if it isn't visible
-                for choiceIndex, talentId in pairs(node.entryIDs) do
+                for choiceIndex, talentId in ipairs(node.entryIDs) do
                     local entryInfo = C_Traits.GetEntryInfo(configId, talentId)
 
                     -- SubTreeSelection is a special node that defines which hero talent
@@ -152,6 +156,9 @@ local function buildTalentToSpellMap(specId)
             end
         end
     end
+
+--collectgarbage('collect')
+
     return talentmap 
 end
 
