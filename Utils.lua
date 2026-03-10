@@ -145,3 +145,55 @@ function ns:flagString(x)
     return ns:boolstr(x.IMPORTANT)..ns:boolstr(x.BIG)..ns:boolstr(x.EXTERNAL)..ns:boolstr(x.RAID)..
 ns:boolstr(x.RAIDINCOMBAT)
 end
+
+
+function ns:addonIsActive()
+    local contentType, groupSize = ns:getGroupContentInfo()
+print(contentType, groupSize)
+    return ns:GetOption('enable') and (
+        (contentType == 'solo' and ns:GetOption('enableSolo')) or
+        (contentType == 'party' and ns:GetOption('enableParty')) or
+        (contentType == 'arena' and ns:GetOption('enableArena')) or
+        (contentType == 'raid' and ns:GetOption('enableRaid')) or
+        (contentType == 'battleground' and ns:GetOption('enableBattleground'))
+    )
+end
+
+
+function ns:getGroupContentInfo()
+    local inGroup = IsInGroup()        -- true if in party or raid
+    local inRaid = IsInRaid()          -- true if in a raid
+    local inInstance, instanceType = IsInInstance()  -- checks if you're in an instance
+    local contentType, groupSize
+
+    if inInstance and instanceType == "arena" then
+        contentType = "arena"
+    elseif inInstance and instanceType == "pvp" then
+        contentType = "battleground"
+    elseif inInstance and instanceType == "party" then
+        contentType = "party"
+    elseif inRaid then
+        contentType = "raid"
+    elseif inGroup then
+        contentType = "party"
+    else
+        contentType = "solo"
+    end
+
+    local contentState, groupSize
+    local inInstance, instanceType = IsInInstance()
+
+    if contentType == "raid" then
+        groupSize = GetNumGroupMembers()
+    else
+        groupSize = GetNumSubgroupMembers()
+    end
+
+    return contentType, groupSize
+end
+
+
+function ns:printMemUsage(trace)
+    UpdateAddOnMemoryUsage()
+    ns:printDebug(trace .. ': mem usage is ' .. GetAddOnMemoryUsage('PetesDefensiveHistory') .. 'k')
+end
