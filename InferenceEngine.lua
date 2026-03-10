@@ -626,8 +626,6 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     if abilityMatch and reqsMet and not ns:GetOption('disableInference') then
         ev:setAbility(abilityMatch)
         ev:setCertain(certain)
-    else
-        ns:printDebug("couldn't infer ability")
     end
 
     return ev:getAbility()
