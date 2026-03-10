@@ -7,6 +7,7 @@ local optionsDefaults = {
     enableParty = true,
     enableArena = false,
     enableRaid = false,
+    enableBattleground = false,
 
     iconSize = 32,
     iconSpacing = 3,
@@ -56,17 +57,8 @@ layout:AddInitializer(
 -- Return a valid setter function.
 local function makeActiveSetter(varName, value)
     local function setter(value)
-print('calling active setter for varName='..varName..", value="..tostring(value))
-ns:printMemUsage('makeActiveSetter')
-        local before = PetesDefensiveHistoryOptionsDb[varName] 
         PetesDefensiveHistoryOptionsDb[varName] = value
-        if before ~= ns:addonIsActive() then
-            if ns:addonIsActive() then
-                ns:enableAddon()
-            else
-                ns:disableAddon()
-            end
-        end
+        ns:handleAddonActiveStateChange()
     end
     return setter
 end
