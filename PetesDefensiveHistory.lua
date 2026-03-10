@@ -311,7 +311,6 @@ end
 -- Track player spell casts
 --------------------------------------------------------------------------------------
 local castHandler = CreateFrame("Frame", addonName .. "CastHandler")
-castHandler:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 castHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID, castBarID)
     -- Only track casts from tracked characters
     local guid, char = ns:getTrackedCharacterBySlot(caster)
@@ -331,7 +330,6 @@ end)
 -- Track when absorb shields are applied
 --------------------------------------------------------------------------------------
 local absorbHandler = CreateFrame("Frame", addonName .. "AbsorbHandler")
-absorbHandler:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
 absorbHandler:SetScript("OnEvent", function(self, event, target)
     -- Only track casts from tracked characters
     local guid, char = ns:getTrackedCharacterBySlot(target)
@@ -350,7 +348,6 @@ end)
 -- Track when unit flags change
 --------------------------------------------------------------------------------------
 local flagsHandler = CreateFrame("Frame", addonName .. "UnitFlagsHandler")
-flagsHandler:RegisterEvent("UNIT_FLAGS")
 flagsHandler:SetScript("OnEvent", function(self, event, target)
     -- Only track casts from tracked characters
     local guid, char = ns:getTrackedCharacterBySlot(target)
@@ -381,7 +378,6 @@ end)
 -- Track when auras are applied, updated or removed
 --------------------------------------------------------------------------------------
 local auraHandler = CreateFrame("Frame", addonName .. "AuraHandler")
-auraHandler:RegisterEvent("UNIT_AURA")
 auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Ensure unitTarget is a recognized slot. This event is called for nameplates and others
     local guid, char = ns:getTrackedCharacterBySlot(unitTarget)
@@ -476,20 +472,91 @@ end)
 -- Handle initialization and group roster updates.
 --------------------------------------------------------------------------------------
 local loader = CreateFrame("Frame", addonName .. "Loader")
-local loadNum = 1
-loader:RegisterEvent("PLAYER_ENTERING_WORLD")
-loader:RegisterEvent("GROUP_ROSTER_UPDATE")
+local loadNum
 loader:SetScript("OnEvent", function(self, event)
     ns:printDebug(event.."("..loadNum..")")
     loadNum = loadNum + 1
-
-    -- Maintain the slot -> GUID map
-    updateSlotToGUID()
-
-    -- Update UI elements
-    ns:updateTrackerUI()
-    ns:updateGroupSolutionUI()
+    ns:respondToRosterUpdate()
+    ns:handleAddonActiveStateChange()
 end)
+
+
+function ns:respondToRosterUpdate()
+    updateSlotToGUID()           -- Maintain the slot -> GUID map
+    ns:updateTrackerUI()         -- Update UI elements
+    ns:updateGroupSolutionUI()
+
+    for index=1, 5 do
+        ns.trackerUI[index]:Show()
+    end
+end
+
+
+
+-- Handle enabling/disabling addon activity. The active state can be changed because
+-- the user changed a preference or the character moved from content where the addon
+-- is active (e.g., party) into content where it is inactive (e.g., raid).
+--
+-- Call this function any time the active state *may* have changed. It will determine
+-- whether it did and execute accordingly
+function ns:handleAddonActiveStateChange()
+    if not lastActiveState and ns:addonIsActive() then
+        ns:enableAddon()
+    elseif lastActiveState and not ns:addonIsActive() then
+        ns:disableAddon()
+    end
+end
+
+
+
+function ns:enableAddon()
+    loadNum = 1
+    ns:printMemUsage("enableAddon: before constructing UI")
+    loader:RegisterEvent("PLAYER_ENTERING_WORLD")
+    loader:RegisterEvent("GROUP_ROSTER_UPDATE")
+    loader:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+    auraHandler:RegisterEvent("UNIT_AURA")
+    castHandler:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+    absorbHandler:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
+    flagsHandler:RegisterEvent("UNIT_FLAGS")
+    poller:Invoke()
+
+    ns:respondToRosterUpdate()
+    ns:sendLibSpecRequest()
+    ns:printMemUsage("enableAddon: after constructing UI")
+    if ns:GetOption('runGC') then
+        ns:printMemUsage("enableAddon: after constructing UI and running GC")
+        collectgarbage('collect')
+    end
+
+    lastActiveState = true
+end
+
+
+
+function ns:disableAddon()
+    loader:UnregisterEvent("PLAYER_ENTERING_WORLD")
+    loader:UnregisterEvent("GROUP_ROSTER_UPDATE")
+    auraHandler:UnregisterEvent("UNIT_AURA")
+    castHandler:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+    absorbHandler:UnregisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
+    flagsHandler:UnregisterEvent("UNIT_FLAGS")
+    poller:Cancel()
+
+    for index=1, 5 do
+        ns.trackerUI[index]:Hide()
+        local slot = ns:indexToSlot(index)
+        if slot then
+            slotToGUID[slot] = nil
+            local guid, char = ns:getTrackedCharacterBySlot(slot)
+            if guid then
+                char:untrack()
+            end
+        end
+    end
+
+    lastActiveState = false
+end
 
 
 do
@@ -501,8 +568,6 @@ do
         end
     end
 
-    updateSlotToGUID()
-
     -- Addons are loaded after all blizzard frames, so can allocate everything now.
     ns:allocHistoryGrid()
     ns.groupSolutionUI = ns:allocGroupSolutionUI()
@@ -512,4 +577,8 @@ do
     -- Open the config panel
     -- SlashCmdList.PDH = function() Settings.OpenToCategory(ns.optionsCategory:GetID()) end
     SlashCmdList.PDH = function() ns.groupSolutionUI:Show() end
+
+    -- Set up by default. Options aren't loaded yet, so can't check the user's preference.
+    ns:enableAddon()
+    Settings.OpenToCategory(ns.optionsCategory:GetID())
 end
