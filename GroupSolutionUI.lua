@@ -237,7 +237,13 @@ local function allocMainUIFrame()
     closeButton:SetText("Close")
     closeButton:SetScript("OnClick", function() f:Hide() end)
 
-    f:Show()
+    -- XXX: TODO: probably shouldn't always show this on UI allocation even if
+    -- the addon is enabled..
+    if ns:addonIsActive() then
+        --f:Show()
+        f:Hide()
+    end
+
     return f
 end
 
@@ -250,7 +256,6 @@ function ns:allocGroupSolutionUI()
     local solutionUI = allocMainUIFrame()
 
     solutionUI.rows = {}
-    --for slot, index in pairs(ns.allSlots) do
     for index=1, 5 do
         solutionUI.rows[index] = allocGroupSolutionRow(solutionUI, index)
     end
