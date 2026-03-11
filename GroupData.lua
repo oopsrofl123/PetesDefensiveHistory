@@ -327,7 +327,16 @@ end
 local internalGroupSpecs = {}    -- internal use by LibSpecialization
 LibSpecialization.RegisterGroup(internalGroupSpecs, 
     function(specId, role, position, playerName, talentExportString)
+        if not ns:addonIsActive() then
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+                "Ignoring LibSpecialization callback, addon is disabled")
+            return
+        end
+
         local slot = nameToSlot(playerName)
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+            "Receiving LibSpecialization response for player=[%s], slot=[%s]",
+            playerName, tostring(slot)))
 
         -- LibSpec returns name in a specific format. If we fail to match it to a
         -- valid frame, just have to proceed without spec data.
