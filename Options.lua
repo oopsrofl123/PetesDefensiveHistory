@@ -30,6 +30,7 @@ local optionsDefaults = {
     debugLoggingTypeUI = true,
     debugLoggingTypeData = true,
     debugLoggingTypeDataMining = true,
+    debugLoggingTypeSimulation = false,
     runGC = false,
 }
 
@@ -59,7 +60,7 @@ layout:AddInitializer(
 -- is only inactive in this content (e.g., a raid).
 --
 -- Return a valid setter function.
-local function makeActiveSetter(varName, value)
+local function makeActiveSetter(varName)
     local function setter(value)
         PetesDefensiveHistoryOptionsDb[varName] = value
         ns:handleAddonActiveStateChange()
@@ -445,6 +446,20 @@ child = Settings.CreateCheckbox(ns.optionsCategory, setting,
     "Print aura data on the player that is not secret out of combat. Intended for developers.")
 child:SetParentInitializer(toplevel)
 
+-- Simulation logging
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "debugLoggingTypeSimulation",
+    Settings.VarType.Boolean,
+    "Simulations",
+    optionsDefaults['debugLoggingTypeSimulation'],
+    function() return ns:GetOption('debugLoggingTypeSimulation') end,
+    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeSimulation = value  end
+)
+
+child = Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Print inference traces during zero knowledge simulations.")
+child:SetParentInitializer(toplevel)
 
 
 
