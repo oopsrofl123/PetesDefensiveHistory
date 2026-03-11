@@ -11,6 +11,13 @@ local slotToGUID = {}
 -- PURPOSES ONLY. DO NOT BASE ANY LOGIC ON UNITS.
 local GUIDToSlot = {}
 
+local myGUID
+
+-- Return the player's GUID
+function ns:myGUID()
+    return myGUID
+end
+
 function ns:cosmeticOnlyMapGUIDToSlot(guid)
     return GUIDToSlot[guid] or "unknown"
 end
@@ -31,6 +38,8 @@ end
 
 
 local function updateSlotToGUID()
+    myGUID = UnitGUID("player")
+
     -- On this pass: make sure all slot->GUID mappings represent current
     -- members of the group/raid/arena/etc. If a slot's GUID changes, that
     -- does not necessarily mean the previous GUID left the group, the
