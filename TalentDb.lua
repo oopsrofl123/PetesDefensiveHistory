@@ -277,14 +277,24 @@ ns.SpecTalentModifiers = {
     -- Frost death knight ------------------------------------------------------------------------
     [251] = {
         [49143] = {  -- root talent for frost. put frost-specific stuff here
-            { { id=48707, modifies=hasAbility, amount=true } },      -- gives AMS since death strike is not *mandatory* for frost
+            { { id=48707, modifies=hasAbility, amount=true } },      -- gives AMS since death strike is not mandatory for frost
         },
-        [51271] = {
+        [51271] = {   -- pillar of frost
             { { id=51271, modifies=hasAbility, amount=true } }
         },
-        [456240] = {
-            { { id=51271, modifies=duration_variable, amount=ns.DURATION_GTE } }
-        }
+        [456240] = {  -- duration extend on pillar
+            { { id=51271, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=51271, modifies=naturallyUpdates, amount=true } }
+        },
+        [1265632] = { -- apex talent: r2 and r3 extend pillar duration
+            { },                                                                 -- rank 1
+            { { id=51271, modifies=duration_variable, amount=ns.DURATION_GTE },  -- rank 2
+              { id=51271, modifies=naturallyUpdates, amount=true } },
+            { { id=51271, modifies=duration_variable, amount=ns.DURATION_GTE },  -- rank 3
+              { id=51271, modifies=naturallyUpdates, amount=true } },
+            { { id=51271, modifies=duration_variable, amount=ns.DURATION_GTE },  -- rank 4
+              { id=51271, modifies=naturallyUpdates, amount=true } },
+        },
     },
     -- Unholy death knight ------------------------------------------------------------------------
     [252] = {
