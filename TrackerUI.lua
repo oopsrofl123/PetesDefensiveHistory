@@ -109,7 +109,8 @@ function ns:addEventToHistoryTray(event)
     -- Don't do anything if the user disabled the history tray
     if ns:GetOption('disableHistoryTray') then return end
 
-    ns:printDebug("aura instance ID " .. event:getId() ..
+    ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal,
+        "aura instance ID " .. event:getId() ..
         " added to history tray "..index.." after ".. event:timeSince().."s")
 
     -- Empty the youngest history slot
@@ -454,7 +455,6 @@ local function updateStaticRow(index)
             -- since frames cannot be deallocated.
             item:ClearAllPoints()
             item:Hide()
-print('about to release')
             releaseHistoryItem(item)
             row.items[name] = nil
         end

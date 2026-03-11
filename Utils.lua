@@ -110,9 +110,31 @@ end
 
 
 
-function ns:printDebug(string)
+ns.LOGTYPE = {
+    None='None',
+    Talents='Talents',
+    Inference='Inference',
+    UI='UI',
+    Data='Data',
+    DataMining='DataMining',
+}
+ns.LOGLEVEL = {
+    Error='Error',
+    Normal='Normal',
+    Verbose='Verbose',
+}
+function ns:printDebug(logtype, loglevel, string)
     if ns:GetOption('debugLogging') then
-        print('|cff00ff00PDH:|r ' .. string)
+        local logTypeEnabled =
+            (logtype == ns.LOGTYPE.None) or ns:GetOption('debugLoggingType'..logtype)
+        local logLevelEnabled =
+            (loglevel == ns.LOGLEVEL.Error) or 
+            (loglevel == ns.LOGLEVEL.Normal) or 
+            (loglevel == ns.LOGLEVEL.Verbose and ns:GetOption('debugLoggingLevelVerbose'))
+
+        if logTypeEnabled and logLevelEnabled then
+            print('|cff00ff00PDH:|r ' .. string)
+        end
     end
 end
 
@@ -149,7 +171,6 @@ end
 
 function ns:addonIsActive()
     local contentType, groupSize = ns:getGroupContentInfo()
-print(contentType, groupSize)
     return ns:GetOption('enable') and (
         (contentType == 'solo' and ns:GetOption('enableSolo')) or
         (contentType == 'party' and ns:GetOption('enableParty')) or
@@ -195,5 +216,6 @@ end
 
 function ns:printMemUsage(trace)
     UpdateAddOnMemoryUsage()
-    ns:printDebug(trace .. ': mem usage is ' .. GetAddOnMemoryUsage('PetesDefensiveHistory') .. 'k')
+    ns:printDebug(ns.LOGTYPE.None, ns.LOGLEVEL.Normal,
+        trace .. ': mem usage is ' .. GetAddOnMemoryUsage('PetesDefensiveHistory') .. 'k')
 end

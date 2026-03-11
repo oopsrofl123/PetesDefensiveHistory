@@ -12,11 +12,10 @@ local _, ns = ...
 --         3b. multiplicative change. mult changes apply to the
 --             base value. reduce mults to adds this way.
 local function applyOneModifier(modifiedAbility, mod)
-    if not ns:GetOption('muteVerboseDebugging') then
-        ns:printDebug(string.format('got modifier [%d] = (%d, %s, %s, %s)',
-            modifiedAbility.id, mod.id, mod.modifies,
-            tostring(mod.amount), tostring(mod['mult'] or false)))
-    end
+    ns:printDebug(ns.LOGTYPE.Talents, ns.LOGLEVEL.Verbose,
+        string.format('got modifier [%d] = (%d, %s, %s, %s)',
+        modifiedAbility.id, mod.id, mod.modifies,
+        tostring(mod.amount), tostring(mod['mult'] or false)))
 
     if type(mod.amount) == "boolean" then
         modifiedAbility[mod.modifies] = mod.amount
@@ -47,9 +46,8 @@ function ns:applyTalentModifiers(classFile, specId, baseAbility, talentRanks)
     local specmods = ns.SpecTalentModifiers[specId]
 
     -- Collect all modifiers across all talents for this ability
-    if not ns:GetOption('muteVerboseDebugging') then
-        ns:printDebug("looking for modifiers for baseAbility=["..baseAbility.name.."]")
-    end
+    ns:printDebug(ns.LOGTYPE.Talents, ns.LOGLEVEL.Verbose,
+        "looking for modifiers for baseAbility=["..baseAbility.name.."]")
     for spellId, rank in pairs(talentRanks) do
         -- TalentModifiers only contains the talents relevant to our tracked abilities.
         if rank > 0 then
@@ -58,8 +56,8 @@ function ns:applyTalentModifiers(classFile, specId, baseAbility, talentRanks)
             if talents then
                 mods = talents[rank]
                 if not mods then
-                    ns:printDebug(string.format(
-                        'applyTalentModifiers: talent=[%d]: rank=[%d] does not exist',
+                    ns:printDebug(ns.LOGTYPE.Talents, ns.LOGLEVEL.Normal,
+                        string.format('applyTalentModifiers: talent=[%d]: rank=[%d] does not exist',
                         spellId, rank))
                     return nil
                 end
@@ -111,7 +109,7 @@ local function buildTalentToSpellMap(specId)
     C_ClassTalents.ViewLoadout({})
     local configInfo = C_Traits.GetConfigInfo(configId)
     if configInfo == nil then
-        ns:printDebug(string.format(
+        ns:printDebug(string.format(ns.LOGTYPE.Talents, ns.LOGLEVEL.Error,
             "FAILED TO RETRIEVE TALENT TREE: C_Traits.GetConfigInfo(configId=[%d]), specId=[%d]",
             configId, specId))
         return
@@ -174,7 +172,8 @@ local function readMetadata(stream)
 
     -- 2 is the serialization version for Midnight. No need for backward compatibility
     if  C_Traits.GetLoadoutSerializationVersion() ~= 2 or version ~= 2 then
-        ns:printDebug("unsupported talent encoding version (must be 2)")
+        ns:printDebug(ns.LOGTYPE.Talents, ns.LOGLEVEL.Error,
+            "unsupported talent encoding version (must be 2)")
         return nil
     end
     return specID
@@ -250,7 +249,7 @@ function ns:getTalentRanks(specId, talentExportString)
     -- there's no point in decoding the string if we can't map the talents to spells
     local talentIdToSpellMap = buildTalentToSpellMap(specId)
     if not talentIdToSpellMap then
-        ns:printDebug(string.format(
+        ns:printDebug(string.format(ns.LOGTYPE.Talents, ns.LOGLEVEL.Error,
             "talent to spell ID map failed for specId=[%s]. giving up on talent inspection",
             specId)
         )
@@ -261,8 +260,8 @@ function ns:getTalentRanks(specId, talentExportString)
     local stream = CreateAndInitFromMixin(ImportDataStreamMixin, talentExportString)
     local encodedSpecId = readMetadata(stream)
     if encodedSpecId ~= specId then
-        ns:printDebug("talent string encoded specialization ID " ..
-            tostring(encodedSpecId) ..
+        ns:printDebug(ns.LOGTYPE.Talents, ns.LOGLEVEL.Error,
+            "talent string encoded specialization ID " .. tostring(encodedSpecId) ..
             " but expected ID=" .. specId)
         return nil
     end
@@ -298,17 +297,17 @@ function ns:getTalentRanks(specId, talentExportString)
     end
 
     -- Only print this if the user opted in to *really* spammy debug logs
-    if not ns:GetOption('muteVerboseDebugging') then
-        -- Print the full records for debugging
-        table.sort(fullRecords, function(a, b) return a.spellId < b.spellId end)
-        ns:printDebug(string.format("%5s %10s %10s %5s %5s %3s %3s %5s %5s",
+    -- Print the full records for debugging
+    table.sort(fullRecords, function(a, b) return a.spellId < b.spellId end)
+    ns:printDebug(ns.LOGTYPE.Talents, ns.LOGLEVEL.Verbose,
+        string.format("%5s %10s %10s %5s %5s %3s %3s %5s %5s",
             "found", "spellId", "talentId", "sel", "pur", "rank", "choice", 'subtree', 'type'))
-        for _, v in pairs(fullRecords) do
-            ns:printDebug(string.format("%5s %10d %10d %5s %5s %3s %3s %5s %5s",
+    for _, v in pairs(fullRecords) do
+        ns:printDebug(ns.LOGTYPE.Talents, ns.LOGLEVEL.Verbose,
+            string.format("%5s %10d %10d %5s %5s %3s %3s %5s %5s",
                 tostring(v.found), v.spellId, tostring(v.talentId),
                 tostring(v.selected), tostring(v.purchased), tostring(v.rank),
                 tostring(v.choiceIndex), tostring(v.subTreeId), tostring(v.type)))
-        end
     end
 
     -- Hero talents: talents selected in the inactive hero talent tree are still marked

@@ -146,13 +146,12 @@ end
 
 
 local function traceLogic(event, ability, message, ...)
-    if not ns:GetOption('muteVerboseDebugging') then
-        ns:printDebug(string.format(
+    ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Verbose,
+        string.format(
             "|cFF888888ability=[%s], target=[%s], caster=[%s]: " .. message .. "|r",
             ability.alias or ability.name,
             event:getSlot(),
             ns:cosmeticOnlyMapGUIDToSlot(ability.caster), ...))
-    end
 end
 
 
@@ -352,11 +351,8 @@ end
 
 
 local function traceConfidence(layerName, message, ...)
-    if not ns:GetOption('muteVerboseDebugging') then
-        ns:printDebug(string.format(
-            "|cFF888888confidenceLayer(%s): " .. message .. "|r",
-            layerName, ...))
-    end
+    ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Verbose,
+        string.format("|cFF888888confidenceLayer(%s): " .. message .. "|r", layerName, ...))
 end
 
 
@@ -587,15 +583,15 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     -- permanent record of inference for logging/analysis
     local record = ns:InferenceRecord(now, inferenceTrace, ev)
 
-    ns:printDebug(record:toString())
+    ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, record:toString())
 
     -- all logic and ranking is performed in these two lines
     possibleSolutions, maxCD, logicLayersByAbility = getPossibleSolutions(ev, cdTracker)
     -- set maxCD at each inference in case one day it uses exclusion information
     ev:setMaxCD(maxCD)
     record:setLogicLayersByAbility(logicLayersByAbility)
-    ns:printDebug("PASS: "..record:logicString(true))
-    ns:printDebug("FAIL: "..record:logicString(false))
+    ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, "PASS: "..record:logicString(true))
+    ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, "FAIL: "..record:logicString(false))
 
     -- the job of the confidence system is to compare multiple solutions and determine
     -- which is best, if that is possible.
@@ -606,7 +602,7 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     record:setAbility(abilityMatch)
     record:setCertain(certain)
     record:setConfidenceLayers(conf)
-    ns:printDebug(record:confidenceString(true))
+    ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, record:confidenceString(true))
 
     -- finally: are the ability requirements actually met? possibleSolutions returns all
     -- abilities that cannot be positively excluded. for example, if an ability requires a
@@ -617,7 +613,7 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     if abilityMatch and certain then
         reqsMet, reqs = abilityMeetsRequirements(ev, abilityMatch)
         record:setRequiredEvidence(reqs)
-        ns:printDebug("REQS: " .. record:reqString())
+        ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, "REQS: " .. record:reqString())
     end
 
 

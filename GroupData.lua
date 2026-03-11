@@ -76,7 +76,8 @@ function ns:Character(slot)
     -- If this isn't an empty character, start populating it
     if slot then
         GUID = UnitGUID(slot) or
-            ns:printDebug("Character("..slot.."): could not get GUID") -- Should error, not recoverable
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
+                "Character("..slot.."): could not get GUID") -- Should error, not recoverable
         name = UnitName(slot)
         className, classFile, _ = UnitClass(slot)
         _, englishRaceName, raceId = UnitRace(slot)
@@ -84,7 +85,7 @@ function ns:Character(slot)
 
     local evidenceTracker = ns:makeEvidenceTracker()
 
-    ns:printDebug(string.format(
+    ns:printDebug(string.format(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
         "Character(%s): new character GUID=[%s], name=[%s], class=[%s], raceId=[%s], raceName=[%s]",
         slot, GUID, name, tostring(classFile), tostring(raceId), tostring(englishRaceName)))
 
@@ -190,14 +191,16 @@ function ns:Character(slot)
                 table.insert(possibleAbilities, ability)
             end
         end
-        --ns:printDebug("cached "..#possibleAbilities.." targeting character=["..name.."]")
+        --ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+            --"cached "..#possibleAbilities.." targeting character=["..name.."]")
     end
 
     function char:getPossibleAbilities() return possibleAbilities end
 
     -- Stop tracking the character
     function char:untrack()
-        ns:printDebug(string.format("DELETING ALL DATA for character name=[%s], GUID=[%s]",
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+            string.format("DELETING ALL DATA for character name=[%s], GUID=[%s]",
             name, GUID))
         trackedCharacters[GUID] = nil
         -- XXX: TODO: hack until these are formally folded into Character
@@ -241,7 +244,8 @@ end
 function ns:trackCharacter(slot)
     local guid = UnitGUID(slot)  -- map the name to a globally unique ID
     if not guid then
-        ns:printDebug('trackCharacter(): FATAL: no GUID for slot=['..slot..']')
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
+            'trackCharacter(): FATAL: no GUID for slot=['..slot..']')
     end
 
     -- If this character is tracked already, return it, else create a new one
@@ -274,7 +278,7 @@ function ns:initCDTracker()
     for guid, char in pairs(trackedCharacters) do
         cdTracker[guid] = {}
         for _, ability in pairs(char:getAbilities()) do
-            ns:printDebug(string.format(
+            ns:printDebug(string.format(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
                 "initCDTracker: slot=[%s], ability=[%s], charges=[%d]",
                 guid, ability.name, ability.charges))
             local fifo = ns:fixedFIFO(ability.charges)
@@ -328,7 +332,9 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
         -- LibSpec returns name in a specific format. If we fail to match it to a
         -- valid frame, just have to proceed without spec data.
         if not slot then
-            ns:printDebug('trackCharacter(): FATAL: failed to map player name=['..playerName..'] to a slot. proceeding without spec info')
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
+                'trackCharacter(): FATAL: failed to map player name=[' ..
+                playerName .. '] to a slot. proceeding without spec info')
             return
         end
 

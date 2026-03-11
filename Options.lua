@@ -24,8 +24,12 @@ local optionsDefaults = {
     showTooltips = true,
 	debugVisuals = false,
 	debugLogging = false,
-    dataMiningMode = false,
-    muteVerboseLogging = true,
+    debugLoggingLevelVerbose = false,
+    debugLoggingTypeTalents = true,
+    debugLoggingTypeInference = true,
+    debugLoggingTypeUI = true,
+    debugLoggingTypeData = true,
+    debugLoggingTypeDataMining = true,
     runGC = false,
 }
 
@@ -337,7 +341,7 @@ Settings.CreateCheckbox(ns.optionsCategory, debugVisuals,
 
 
 -- Debug logging checkbox
-local debugLogging = Settings.RegisterProxySetting(
+local setting = Settings.RegisterProxySetting(
     ns.optionsCategory,
     "debugLogging",
     Settings.VarType.Boolean,
@@ -347,40 +351,102 @@ local debugLogging = Settings.RegisterProxySetting(
     function(value) PetesDefensiveHistoryOptionsDb.debugLogging = value  end
 )
 
-Settings.CreateCheckbox(ns.optionsCategory, debugLogging,
+toplevel = Settings.CreateCheckbox(ns.optionsCategory, setting,
     "Print debug log messages to the chat console. Prints A LOT of text.")
 
-
-
--- Data mining mode checkbox
-local dataMiningMode = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "dataMiningMode",
-    Settings.VarType.Boolean,
-    "Data mining mode",
-    optionsDefaults['dataMiningMode'],
-    function() return ns:GetOption('dataMiningMode') end,
-    function(value) PetesDefensiveHistoryOptionsDb.dataMiningMode = value  end
-)
-
-Settings.CreateCheckbox(ns.optionsCategory, dataMiningMode,
-    "Print very verbose aura updates that help build the tracked ability database by hand. Prints secret values, will cause errors in real content. Intended for developers.")
-
-
--- Don't log extremely spammy messages like talent ranks and ability inference
--- during the zero knowledge solve.
+-- Enable verbose logging
 local setting = Settings.RegisterProxySetting(
     ns.optionsCategory,
-    "muteVerboseDebugging",
+    "debugLoggingLevelVerbose",
     Settings.VarType.Boolean,
-    "Mute verbose debugging",
-    optionsDefaults['muteVerboseDebugging'],
-    function() return ns:GetOption('muteVerboseDebugging') end,
-    function(value) PetesDefensiveHistoryOptionsDb.muteVerboseDebugging = value  end
+    "Enable verbose logging",
+    optionsDefaults['debugLoggingLevelVerbose'],
+    function() return ns:GetOption('debugLoggingLevelVerbose') end,
+    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingLevelVerbose = value  end
 )
 
-Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Mute certain extremely verbose debugging messages.")
+child = Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Print even more debugging messages.")
+child:SetParentInitializer(toplevel)
+
+
+-- Talent debugging
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "debugLoggingTypeTalents",
+    Settings.VarType.Boolean,
+    "Talents",
+    optionsDefaults['debugLoggingTypeTalents'],
+    function() return ns:GetOption('debugLoggingTypeTalents') end,
+    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeTalents = value  end
+)
+
+child = Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Print debugging messages about retrieving, decoding and modifying player talents.")
+child:SetParentInitializer(toplevel)
+
+-- Inference debugging
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "debugLoggingTypeInference",
+    Settings.VarType.Boolean,
+    "Inference",
+    optionsDefaults['debugLoggingTypeInference'],
+    function() return ns:GetOption('debugLoggingTypeInference') end,
+    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeInference = value  end
+)
+
+child = Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Print debugging messages tracing inference calls.")
+child:SetParentInitializer(toplevel)
+
+-- UI debugging
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "debugLoggingTypeUI",
+    Settings.VarType.Boolean,
+    "User interface",
+    optionsDefaults['debugLoggingTypeUI'],
+    function() return ns:GetOption('debugLoggingTypeUI') end,
+    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeUI = value  end
+)
+
+child = Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Print debugging messages about the user interface.")
+child:SetParentInitializer(toplevel)
+
+-- Data collection debugging
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "debugLoggingTypeData",
+    Settings.VarType.Boolean,
+    "Data collection",
+    optionsDefaults['debugLoggingTypeData'],
+    function() return ns:GetOption('debugLoggingTypeData') end,
+    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeData = value  end
+)
+
+child = Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Print debugging messages about data collection and tracking.")
+child:SetParentInitializer(toplevel)
+
+-- Data mining mode
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "debugLoggingTypeDataMining",
+    Settings.VarType.Boolean,
+    "Data mining",
+    optionsDefaults['debugLoggingTypeDataMining'],
+    function() return ns:GetOption('debugLoggingTypeDataMining') end,
+    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeDataMining = value  end
+)
+
+child = Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Print aura data on the player that is not secret out of combat. Intended for developers.")
+child:SetParentInitializer(toplevel)
+
+
+
 
 
 -- Don't log extremely spammy messages like talent ranks and ability inference

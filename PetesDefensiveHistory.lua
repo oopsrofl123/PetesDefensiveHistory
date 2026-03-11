@@ -132,11 +132,12 @@ local function makeAura(startTime, slot, auraInstanceId, iconId)
     -- we actually match on. Makes comparisons and record keeping easier.
     aura.flags = ns:flagString(aura)
 
-    ns:printDebug(string.format("auraID=%d: %s %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d",
-        aura.auraInstanceId, aura.flags,
-        ns:boolstr(aura.HELPFUL), ns:boolstr(aura.HARMFUL), ns:boolstr(aura.CANCELABLE),
-        ns:boolstr(aura.HELPNAMEPLATE), ns:boolstr(aura.NAMEPLATE),
-        ns:boolstr(aura.HARMCC), ns:boolstr(aura.CC)))
+    ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+        string.format("auraID=%d: %s %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d",
+            aura.auraInstanceId, aura.flags,
+            ns:boolstr(aura.HELPFUL), ns:boolstr(aura.HARMFUL), ns:boolstr(aura.CANCELABLE),
+            ns:boolstr(aura.HELPNAMEPLATE), ns:boolstr(aura.NAMEPLATE),
+            ns:boolstr(aura.HARMCC), ns:boolstr(aura.CC)))
 
     return aura
 end
@@ -206,12 +207,14 @@ local function finalizeInference(ev, ability)
 
     -- Run an optional callback to make last minute changes before finalizing
     if ev.onFinalize then
-        ns:printDebug("+++ Running special onFinalize("..ability.name..")")
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+            "+++ Running special onFinalize("..ability.name..")")
         ev.onFinalize(ev, ability)
     end
 
-    ns:printDebug(string.format(
-        "|cff00CDCDFINALIZED(time=[%0.3f], event=[%s/%d], attempt=[%d]): [%s] cast [%s] at [%0.3f]|r",
+    ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+        string.format(
+            "|cff00CDCDFINALIZED(time=[%0.3f], event=[%s/%d], attempt=[%d]): [%s] cast [%s] at [%0.3f]|r",
             GetTime(), ev:getId(), ev:getBatchId(), ev:getInference(),
             ns:cosmeticOnlyMapGUIDToSlot(ability.caster),
             ability.alias or ability.name, ev:getTime()))
@@ -228,7 +231,8 @@ local function finalizeInference(ev, ability)
         for _, otherAbility in pairs(char:getAbilities(ev:getTarget())) do
             if (otherAbility.id == 1022 or otherAbility.id == 204018) and
                ability.id ~= otherAbility.id then
-                ns:printDebug("applying BoP/spellwarding cooldown hack")
+                ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+                    "applying BoP/spellwarding cooldown hack")
                 trackCooldown(ev, otherAbility) -- doesn't alter event
                 ns:queueCooldown(otherAbility)
             end
@@ -267,11 +271,12 @@ function ns:inferAndAct(inferenceTrace, ev, now)
         if certain then
             finalizeInference(ev, ability)
         elseif ability and not certain then
-            ns:printDebug(string.format(
-                "|cff00CDCDUNCERTAIN(time=[%0.3f], event=[%s/%d], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
-                now, ev:getId(), ev:getBatchId(), ev:getInference(),
-                ns:cosmeticOnlyMapGUIDToSlot(ability.caster),
-                ability.alias or ability.name, ev:getTime()))
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+                string.format(
+                    "|cff00CDCDUNCERTAIN(time=[%0.3f], event=[%s/%d], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
+                    now, ev:getId(), ev:getBatchId(), ev:getInference(),
+                    ns:cosmeticOnlyMapGUIDToSlot(ability.caster),
+                    ability.alias or ability.name, ev:getTime()))
         end
         if ability and not ev:isExpiring() then
             ns:startGlow(ev:getAuraAbility())
@@ -303,7 +308,8 @@ local function traceHandler(event, now, unit, message, ...)
     end
     fmtString = fmtString.."|r"
 
-    ns:printDebug(string.format(fmtString, event, now, unit, ...))
+    ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+        string.format(fmtString, event, now, unit, ...))
 end
 
 
@@ -395,15 +401,18 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         #aurasAdded, #aurasUpdated, #aurasRemoved)
 
     -- Mode for data collecting, e.g., out of combat. Shows secret values.
-    if ns:GetOption('dataMiningMode') and unitTarget == "player" then
+    if unitTarget == "player" then
         for _, v in pairs(aurasAdded) do
-            ns:printDebug("DATA MINING: aura added ID=" .. v.auraInstanceID)
+            ns:printDebug(ns.LOGTYPE.DataMining, ns.LOGLEVEL.Normal,
+                "DATA MINING: aura added ID=" .. v.auraInstanceID)
             if not issecretvalue(v.spellId) then
                 ns.compactPrinter(v)
             end
         end
-        ns:printDebug("DATA MINING: auraInstanceIDs updated: "..ns.compactFormatter(aurasUpdated))
-        ns:printDebug("DATA MINING: auraInstanceIDs removed: "..ns.compactFormatter(aurasRemoved))
+        ns:printDebug(ns.LOGTYPE.DataMining, ns.LOGLEVEL.Normal,
+            "DATA MINING: auraInstanceIDs updated: " .. ns.compactFormatter(aurasUpdated))
+        ns:printDebug(ns.LOGTYPE.DataMining, ns.LOGLEVEL.Normal,
+            "DATA MINING: auraInstanceIDs removed: " .. ns.compactFormatter(aurasRemoved))
     end
 
     for _, v in pairs(aurasAdded) do
@@ -420,7 +429,8 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     for _, auraInstanceId in pairs(aurasUpdated) do
         local ev = ns:getAuraEventByGUID(auraInstanceId, guid)
         if ev then
-            ns:printDebug("|cff00ff00++++++++++++++ target=" .. unitTarget ..
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+                "|cff00ff00++++++++++++++ target=" .. unitTarget ..
                 ": updating " .. ev:getId() .. "|r")
 
             -- Screen out one very specific case: abilities that are known to naturally
@@ -474,7 +484,7 @@ end)
 local loader = CreateFrame("Frame", addonName .. "Loader")
 local loadNum
 loader:SetScript("OnEvent", function(self, event)
-    ns:printDebug(event.."("..loadNum..")")
+    ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, event.."("..loadNum..")")
     loadNum = loadNum + 1
     ns:respondToRosterUpdate()
     ns:handleAddonActiveStateChange()

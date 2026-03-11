@@ -23,7 +23,10 @@ end
 function ns:expireAuraEventByGUID(auraInstanceId, guid, when)
     evBatch = (ns.eventsForInference[guid] or {})["aura"..auraInstanceId]
     if evBatch then
-        if #evBatch>1 then ns:printDebug("expiring batch size="..#evBatch.." for id=aura"..auraInstanceId) end
+        if #evBatch>1 then
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+                "expiring batch size="..#evBatch.." for id=aura"..auraInstanceId)
+        end
         for _, event in pairs(evBatch) do
             event:setExpiration(when)
         end
@@ -156,8 +159,9 @@ function ns:Event(newTrace, newSource)
             end
             closestEvidence[guid][evidenceType] = closest
             if prevClosest ~= closest and prevClosest ~= 0 then
-                ns:printDebug(string.format("updated closest evidenceType=[%s], actor=[%s], [%0.3f] -> [%0.3f]",
-                    evidenceType, ns:cosmeticOnlyMapGUIDToSlot(source), prevClosest, closest))
+                ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+                    string.format("updated closest evidenceType=[%s], actor=[%s], [%0.3f]->[%0.3f]",
+                        evidenceType, ns:cosmeticOnlyMapGUIDToSlot(source), prevClosest, closest))
             end
         end
     end
@@ -211,7 +215,7 @@ end
 
 
 function ns:trackAura(trace, aura)
-    ns:printDebug(string.format(
+    ns:printDebug(string.format(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
         'trackAura(%s): time=[%0.3f], ID=[%d], target=[%s], flags=[%s %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d]',
         trace, aura.startTime, aura.auraInstanceId, ns:cosmeticOnlyMapGUIDToSlot(aura.target),
         aura.flags,
