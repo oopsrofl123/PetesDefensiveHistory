@@ -509,6 +509,7 @@ end
 
 -- It is the UI's job to be able to map GUIDs -> indexes
 function ns:updateTrackerUI()
+    ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal, "Updating TrackerUI")
     for index=1, 5 do
         local slot = ns:indexToSlot(index)
         local guid, char = ns:getTrackedCharacterBySlot(slot)
@@ -518,7 +519,7 @@ function ns:updateTrackerUI()
         end
         ns:updateTrackerUIByIndex(index)
 
-        -- XXX: TODO: hack to clear history tray while history items/cooldowns are
+        -- XXX: TODO: hack to clear history tray while history items/cooldowns are being
         -- folded into Character(). updateHistoryTray() should ask Character() what
         -- historyItems it should show in updateTrackerUIByIndex()
         for _, item in pairs(ns.trackerUI[index].historyTray.items) do
@@ -530,6 +531,8 @@ end
 
 
 function ns:updateTrackerUIByIndex(index)
+    ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal,
+        "Updating TrackerUI for index="..tostring(index))
     local tracker = ns.trackerUI[index]
     local slot = ns:indexToSlot(index)
     local guid, char = ns:getTrackedCharacterBySlot(slot)
@@ -567,6 +570,8 @@ end
 
 
 local function allocTrackerUIForSlot(index)
+    ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal,
+        "Allocating TrackerUI for index="..tostring(index))
     local tracker = framePool:Acquire()
     tracker:SetParent(UIParent)
     tracker.index = index
@@ -612,10 +617,8 @@ end
 
 
 
--- Frames are allocated only once on load. The only reason to allocate new
--- frames is increasing MAX_HISTORY. Rather than handle that, just force the user
--- to /reload.
-function ns:allocHistoryGrid()
+function ns:allocTrackerUI()
+    ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal, "Allocating TrackerUI")
     for index=1, 5 do
         local tracker = allocTrackerUIForSlot(index)
         ns.trackerUI[index] = tracker
