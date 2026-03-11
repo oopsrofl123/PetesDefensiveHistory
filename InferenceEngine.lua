@@ -23,7 +23,7 @@ ns.DURATION_TOLERANCE = 0.15
 --      no "concurrent" action occurred.
 --   2. Similar to duration tolerance, how far from the buff application
 --      counts as "concurrent"?
-CONCURRENT_EVENT_TOLERANCE = 0.050
+CONCURRENT_EVENT_TOLERANCE = 0.075
 
 -- How much better the best possible solution must be than the second
 -- best possible solution.
@@ -123,8 +123,8 @@ function ns:InferenceRecord(now, trace, event)
         local match = "nil"
         if ab then
             match = (ab.alias or ab.name) .. "," ..
-                (cert and "certain" or "uncertain") .. "," ..
-                confidenceLayers.matchLayer
+                (compact and ns.confidenceLayerAliases[confidenceLayers.matchLayer] or confidenceLayers.matchLayer) ..
+                (cert and "" or "*")
         end
         return string.format("CONF: #S=%d match=[%s], layers=[%s]",
             confidenceLayers.numPossible, match, table.concat(t, ''))
@@ -591,8 +591,11 @@ end
 
 
 -- Use various rules about who can cast what ability on whom to narrow down
--- the possible abilities that could be "event".
-function ns:inferAbility(inferenceTrace, ev, cdTracker)
+-- the possible abilities that could be "event". Optional quiet mode suppresses
+-- logging in this top-level function, but will not suppress verbose trace logging.
+function ns:inferAbility(inferenceTrace, ev, cdTracker, quiet)
+    quiet = quiet or false
+
     local now = GetTime()
     -- track how many times we've tried to infer this ability
     ev:incrementInference()
@@ -600,15 +603,19 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     -- permanent record of inference for logging/analysis
     local record = ns:InferenceRecord(now, inferenceTrace, ev)
 
-    ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, record:toString())
+    if not quiet then
+        ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, record:toString())
+    end
 
     -- all logic and ranking is performed in these two lines
     possibleSolutions, maxCD, logicLayersByAbility = getPossibleSolutions(ev, cdTracker)
     -- set maxCD at each inference in case one day it uses exclusion information
     ev:setMaxCD(maxCD)
     record:setLogicLayersByAbility(logicLayersByAbility)
-    ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, "PASS: "..record:logicString(true))
-    ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, "FAIL: "..record:logicString(false))
+    if not quiet then
+        ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, "PASS: "..record:logicString(true))
+        ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, "FAIL: "..record:logicString(false))
+    end
 
     -- the job of the confidence system is to compare multiple solutions and determine
     -- which is best, if that is possible.
@@ -619,7 +626,7 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     record:setAbility(abilityMatch)
     record:setCertain(certain)
     record:setConfidenceLayers(conf)
-    ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, record:confidenceString(true))
+    local nextLogString = record:confidenceString(true)
 
     -- finally: are the ability requirements actually met? possibleSolutions returns all
     -- abilities that cannot be positively excluded. for example, if an ability requires a
@@ -630,7 +637,10 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker)
     if abilityMatch and certain then
         reqsMet, reqs = abilityMeetsRequirements(ev, abilityMatch)
         record:setRequiredEvidence(reqs)
-        ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, "REQS: " .. record:reqString())
+        nextLogString = nextLogString .. ", req evidence: " .. record:reqString()
+    end
+    if not quiet then
+        ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, nextLogString)
     end
 
 
@@ -701,7 +711,9 @@ function ns:zeroKnowledgeSolve()
             event:setAura(aura)
 
             event:prepareForInference(idealEventTrackers)
-            local _, certain = ns:inferAbility("SIMULATE("..ability.name..")", event, blankCDs, 1)
+            local _, certain =
+                ns:inferAbility("SIMULATE("..ability.name..")", event, blankCDs,
+                    not ns:GetOption('debugLoggingTypeSimulation'))
             ability.solved = certain
             -- XXX: TODO: inferAbility should return the conflicting spell/caster combos
             ability.conflicts = {}
