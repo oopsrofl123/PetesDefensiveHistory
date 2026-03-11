@@ -52,7 +52,9 @@ local function updateSlotToGUID()
             GUIDToSlot[guid] = slot
             -- Is this the first time we've seen this guid?
             if not ns:getTrackedCharacterByGUID(guid) then
-print("updateSlotToGUID -> trackCharacter("..tostring(index)..", "..tostring(slot)..", "..tostring(guid)..", UnitName="..UnitName(slot)..")")
+                ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+                    "updateSlotToGUID -> trackCharacter(%d, %s, %s, UnitName=%s)",
+                    index, slot, guid, UnitName(slot)))
                 ns:trackCharacter(slot)
             end
         else
@@ -276,10 +278,13 @@ end
 function ns:inferAndAct(inferenceTrace, ev, now)
     if not ev:isCertain() and (ev:isExpiring() or not ev.forceFullDuration) then
         ev:prepareForInference()
+        local prevAbility, prevCertain = ev:getAbility()
         local ability, certain = ns:inferAbility(inferenceTrace, ev, ns.cdTracker)
         if certain then
             finalizeInference(ev, ability)
-        elseif ability and not certain then
+        -- Log an uncertain inference, but only if the ability is different from the last
+        -- inference.
+        elseif ability and (not prevAbility or ability.id ~= prevAbility.id) and not certain then
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
                 string.format(
                     "|cff00CDCDUNCERTAIN(time=[%0.3f], event=[%s/%d], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
@@ -415,7 +420,8 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             ns:printDebug(ns.LOGTYPE.DataMining, ns.LOGLEVEL.Normal,
                 "DATA MINING: aura added ID=" .. v.auraInstanceID)
             if not issecretvalue(v.spellId) then
-                ns.compactPrinter(v)
+                ns:printDebug(ns.LOGTYPE.DataMining, ns.LOGLEVEL.Verbose,
+                    "DATA MINING: " .. ns.compactFormatter(v))
             end
         end
         ns:printDebug(ns.LOGTYPE.DataMining, ns.LOGLEVEL.Normal,
@@ -491,13 +497,58 @@ end)
 -- Handle initialization and group roster updates.
 --------------------------------------------------------------------------------------
 local loader = CreateFrame("Frame", addonName .. "Loader")
-local loadNum
+
+local function initAddon()
+    -- Prevent this from happening again
+    loader:UnregisterEvent("ADDON_LOADED")
+
+    ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal,
+        "Initializing "..addonName..", addonIsActive()=" ..
+        tostring(ns:addonIsActive()))
+
+    -- Set to the opposite of the user setting to force a transition into the
+    -- desired state.
+    lastActiveState = not ns:addonIsActive()
+
+    -- Add precomputed flag strings to the abilities in AbilityDb so they don't have to be
+    -- recomputed on each inference.
+    -- XXX: TODO: no longer used since the RAID flag change
+    for category, abilities in pairs(ns.AbilityDb) do
+        for _, ability in pairs(abilities) do
+            ability.flags = ns:flagString(ability)
+        end
+    end
+
+    -- Addons are loaded after all blizzard frames, so can allocate everything now.
+    ns:allocTrackerUI()
+    ns.groupSolutionUI = ns:allocGroupSolutionUI()
+    ns.groupSolutionUI:Hide()
+end
+
+
+loader:RegisterEvent("ADDON_LOADED")
+local loadNum = 1
 loader:SetScript("OnEvent", function(self, event)
+    if event == "ADDON_LOADED" then
+        initAddon()
+        -- XXX: TODO: deleteme when done with options debugging
+        -- Can't open the options pane while reading in the addon since saved variables
+        -- aren't loaded til ADDON_LOADED.
+        Settings.OpenToCategory(ns.optionsCategory:GetID())
+    end
+
     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, event.."("..loadNum..")")
     loadNum = loadNum + 1
-    ns:respondToRosterUpdate()
+
     ns:handleAddonActiveStateChange()
+
+    -- XXX: TODO: it probably shouldn't, but
+    -- respondToRosterUpdate builds and shows a UI regardless of addonIsActive()
+    if ns:addonIsActive() then
+        ns:respondToRosterUpdate()
+    end
 end)
+
 
 
 function ns:respondToRosterUpdate()
@@ -544,8 +595,8 @@ function ns:enableAddon()
     ns:sendLibSpecRequest()
     ns:printMemUsage("enableAddon: after constructing UI")
     if ns:GetOption('runGC') then
-        ns:printMemUsage("enableAddon: after constructing UI and running GC")
         collectgarbage('collect')
+        ns:printMemUsage("enableAddon: after constructing UI and running GC")
     end
 
     lastActiveState = true
@@ -554,8 +605,11 @@ end
 
 
 function ns:disableAddon()
-    loader:UnregisterEvent("PLAYER_ENTERING_WORLD")
-    loader:UnregisterEvent("GROUP_ROSTER_UPDATE")
+    ns:printMemUsage("disableAddon: before deconstructing UI and deleting data")
+    --loader:UnregisterEvent("PLAYER_ENTERING_WORLD")
+    -- XXX: TODO cannot unregister these, or else won't detect content/group type changes
+    --loader:UnregisterEvent("GROUP_ROSTER_UPDATE")
+    --loader:UnregisterEvent("ZONE_CHANGED_NEW_AREA")
     auraHandler:UnregisterEvent("UNIT_AURA")
     castHandler:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
     absorbHandler:UnregisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
@@ -573,31 +627,20 @@ function ns:disableAddon()
             end
         end
     end
+    ns:printMemUsage("disableAddon: after deconstructing UI and deleting data")
+    if ns:GetOption('runGC') then
+        collectgarbage('collect')
+        ns:printMemUsage("disableAddon: after deconstructing UI and deleting data with optional GC")
+    end
 
     lastActiveState = false
 end
 
 
 do
-    -- Add precomputed flag strings to the abilities in AbilityDb so they don't have to be
-    -- recomputed on each inference.
-    for category, abilities in pairs(ns.AbilityDb) do
-        for _, ability in pairs(abilities) do
-            ability.flags = ns:flagString(ability)
-        end
-    end
-
-    -- Addons are loaded after all blizzard frames, so can allocate everything now.
-    ns:allocHistoryGrid()
-    ns.groupSolutionUI = ns:allocGroupSolutionUI()
-
     -- Open the solution UI
     SLASH_PDH1 = "/pdh"
     -- Open the config panel
     -- SlashCmdList.PDH = function() Settings.OpenToCategory(ns.optionsCategory:GetID()) end
     SlashCmdList.PDH = function() ns.groupSolutionUI:Show() end
-
-    -- Set up by default. Options aren't loaded yet, so can't check the user's preference.
-    ns:enableAddon()
-    Settings.OpenToCategory(ns.optionsCategory:GetID())
 end
