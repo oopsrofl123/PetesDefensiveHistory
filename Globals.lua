@@ -7,3 +7,5 @@ ns.INFINITY = 10*24*3600  -- A much longer time than any reasonble value (10 day
 -- For each unique (caster, ability), this dict tracks the last time that
 -- ability was identified
 ns.cdTracker = {}
+
+ns.groupSolutionUI = nil
