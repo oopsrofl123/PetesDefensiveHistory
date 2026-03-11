@@ -158,13 +158,30 @@ end
 
 -- Do Blizzard's aura flags match?
 local function logicLayerAuraFlags(event, ability)
-    -- if it's a nonAuraEvent, choose a flag set that should never match with an aura event
-    local aura = event:getAura()
-    local auraFlags = aura and aura.flags or "00000"
+    local aura = event:getAura() or
+        -- if it's a nonAuraEvent, choose a flag set that should never match with an aura event
+        { IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false }
 
-    if auraFlags ~= ability.flags then
-        traceLogic(event, ability, "excluded (flags): aura=(%s), ability=(%s)",
-                   auraFlags, ability.flags)
+    -- The RAID flag is only set for the caster of the ability. E.g., Blessing of
+    -- Freedom is RAID=1 and if you are the paladin casting freedom, the aura will
+    -- have RAID=1; however, if the paladin casting freedom is someone else in your
+    -- group, their aura will not have RAID=1 (and, consistent with this, their freedom
+    -- does not show up on your raid frames). RAIDINCOMBAT doesn't appear to work like
+    -- this.
+    local requireRaidFlag = ability.caster == ns:myGUID()
+
+    if aura.IMPORTANT ~= ability.IMPORTANT or
+       aura.BIG ~= ability.BIG or
+       aura.EXTERNAL ~= ability.EXTERNAL or
+       (requireRaidFlag and aura.RAID ~= ability.RAID) or
+       aura.RAIDINCOMBAT ~= ability.RAIDINCOMBAT then
+        traceLogic(event, ability,
+            "excluded (flags): requireRaidFlag=%d, aura=(%d%d%d%d%d), ability=(%d%d%d%d%d)",
+            ns:boolstr(requireRaidFlag),
+            ns:boolstr(aura.IMPORTANT), ns:boolstr(aura.BIG), ns:boolstr(aura.EXTERNAL),
+            ns:boolstr(aura.RAID), ns:boolstr(aura.RAIDINCOMBAT), ns:boolstr(ability.IMPORTANT),
+            ns:boolstr(ability.BIG), ns:boolstr(ability.EXTERNAL), ns:boolstr(ability.RAID),
+            ns:boolstr(ability.RAIDINCOMBAT))
         return false
     end
     return true
