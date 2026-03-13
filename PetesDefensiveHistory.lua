@@ -332,14 +332,14 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
     if lastInCombat == true and inCombat == false then
         char:trackEvidence('combatDrop', now)
 
-        local ev = ns:Event("FLAGS", guid)
+        local ev = ns:Event("FLAGS(combatDrop)", guid)
         -- Since this event is not tied to an aura, how long to keep it around?
         ev:setExpiration(now + expireNonAuraEventsAfter)
         ev:track()
         -- XXX: TODO: would be better to fold into Event(), but need some way to show
         -- special data like combat state or aura info in a generic event.
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-            "+++ track(FLAGS): time=[%0.3f], source=[%s], combat=[%s], eventId=[%s/%d]",
+            "+++ track(FLAGS(combatDrop)): time=[%0.3f], source=[%s], flagChange=[%s], eventId=[%s/%d]",
             ev:getTime(), ns:cosmeticOnlyMapGUIDToSlot(ev:getSource()),
             combatChange, ev:getId(), ev:getBatchId()))
     end
