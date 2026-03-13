@@ -23,7 +23,7 @@ ns.DURATION_TOLERANCE = 0.15
 --      no "concurrent" action occurred.
 --   2. Similar to duration tolerance, how far from the buff application
 --      counts as "concurrent"?
-CONCURRENT_EVENT_TOLERANCE = 0.075
+ns.CONCURRENT_EVENT_TOLERANCE = 0.075
 
 -- How much better the best possible solution must be than the second
 -- best possible solution.
@@ -86,9 +86,10 @@ function ns:InferenceRecord(now, trace, event)
     local function logicStringForAbility(abilityId, logicSummary, compact)
         -- supposedly building a table -> table.concat is faster than piecewise `..`
         local t = { abilityId .. ":" }
-        for name, pass in pairs(logicSummary.logic) do
-            local s = (pass and "|cFFAFD5AB" or "|cFFFA003F") ..
-                      (compact and ns.logicLayerAliases[name] or name) .. "|r"
+        for name, result in pairs(logicSummary.logic) do
+            local s = (result.pass and "|cFFAFD5AB" or "|cFFFA003F") ..
+                      (compact and ns.logicLayerAliases[name] or name) .. 
+                      (result.final and "" or "*") .. "|r"
             table.insert(t, s)
         end
         result = "[" .. table.concat(t, compact and "" or ",") .. "]"
@@ -182,9 +183,9 @@ local function logicLayerAuraFlags(event, ability)
             ns:boolstr(aura.RAID), ns:boolstr(aura.RAIDINCOMBAT), ns:boolstr(ability.IMPORTANT),
             ns:boolstr(ability.BIG), ns:boolstr(ability.EXTERNAL), ns:boolstr(ability.RAID),
             ns:boolstr(ability.RAIDINCOMBAT))
-        return false
+        return { pass=false, final=true }
     end
-    return true
+    return { pass=true, final=true }
 end
 
 
@@ -225,10 +226,11 @@ local function logicLayerAbilityOffCooldown(event, ability, cdTracker)
             traceLogic(event, ability,
                 "excluded (not off cd): recharging until [%0.3fs], event at [%0.3fs]",
                 offCDat, event:getTime())
-            return false
+            return { pass=false, final=true }
         end
     end
-    return true
+    -- XXX: TODO: this isn't implemented yet
+    return { pass=true, final=false }
 end
 
 
@@ -243,9 +245,10 @@ local function logicLayerDurationMatches(event, ability)
             -- expiring, any value <= its nominal duration is accepted. But since the
             -- ability is DURATION_GTE, any value >= its nominal duration is also accepted.
             -- So any number works.
-            return true
+            return { pass=true, final=false }
         end
 
+        -- IMPORTANT! uses event timing, not aura timing
         local buffDuration = event:timeSince()
         local diff = math.abs(buffDuration - ability.duration)
         local dv = event:isExpiring() and ability.duration_variable or ns.DURATION_LTE
@@ -257,14 +260,15 @@ local function logicLayerDurationMatches(event, ability)
             traceLogic(event, ability,
                 "excluded (incorrect duration): event=%0.3f, ability=%03f, duration type=%d, diff=%0.3f",
                 buffDuration, ability.duration, dv, diff)
-            return false
+            return { pass=false, final=true }
         end
     end
-    return true
+    return { pass=true, final=event:isExpiring() }
 end
 
 
 
+-- Based off of event data, not aura data.
 local function evidenceWitnessed(event, ability, evidenceType, evidenceActor, permissive)
     if evidenceActor == "caster" then
         evidenceActor = ability.caster
@@ -275,18 +279,35 @@ local function evidenceWitnessed(event, ability, evidenceType, evidenceActor, pe
     end
 
     local closest, diff = event:timeSinceClosest(evidenceType, evidenceActor)
+    -- Have we waited long enough to finalize our decision?
+    local final = event:timeSince() > ns.CONCURRENT_EVENT_TOLERANCE
 
     -- Tolerate at most CONCURRENT_EVENT_TOLERANCE seconds between the event and the
     -- required concurrent evidence. But until that much time passes, it is unknown whether
     -- the required concurrent evidence will pop up. So wait that long before rejecting.
-    if diff > CONCURRENT_EVENT_TOLERANCE and (not permissive or event:timeSince() > CONCURRENT_EVENT_TOLERANCE) then
+    if diff > ns.CONCURRENT_EVENT_TOLERANCE and not (permissive and not final) then
         traceLogic(event, ability,
             "excluded: actor=[%s], closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
             ns:cosmeticOnlyMapGUIDToSlot(evidenceActor), evidenceType, closest, event:getTime(), diff)
-        return false, diff
+        return { pass=false, final=true }, diff
     end
-    return true, diff
+    return { pass=true, final=final }, diff
 end
+
+
+
+-- If we already identified the aura, does this ability apply that aura?
+-- N.B. assumes aura and aura.inferredId are both non-nil
+local function logicLayerAppliesInferredAura(aura, ability)
+    local pass = aura.inferredId == ability.id or
+        (ability.appliesOtherAura ~= nil and aura.inferredId == ability.appliesOtherAura)
+
+    -- The inferred ability ID might not be set at all - so it could change later.
+    -- However, if it is set, the applied aura will not change (though the ability.id could)
+    -- E.g.: VDH meta on first instance can become apex talent after time
+    return { pass=pass, final=pass }
+end
+
 
 
 -- 1 letter aliases for compact log strings
@@ -299,20 +320,35 @@ ns.logicLayerAliases = {
     debuff='D',
     flags='F',
     shield='S',
+    appliesInferredAura='A',
 }
     
 
 
+-- Return all abilities that could have possibly generated the event. When determining
+-- possibility, abilities that could become valid based on future information must also
+-- be returned. Some information will never change (e.g., aura flags or the time an
+-- aura was applied) but some information will (e.g., whether the correct person cast
+-- an ability at the right time - this possibility cannot be excluded until waiting a
+-- small amount of time from the event).
+--
 -- logic layers are fundamentally an AND operation: ALL rules must be followed
 -- for an ability to have produced a event.
 -- based on how each ability works, determine if it could have possibly produced
--- event.
--- which ability is the best match is determined later.
+-- event.  which ability is the best match is determined later.
+--
+-- IMPORTANT: logic layers must carefully consider whether they use data about the
+-- *event* or the (possible) *aura*. evidenceWitnessed, for example, is based off
+-- of the *event* time, which can be different than the aura time for auras that
+-- update.
 local function getPossibleSolutions(event, cdTracker)
     local char = event:getCharacter() -- Character object, not GUID string
     local maxCD = -1
     local possibleSolutions = {}
     local logicLayersByAbility = {}
+    -- IMPORTANT: all events in a batch share a reference to the same aura object,
+    -- allowing data sharing between events.
+    local aura = event:getAura()
 
     for _, ability in pairs(char:getPossibleAbilities()) do
         maxCD = math.max(maxCD, ability.cooldown)
@@ -341,9 +377,13 @@ local function getPossibleSolutions(event, cdTracker)
         if ability.requireButtonPress then
             logic['cast'] = evidenceWitnessed(event, ability, "cast", "caster", true)
         end
+        -- Is this event part of a batch where the aura ID has already been inferred?
+        if aura and aura.inferredId then
+            logic['appliesInferredAura'] = logicLayerAppliesInferredAura(aura, ability)
+        end
 
         local allPass = true
-        for _, pass in pairs(logic) do allPass = allPass and pass end
+        for _, result in pairs(logic) do allPass = allPass and result.pass end
 
         local abId = ability.alias or ability.name
         if ability.caster ~= event:getSource() then
@@ -616,6 +656,13 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker, quiet)
         ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, "PASS: "..record:logicString(true))
         ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, "FAIL: "..record:logicString(false))
     end
+
+    -- This tracks the case where 0 solutions are returned, essentially killing the event.
+    -- getPossibleSolutions() returns the MOST PERMISSIVE
+    -- set of possible abilities. I.e., it includes abilities that current evidence
+    -- does not support IF they could be supported in the future. If there are 0 possible
+    -- abilities at the permissive stage, there will never be a possible ability.
+    ev:setNumPossibleSolutions(#possibleSolutions)
 
     -- the job of the confidence system is to compare multiple solutions and determine
     -- which is best, if that is possible.
