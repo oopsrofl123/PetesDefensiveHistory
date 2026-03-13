@@ -63,7 +63,7 @@ function ns:Character(slot)
     local GUID = "empty"
     local name = "empty"
     local className = "empty"
-    local classFile = "WARRIOR"
+    local classFile = nil
     local englishRaceName = nil  -- unique and locale-independent, valid db key
     local raceId = nil
     local specId = nil
@@ -72,8 +72,10 @@ function ns:Character(slot)
     local talentRanks = nil
     local abilities = {}
     local possibleAbilities = {}
+    local evidenceTracker = ns:makeEvidenceTracker()
 
     -- If this isn't an empty character, start populating it
+    --if slot and UnitExists(slot) then
     if slot then
         GUID = UnitGUID(slot) or
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
@@ -83,7 +85,6 @@ function ns:Character(slot)
         _, englishRaceName, raceId = UnitRace(slot)
     end
 
-    local evidenceTracker = ns:makeEvidenceTracker()
 
     ns:printDebug(string.format(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
         "Character(%s): new character GUID=[%s], name=[%s], class=[%s], raceId=[%s], raceName=[%s]",
@@ -115,20 +116,17 @@ function ns:Character(slot)
         end
     end
 
-    -- Return the current player/partyX alias assigned to this character. This
-    -- is not stable, possibly changing during group roster updates.
-    -- This is never set. It is always determined by a lookup table.
-    function char:getSlot()
-        return "lookup this GUID in slot map"
-    end
-
 
     -- Settable values ----------------------------------------------------------
     -- Abilities, spec and talents are all downstream of setting spec and talents.
     -- Setting these resolves all of the downstream
     function char:setSpecAndTalents(spec, tstring)
         specId = spec
-        _, specName, _, _, _, _, className = GetSpecializationInfoByID(specId)
+        _, specName, _, _, _, classFile, className = GetSpecializationInfoByID(specId)
+        _, englishRaceName, raceId = UnitRace(slot)
+
+        -- XXX: TODO: i think this needs to return nil, signaling a need to try again later
+        --  if classFile or englishRaceName are- still nil.
         talentExportString = tstring
 
         talentRanks = ns:getTalentRanks(specId, talentExportString)
@@ -187,12 +185,20 @@ function ns:Character(slot)
     function char:cachePossibleAbilities()
         possibleAbilities = {}
         for _, char in pairs(trackedCharacters) do
+            local numAuraProviders = {} 
             for _, ability in pairs(char:getAbilities(GUID)) do
+                local appliedId = ability.appliesOtherAura or ability.id
+                numAuraProviders[appliedId] = (numAuraProviders[appliedId] or 0) + ability.charges 
                 table.insert(possibleAbilities, ability)
             end
+            -- pass 2: cache the number of abilities providing this aura
+            for _, ability in pairs(char:getAbilities(GUID)) do
+                local appliedId = ability.appliesOtherAura or ability.id
+                ability.numAuraProviders = numAuraProviders[appliedId]
+            end
         end
-        --ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
-            --"cached "..#possibleAbilities.." targeting character=["..name.."]")
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Verbose,
+            "cached "..#possibleAbilities.." targeting character=["..name.."]")
     end
 
     function char:getPossibleAbilities() return possibleAbilities end
@@ -246,6 +252,7 @@ function ns:trackCharacter(slot)
     if not guid then
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
             'trackCharacter(): FATAL: no GUID for slot=['..slot..']')
+        return
     end
 
     -- If this character is tracked already, return it, else create a new one
@@ -259,8 +266,8 @@ function ns:trackCharacter(slot)
     end
 
     -- Update the cache of possible abilities targeting this character.
-    -- Cannot rely on a GROUP_ROSTER_UPDATE event or libspec callback to
-    -- fire after whatever event created this character.
+    -- Libspec callbacks may fire before all characters are tracked. E.g., if a 5th
+    -- joins the group without libspec.
     for _, char in pairs(trackedCharacters) do
         char:cachePossibleAbilities()
     end
@@ -347,6 +354,7 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
             return
         end
 
+print('trackCharacter() - called from libspec')
         local char = ns:trackCharacter(slot)
 
         -- Use the (possibly new) spec ID and talents to determine which abilities
