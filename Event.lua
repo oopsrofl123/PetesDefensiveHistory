@@ -8,12 +8,12 @@ ns.eventsForInference = {}
 
 -- Return nil if either the guid or auraInstanceId is untracked. Auras (keyed by
 -- auraInstanceId) can be related to multiple events (e.g., an ability with charges
--- being used multiple times without letting the buff fall). Returns the MOST RECENT
--- event in those cases.
+-- being used multiple times without letting the buff fall). Returns the FIRST
+-- event in those cases, which is treated as a special head event.
 function ns:getAuraEventByGUID(auraInstanceId, guid)
     evBatch = (ns.eventsForInference[guid] or {})["aura"..auraInstanceId]
     if evBatch then
-        return evBatch[#evBatch] -- last event
+        return evBatch[1] -- first event
     end
     return nil
 end
@@ -39,12 +39,15 @@ end
 function ns:Event(newTrace, newSource)
     local e = {}
     local id = lastNonBuffEventId
+    local batchId = 1
     lastNonBuffEventId = lastNonBuffEventId + 1
 
+    local blocked = false
     local trace = newTrace
     local source = newSource
     local char = ns:getTrackedCharacterByGUID(source)
     local inference = 0
+    local numPossibleSolutions = nil
     local certain = false
     local ability = nil
     local time = GetTime()
@@ -60,9 +63,13 @@ function ns:Event(newTrace, newSource)
     end
 
     -- Trivial getters
+    function e:isBlocked() return blocked end
+
     function e:isCertain() return certain end
 
     function e:getInference() return inference end
+
+    function e:getNumPossibleSolutions() return numPossibleSolutions end
 
     function e:getTrace() return trace end
 
@@ -122,6 +129,10 @@ function ns:Event(newTrace, newSource)
     function e:setAbility(newAbility) ability = newAbility end
 
     function e:setCertain(newCertain) certain = newCertain end
+
+    function e:setBlocked() blocked = true end
+
+    function e:setNumPossibleSolutions(n) numPossibleSolutions = n end
 
     function e:setAura(newAura) aura = newAura end
 
@@ -199,15 +210,86 @@ function ns:Event(newTrace, newSource)
     -- lifecycle, making it difficult to determine the timing of each ability use (and thus
     -- the cooldown).
     function e:track()
-        if not ns.eventsForInference[self:getSource()][self:getId()] then
-            ns.eventsForInference[self:getSource()][self:getId()] = {}
+        local eventList = ns.eventsForInference[source]
+        if not eventList[self:getId()] then
+            eventList[self:getId()] = {}
         end
-        table.insert(ns.eventsForInference[self:getSource()][self:getId()], self)
-        batchId = #(ns.eventsForInference[self:getSource()][self:getId()])
+
+        -- weird, but want a short and unique ID for printing
+        for _, ev in pairs(eventList[self:getId()]) do
+            batchId = ev:getBatchId() + 1
+        end
+        eventList[self:getId()][batchId] = self
+
+        -- Schedule another inference attempt after waiting the short period of time
+        -- that is tolerated for concurrent evidence. Add 10% (*1.1) for good measure.
+        -- Removes most of the value a constant poller.
+        C_Timer.After(1.1*ns.CONCURRENT_EVENT_TOLERANCE,
+            function() ns:manageEvents("Event:track()", source) end)
     end
 
     function e:untrack()
-        ns.eventsForInference[self:getSource()][self:getId()] = nil
+        local eventList = ns.eventsForInference[source]
+        eventList[self:getId()][self:getBatchId()] = nil
+        if #eventList[self:getId()] == 0 then
+            eventList[self:getId()] = nil
+        end
+    end
+
+    
+    -- Main action function for events.
+    function e:infer(inferenceTrace, now)
+        if not self:isCertain() then
+            self:prepareForInference()
+            local prevAbility, prevCertain = self:getAbility()
+            local ability, certain = ns:inferAbility(inferenceTrace, self, ns.cdTracker)
+            if certain then
+                -- UI feedback and data
+                ns:finalizeInference(self, ability)
+            elseif ability and (not prevAbility or ability.id ~= prevAbility.id) and not certain then
+                -- Log an uncertain inference, but only if the ability is different from the last
+                ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+                    string.format(
+                        "|cff00CDCDUNCERTAIN(time=[%0.3f], event=[%s/%d], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
+                        now, self:getId(), self:getBatchId(), self:getInference(),
+                        ns:cosmeticOnlyMapGUIDToSlot(ability.caster),
+                        ability.alias or ability.name, self:getTime()))
+            end
+
+            -- UI feedback
+            if ability and not self:isExpiring() then
+                ns:startGlow(self:getAuraAbility())
+            end
+        end
+    end
+    
+
+    -- What to do when the event expires (or is replaced)? If there was a certain inference,
+    -- track in the static cooldown row, otherwise dump it in the history tray.
+    -- Since dynamic CDR ability timers are rarely accurate, allow users to
+    -- send those to the history tray instead. This doesn't prevent them from
+    -- being glowed while active.
+    function e:expire()
+        -- Visual feedback
+        local ability, certain = self:getAbility()
+        if ability then
+            ns:stopGlow(self:getAuraAbility())
+        end
+
+        -- More visual feedback
+        local ability, certain = self:getAbility()
+        if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
+            ns:queueCooldown(ability)
+        elseif not self:isNonAuraEvent() then
+            -- Can't add non-aura events for two reasons: (1) they don't have a texture to show,
+            -- (2) many aren't interesting. E.g., every time anyone leaves combat or dismounts
+            -- is a non-aura event. Some of those are vanishes and shadowmelds but most are
+            -- nothing.
+            ns:addEventToHistoryTray(self)
+        end
+    
+        -- Data handling
+        self:untrack()
     end
 
     return e
@@ -215,7 +297,7 @@ end
 
 
 function ns:trackAura(trace, aura)
-    ns:printDebug(string.format(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+    ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
         'trackAura(%s): time=[%0.3f], ID=[%d], target=[%s], flags=[%s %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d]',
         trace, aura.startTime, aura.auraInstanceId, ns:cosmeticOnlyMapGUIDToSlot(aura.target),
         aura.flags,
@@ -245,9 +327,58 @@ function ns:manageEvents(updateTrace, guid)
     -- button press, cheat death. Each will generate an event. By processing 3 events
     -- together it is possible to figure out which ability generated which event.
     for evId, evBatch in pairs(ns.eventsForInference[guid]) do
-        -- XXX: TODO: some debugging while this is a new feature
+        local index = 1
         for _, ev in pairs(evBatch) do
-            ns:inferAndAct(updateTrace, ev, now)
+            ev:infer(updateTrace, now)
+
+            -- Propagate batch information through the shared aura.
+            -- XXX: TODO: need to share via a non-aura data structure that all events share
+            -- reference to. using the aura is convenient now but prevents batch inference
+            -- on non-aura events
+            local ability = ev:getAbility()
+            local aura = ev:getAura()
+            if ability and aura and not aura.inferredId then
+                -- It doesn't matter which event triggers this or if it's triggered many times
+                -- because events in the same batch come from the same aura.
+                aura.inferredId = ability.appliesOtherBuff or ability.id
+                ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+                    string.format("event=[%s/%d], index=%d, setting inferredId=%d",
+                        ev:getId(), ev:getBatchId(), index, ability.id))
+            end
+
+            -- special handling to reduce spam: for some abilities we know there will be many
+            -- updates that do not indicate a new cooldown was used. e.g.: sentinel updates
+            -- itself every 1s as it loses stacks, pillar of frost updates every time its
+            -- duration is extended.
+            --
+            -- XXX: TODO: blocks Avatar incorrectly. but while developing an Avatar solution,
+            -- it's much better to block() because the inference log spam is so bad debugging
+            -- becomes almost impossible.
+            if ability and ability.numAuraProviders == 1 and not evBatch[1]:isBlocked() then
+                evBatch[1]:setBlocked()
+                ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+                    'blocking eventId=[%s/%d]: numProviders=1',
+                    ev:getId(), ev:getBatchId()))
+            end
+
+            if ev:isExpiring() then
+                ev:expire()
+            else
+                -- numPossibleSolutions is the most permissive set of possible solutions - it includes
+                -- abilities that are not yet satisfied by the observed evidence but still *could be*
+                -- in future inferences. if there are 0 possibilities, then there will never be a
+                -- possible solution.
+                -- keep around the first event in the batch so it can be sent to the history tray, but
+                -- prune others.
+                if index > 1 and ev:getNumPossibleSolutions() == 0 then
+                    ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Verbose, string.format(
+                        'removing eventId=[%s/%d]: index=%d has 0 possible solutions',
+                        ev:getId(), ev:getBatchId(), index))
+                    -- :untrack() quietly removes the event with no UI feedback
+                    ev:untrack()
+                end
+            end
+            index = index + 1
         end
     end
 end
