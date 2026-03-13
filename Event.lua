@@ -69,6 +69,11 @@ function ns:Event(newTrace, newSource)
 
     function e:getInference() return inference end
 
+    -- numPossibleSolutions is nil before the first :infer()
+    function e:hasPossibleSolutions()
+        return numPossibleSolutions == nil or numPossibleSolutions > 0
+    end
+
     function e:getNumPossibleSolutions() return numPossibleSolutions end
 
     function e:getTrace() return trace end
@@ -298,7 +303,7 @@ end
 
 function ns:trackAura(trace, aura)
     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-        'trackAura(%s): time=[%0.3f], ID=[%d], target=[%s], flags=[%s %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d]',
+        '+++ trackAura(%s): time=[%0.3f], ID=[%d], target=[%s], flags=[%s %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d]',
         trace, aura.startTime, aura.auraInstanceId, ns:cosmeticOnlyMapGUIDToSlot(aura.target),
         aura.flags,
         ns:boolstr(aura.HELPFUL), ns:boolstr(aura.HARMFUL), ns:boolstr(aura.CANCELABLE),
@@ -329,7 +334,10 @@ function ns:manageEvents(updateTrace, guid)
     for evId, evBatch in pairs(ns.eventsForInference[guid]) do
         local index = 1
         for _, ev in pairs(evBatch) do
-            ev:infer(updateTrace, now)
+            -- Prevent tons of log spam and unnecessary :infer()s on unsolvable events
+            if ev:hasPossibleSolutions() then
+                ev:infer(updateTrace, now)
+            end
 
             -- Propagate batch information through the shared aura.
             -- XXX: TODO: need to share via a non-aura data structure that all events share
@@ -370,6 +378,10 @@ function ns:manageEvents(updateTrace, guid)
                 -- possible solution.
                 -- keep around the first event in the batch so it can be sent to the history tray, but
                 -- prune others.
+                --
+                -- When #solutions=0, do not :untrack() the original event. It needs to :expire() so
+                -- that it can be sent to the history tray. Do not immediately expire it either
+                -- since it is part of the history of this event.
                 if index > 1 and ev:getNumPossibleSolutions() == 0 then
                     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Verbose, string.format(
                         'removing eventId=[%s/%d]: index=%d has 0 possible solutions',
