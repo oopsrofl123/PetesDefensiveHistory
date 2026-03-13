@@ -55,6 +55,7 @@ local function updateSlotToGUID()
                 ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
                     "updateSlotToGUID -> trackCharacter(%d, %s, %s, UnitName=%s)",
                     index, slot, guid, UnitName(slot)))
+print('trackCharacter() - called from libspec')
                 ns:trackCharacter(slot)
             end
         else
@@ -122,6 +123,7 @@ local function makeAura(startTime, slot, auraInstanceId, iconId)
         fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
 
     aura = {
+        inferredSpellId = nil,
         target=slotToGUID[slot],
         auraInstanceId=auraInstanceId,
         secretTexture=iconId,
@@ -197,7 +199,7 @@ end
 
 -- Call this function when we are ready to fully accept whatever the best
 -- inference was.
-local function finalizeInference(ev, ability)
+function ns:finalizeInference(ev, ability)
     if not ev:isCertain() then
         print(string.format(
             "WARNING: finalizing an uncertain inference (ability=[%s], caster=[%s], target=[%s])!",
@@ -248,63 +250,6 @@ local function finalizeInference(ev, ability)
                 ns:queueCooldown(otherAbility)
             end
         end
-    end
-end
-
-
-
--- What to do when the event expires (or is replaced)? If there was a certain inference,
--- track in the static cooldown row, otherwise dump it in the history tray.
--- Since dynamic CDR ability timers are rarely accurate, allow users to
--- send those to the history tray instead. This doesn't prevent them from
--- being glowed while active.
-local function eventExpiredOrReplaced(ev)
-    local ability, certain = ev:getAbility()
-    if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
-        ns:queueCooldown(ability)
-    elseif not ev:isNonAuraEvent() then
-        -- Can't add these for two reasons: (1) non-aura events don't have a texture to show,
-        -- (2) many non-aura events fire that aren't interesting. E.g., every time anyone leaves
-        -- combat is a non-aura event. Some of those are vanishes and shadowmelds but most are
-        -- nothing.
-        ns:addEventToHistoryTray(ev)
-    end
-end
-
-
-
--- Main update function for tracked events. Runs inference if appropriate and
--- removes them from tracking when their lifetime is over.
-function ns:inferAndAct(inferenceTrace, ev, now)
-    if not ev:isCertain() and (ev:isExpiring() or not ev.forceFullDuration) then
-        ev:prepareForInference()
-        local prevAbility, prevCertain = ev:getAbility()
-        local ability, certain = ns:inferAbility(inferenceTrace, ev, ns.cdTracker)
-        if certain then
-            finalizeInference(ev, ability)
-        -- Log an uncertain inference, but only if the ability is different from the last
-        -- inference.
-        elseif ability and (not prevAbility or ability.id ~= prevAbility.id) and not certain then
-            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
-                string.format(
-                    "|cff00CDCDUNCERTAIN(time=[%0.3f], event=[%s/%d], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
-                    now, ev:getId(), ev:getBatchId(), ev:getInference(),
-                    ns:cosmeticOnlyMapGUIDToSlot(ability.caster),
-                    ability.alias or ability.name, ev:getTime()))
-        end
-        if ability and not ev:isExpiring() then
-            ns:startGlow(ev:getAuraAbility())
-        end
-    end
-
-    -- handle end of life for all events
-    if ev:isExpiring() then
-        local ability, certain = ev:getAbility()
-        if ability then
-            ns:stopGlow(ev:getAuraAbility())
-        end
-        eventExpiredOrReplaced(ev)
-        ev:untrack()
     end
 end
 
@@ -444,19 +389,11 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     for _, auraInstanceId in pairs(aurasUpdated) do
         local ev = ns:getAuraEventByGUID(auraInstanceId, guid)
         if ev then
-            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
-                "|cff00ff00++++++++++++++ target=" .. unitTarget ..
-                ": updating " .. ev:getId() .. "|r")
-
-            -- Screen out one very specific case: abilities that are known to naturally
-            -- update but have only 1 charge. E.g., Sentinel.
-            local ability, certain = ev:getAbility()
-            if not ability or not (certain and ability.charges < 2 and ability.naturallyUpdates) then
-                -- XXX: TODO: likely violates assumptions about certain inferences.  needs testing.
-                -- make an event no matter what. let inferBatch figure out what it all means.
-                local aura = ev:getAura()     -- This is an AuraEvent. There is always an aura.
-                local newAura = makeAura(now, unitTarget, aura.auraInstanceId, aura.secretTexture)
-                ns:trackAura("AURA(update)", newAura)
+            if not ev:isBlocked() then
+                ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+                    "|cff00ff00++++++++++++++ target=" .. unitTarget ..
+                    ": updating " .. ev:getId() .. "|r")
+                ns:trackAura("AURA(update)", ev:getAura()) -- always an aura event
             end
         else
             -- concurrent buff/debuff evidence can also come from updates.
@@ -484,13 +421,13 @@ end)
 -- Unlike other events, the poller isn't fired for any specific player, so manage
 -- events for every tracked character.
 --------------------------------------------------------------------------------------
-local pollrate = 2 --0.25
-poller = C_Timer.NewTicker(pollrate, function()
-    local now = GetTime()
-    for guid, char in pairs(ns:getTrackedCharacters()) do
-        ns:manageEvents("POLL("..pollrate..", "..ns:cosmeticOnlyMapGUIDToSlot(guid)..")", guid)
-    end
-end)
+--local pollrate = 2 --0.25
+--poller = C_Timer.NewTicker(pollrate, function()
+    --local now = GetTime()
+    --for guid, char in pairs(ns:getTrackedCharacters()) do
+        --ns:manageEvents("POLL("..pollrate..", "..ns:cosmeticOnlyMapGUIDToSlot(guid)..")", guid)
+    --end
+--end)
 
 
 --------------------------------------------------------------------------------------
@@ -526,15 +463,23 @@ local function initAddon()
 end
 
 
+-- Unlike the other handler frames, `loader` should never be unregistered. Explanation
+-- copied from below.
+-- Do not unregister the main `loader` handler's events. It needs to remain registered
+-- to detect later changes in group/instance state to auto-en/disable the addon as the
+-- user prefers.
 loader:RegisterEvent("ADDON_LOADED")
+loader:RegisterEvent("PLAYER_ENTERING_WORLD")
+loader:RegisterEvent("GROUP_ROSTER_UPDATE")
+loader:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 local loadNum = 1
 loader:SetScript("OnEvent", function(self, event)
     if event == "ADDON_LOADED" then
         initAddon()
-        -- XXX: TODO: deleteme when done with options debugging
+        -- XXX: TODO: useful when debugging options
         -- Can't open the options pane while reading in the addon since saved variables
         -- aren't loaded til ADDON_LOADED.
-        Settings.OpenToCategory(ns.optionsCategory:GetID())
+        --Settings.OpenToCategory(ns.optionsCategory:GetID())
     end
 
     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, event.."("..loadNum..")")
@@ -582,14 +527,11 @@ end
 function ns:enableAddon()
     loadNum = 1
     ns:printMemUsage("enableAddon: before constructing UI")
-    loader:RegisterEvent("PLAYER_ENTERING_WORLD")
-    loader:RegisterEvent("GROUP_ROSTER_UPDATE")
-    loader:RegisterEvent("ZONE_CHANGED_NEW_AREA")
     auraHandler:RegisterEvent("UNIT_AURA")
     castHandler:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
     absorbHandler:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
     flagsHandler:RegisterEvent("UNIT_FLAGS")
-    poller:Invoke()
+    --poller:Invoke()
 
     ns:respondToRosterUpdate()
     ns:sendLibSpecRequest()
@@ -606,15 +548,14 @@ end
 
 function ns:disableAddon()
     ns:printMemUsage("disableAddon: before deconstructing UI and deleting data")
-    --loader:UnregisterEvent("PLAYER_ENTERING_WORLD")
-    -- XXX: TODO cannot unregister these, or else won't detect content/group type changes
-    --loader:UnregisterEvent("GROUP_ROSTER_UPDATE")
-    --loader:UnregisterEvent("ZONE_CHANGED_NEW_AREA")
+    -- Do not unregister the main `loader` handler's events. It needs to remain registered
+    -- to detect later changes in group/instance state to auto-en/disable the addon as the
+    -- user prefers.
     auraHandler:UnregisterEvent("UNIT_AURA")
     castHandler:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
     absorbHandler:UnregisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
     flagsHandler:UnregisterEvent("UNIT_FLAGS")
-    poller:Cancel()
+    --poller:Cancel()
 
     for index=1, 5 do
         ns.trackerUI[index]:Hide()
