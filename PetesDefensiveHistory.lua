@@ -55,7 +55,7 @@ local function updateSlotToGUID()
                 ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
                     "updateSlotToGUID -> trackCharacter(%d, %s, %s, UnitName=%s)",
                     index, slot, guid, UnitName(slot)))
-print('trackCharacter() - called from libspec')
+print('trackCharacter() - called from updateSlotToGUID')
                 ns:trackCharacter(slot)
             end
         else
@@ -327,6 +327,8 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
     -- Push the current status whether dropped or not
     char:trackEvidence('combatStatus', inCombat)
 
+    -- FLAGS fires for reasons other than combat - e.g., mounting and dismounting
+    local combatChange = tostring(lastInCombat)..">"..tostring(inCombat)
     if lastInCombat == true and inCombat == false then
         char:trackEvidence('combatDrop', now)
 
@@ -334,8 +336,14 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
         -- Since this event is not tied to an aura, how long to keep it around?
         ev:setExpiration(now + expireNonAuraEventsAfter)
         ev:track()
+        -- XXX: TODO: would be better to fold into Event(), but need some way to show
+        -- special data like combat state or aura info in a generic event.
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+            "+++ track(FLAGS): time=[%0.3f], source=[%s], combat=[%s], eventId=[%s/%d]",
+            ev:getTime(), ns:cosmeticOnlyMapGUIDToSlot(ev:getSource()),
+            combatChange, ev:getId(), ev:getBatchId()))
     end
-    ns:manageEvents("FLAGS("..tostring(lastInCombat)..">"..tostring(inCombat)..")", guid)
+    ns:manageEvents("FLAGS("..combatChange..")", guid)
 end)
 
 
