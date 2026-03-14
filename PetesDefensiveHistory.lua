@@ -7,6 +7,9 @@ expireNonAuraEventsAfter = 0.5
 
 -- Other files shouldn't directly access this
 local slotToGUID = {}
+local slotToPlayerName = {}
+local slotToFrame = {}
+
 -- Converting GUID -> slot (=player, party1, arena1, etc) is FOR COSMETIC
 -- PURPOSES ONLY. DO NOT BASE ANY LOGIC ON UNITS.
 local GUIDToSlot = {}
@@ -37,50 +40,124 @@ function ns:getTrackedCharacterBySlot(slot)
 end
 
 
-local function updateSlotToGUID()
-    myGUID = UnitGUID("player")
 
-    -- On this pass: make sure all slot->GUID mappings represent current
-    -- members of the group/raid/arena/etc. If a slot's GUID changes, that
-    -- does not necessarily mean the previous GUID left the group, the
-    -- character's position could've shifted.
-    for index=1, 5 do
-        local slot = ns:indexToSlot(index)
-        if UnitExists(slot) then
-            local guid = UnitGUID(slot)
-            slotToGUID[slot] = guid
-            GUIDToSlot[guid] = slot
-            -- Is this the first time we've seen this guid?
-            if not ns:getTrackedCharacterByGUID(guid) then
-                ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-                    "updateSlotToGUID -> trackCharacter(%d, %s, %s, UnitName=%s)",
-                    index, slot, guid, UnitName(slot)))
-print('trackCharacter() - called from updateSlotToGUID')
-                ns:trackCharacter(slot)
-            end
-        else
-            -- Since the character is no longer in the group (UnitExists=false),
-            -- can't map slot-> GUID. So have to reverse-lookup the slot in the
-            -- GUIDToSlot table to delete it
-            local staleGUID = slotToGUID[slot]
-            slotToGUID[slot] = nil
-            for k, v in pairs(GUIDToSlot) do
-                if v == slot then
-                    GUIDToSlot[v] = nil
-                end
+local function findFrameForSlot(slot, slotRoot)
+    if DandersFrames then
+        for _, frame in pairs(DandersFrames_GetAllFrames()) do
+            if frame.unit == slot then
+                return frame
             end
         end
-    end
+    else
+        -- Blizzard frames
+        local maxN, frameRoot
+        if slotRoot == 'party' then
+            maxN = 5
+            frameRoot = 'CompactPartyFrameMember'
+        elseif slotRoot == 'raid' then
+            maxN = 40
+            frameRoot = 'CompactRaidFrame'
+        else
+            return nil
+        end
 
-    -- Now compare the GUIDs that existed before the remapping to the ones
-    -- that exist after. Any in the first list but not the latter left the
-    -- group, so clean up their data.
-    for guid, char in pairs(ns:getTrackedCharacters()) do
-        if not ns:tablecontains(slotToGUID, guid) then
-            char:untrack()
+        for i=1, maxN do
+            if _G[frameRoot .. i].unit == slot then
+                return _G[frameRoot..i]
+            end
         end
     end
 end
+
+
+
+-- Determine the numbers and names of slots. E.g., party1, raid2, etc. Data to keep
+-- for each slot:
+--      1. slot
+--      2. GUID
+--      3. playerName (with realm, if applicable)
+--      4. unit frame object (_G[CompactPartyMember1], etc.)
+local function updateTrackedSlots()
+    local contentType, groupSize, slotRoot = ns:getGroupContentInfo()
+
+    myGUID = UnitGUID("player")
+
+    slotToGUID = {}
+    slotToFrame = {}
+    slotToPlayerName = {}
+    GUIDToSlot = {}
+    -- getSlotSet returns ['player', 'party1', ...] or ['raid1', 'raid2', ... ] for the
+    -- current set of group members.
+    for _, slot in pairs(ns:getSlotSet()) do
+        if UnitExists(slot) then
+            -- Unchanging player global ID
+            local guid = UnitGUID(slot)
+
+            -- Current user interface element linked to this slot
+            local frame = findFrameForSlot(slot, slotRoot)
+
+            -- Player name, hyphenated with realm if appropriate
+            local playerName, realm = UnitNameUnmodified(slot)
+            if realm then
+                playerName = Ambiguate(name.."-"..realm, "none")
+            end
+
+            slotToGUID[slot] = guid
+            slotToFrame[slot] = frame
+            slotToPlayerName[slot] = playerName
+            GUIDToSlot[guid] = slot
+        end
+    end
+end
+
+
+function ns:getTrackedSlots()
+    return slotToGUID
+end
+
+
+function ns:playerNameToSlot(playerName)
+    for slot, thisName in pairs(slotToPlayerName) do
+        if thisName == playerName then
+            return slot
+        end
+    end
+    return nil
+end
+
+
+function ns:slotToFrame(slot)
+    return slotToFrame[slot]
+end
+
+
+
+function ns:updateCharacterData()
+    -- Track newly observed characters
+    for slot, guid in pairs(slotToGUID) do
+        if not ns:getTrackedCharacterByGUID(guid) then
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+                "updateCharacterData -> trackCharacter(%s, %s, UnitName=%s)",
+                slot, guid, tostring(UnitName(slot))))
+print('trackCharacter() - called from updateCharacterData')
+            ns:trackCharacter(slot)
+        end
+    end
+
+    -- Delete characters no longer in the track set
+    for guid, char in pairs(ns:getTrackedCharacters()) do
+        if not GUIDToSlot[guid] then
+            char:untrack()
+        end
+    end
+
+    -- After all new characters are added and old characters are deleted, refresh the list
+    -- of abilities targeting each player.
+    for _, char in pairs(ns:getTrackedCharacters()) do
+        char:cachePossibleAbilities()
+    end 
+end
+
 
 
 -- Convenience functions: speed up some specific cases that only care about one flag
@@ -175,14 +252,15 @@ end
 -- ...
 local function trackCooldown(event, ability)
     local cdfifo = ns.cdTracker[ability.caster][ability.name]
+    local availableAt
     if ability.cdr == false then
-        cdfifo:push(math.max(cdfifo:head() + ability.cooldown, event:getTime() + ability.cooldown))
+        availableAt = math.max(cdfifo:head() + ability.cooldown, event:getTime() + ability.cooldown)
     else
         -- For single charge abilities with dynamic CDR, need to ignore the previous
         -- cooldown in the FIFO. The ability was used, so it was off cooldown even though
         -- the stored end time in the FIFO may disagree (since it cannot account for CDR).
         if ability.charges == 1 then
-            cdfifo:push(event:getTime() + ability.cooldown)
+            availableAt = event:getTime() + ability.cooldown
         else
             -- For a multi-charge CDR ability:
             --    * 1 charge was available at event:getTime() and it was used (causing
@@ -190,9 +268,11 @@ local function trackCooldown(event, ability)
             --    * It's unknown how much recharge time has gone into the previous charge(s).
             -- XXX: TODO: we can do better than this, but it's a little complicated. Come back
             -- to it later. For now, use the worst-case scenario.
-            cdfifo:push(math.max(cdfifo:head() + ability.cooldown, event:getTime() + ability.cooldown))
+            availableAt = math.max(cdfifo:head() + ability.cooldown, event:getTime() + ability.cooldown)
         end
     end
+    cdfifo:push(availableAt)
+    event:setAbilityOffCooldown(availableAt)
 end
 
 
@@ -343,7 +423,7 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
             ev:getTime(), ns:cosmeticOnlyMapGUIDToSlot(ev:getSource()),
             combatChange, ev:getId(), ev:getBatchId()))
     end
-    ns:manageEvents("FLAGS("..combatChange..")", guid)
+    ns:manageEvents("FLAGS", guid)
 end)
 
 
@@ -479,7 +559,13 @@ end
 loader:RegisterEvent("ADDON_LOADED")
 loader:RegisterEvent("PLAYER_ENTERING_WORLD")
 loader:RegisterEvent("GROUP_ROSTER_UPDATE")
+loader:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 loader:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+-- XXX: TODO: haven't ever tested arena, but some functionality could work. main problem
+-- is I doubt LibSpecialization would return talent strings for arena enemies, meaning
+-- available cooldowns/durations would be unknown.
+--loader:RegisterEvent("ARENA_OPPONENT_UPDATE")
+--loader:RegisterEvent("ARENA_PREP_OPPONENT_SPECIALIZATIONS")
 local loadNum = 1
 loader:SetScript("OnEvent", function(self, event)
     if event == "ADDON_LOADED" then
@@ -505,13 +591,10 @@ end)
 
 
 function ns:respondToRosterUpdate()
-    updateSlotToGUID()           -- Maintain the slot -> GUID map
+    updateTrackedSlots()
+    ns:updateCharacterData()
     ns:updateTrackerUI()         -- Update UI elements
     ns:updateGroupSolutionUI()
-
-    for index=1, 5 do
-        ns.trackerUI[index]:Show()
-    end
 end
 
 
@@ -565,17 +648,7 @@ function ns:disableAddon()
     flagsHandler:UnregisterEvent("UNIT_FLAGS")
     --poller:Cancel()
 
-    for index=1, 5 do
-        ns.trackerUI[index]:Hide()
-        local slot = ns:indexToSlot(index)
-        if slot then
-            slotToGUID[slot] = nil
-            local guid, char = ns:getTrackedCharacterBySlot(slot)
-            if guid then
-                char:untrack()
-            end
-        end
-    end
+    ns:respondToRosterUpdate()
     ns:printMemUsage("disableAddon: after deconstructing UI and deleting data")
     if ns:GetOption('runGC') then
         collectgarbage('collect')
