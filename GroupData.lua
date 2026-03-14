@@ -79,12 +79,8 @@ function ns:Character(slot)
         GUID = UnitGUID(slot) or
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
                 "Character("..slot.."): could not get GUID") -- Should error, not recoverable
-        name = UnitName(slot)
-        className, classFile, _ = UnitClass(slot)
-        _, englishRaceName, raceId = UnitRace(slot)
-        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-            "Character(%s): new character GUID=[%s], name=[%s], class=[%s], raceId=[%s], raceName=[%s]",
-            slot, GUID, name, tostring(classFile), tostring(raceId), tostring(englishRaceName)))
+
+        --self:setBasicInfo(slot)
     else
         if not slot then
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error, "Character(nil) called")
@@ -96,7 +92,6 @@ function ns:Character(slot)
         end
         return nil
     end
-
 
 
     -- Unsettable values --------------------------------------------------------
@@ -126,13 +121,25 @@ function ns:Character(slot)
     end
 
 
+    function char:setBasicInfo(slot)
+        slot = slot or ns:cosmeticOnlyMapGUIDToSlot(GUID)
+        name = UnitName(slot)
+        className, classFile, _ = UnitClass(slot)
+        _, englishRaceName, raceId = UnitRace(slot)
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+            "Character(%s): new character GUID=[%s], name=[%s], class=[%s], raceId=[%s], raceName=[%s]",
+            slot, GUID, name, tostring(classFile), tostring(raceId), tostring(englishRaceName)))
+    end
+
+
     -- Settable values ----------------------------------------------------------
     -- Abilities, spec and talents are all downstream of setting spec and talents.
     -- Setting these resolves all of the downstream
     function char:setSpecAndTalents(spec, tstring)
         specId = spec
-        _, specName, _, _, _, classFile, className = GetSpecializationInfoByID(specId)
-        _, englishRaceName, raceId = UnitRace(slot)
+
+        -- Try this again. Often fails when zoning into LFG.
+        self:setBasicInfo()
 
         -- XXX: TODO: i think this needs to return nil, signaling a need to try again later
         --  if classFile or englishRaceName are- still nil.
