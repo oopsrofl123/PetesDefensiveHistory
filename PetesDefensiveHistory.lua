@@ -22,7 +22,7 @@ function ns:myGUID()
 end
 
 function ns:cosmeticOnlyMapGUIDToSlot(guid)
-    return GUIDToSlot[guid] or "unknown"
+    return GUIDToSlot[guid]
 end
 
 
@@ -100,7 +100,7 @@ print('updateTrackedSlots', slot)
             -- Player name, hyphenated with realm if appropriate
             local playerName, realm = UnitNameUnmodified(slot)
             if realm then
-                playerName = Ambiguate(name.."-"..realm, "none")
+                playerName = Ambiguate(playerName.."-"..realm, "none")
             end
 print('UnitExists(',slot,')',UnitExists(slot), 'playerName=', playerName)
 
