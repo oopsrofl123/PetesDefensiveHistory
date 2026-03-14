@@ -184,8 +184,8 @@ end
 function ns:getGroupContentInfo()
     local inGroup = IsInGroup()        -- true if in party or raid
     local inRaid = IsInRaid()          -- true if in a raid
-    local inInstance, instanceType = IsInInstance()  -- checks if you're in an instance
-    local contentType, groupSize
+    local inInstance, instanceType = IsInInstance()
+    local contentType, groupSize, slotRoot
 
     if inInstance and instanceType == "arena" then
         contentType = "arena"
@@ -201,16 +201,37 @@ function ns:getGroupContentInfo()
         contentType = "solo"
     end
 
-    local contentState, groupSize
-    local inInstance, instanceType = IsInInstance()
-
-    if contentType == "raid" then
+    if contentType == "raid" or contentType == "battleground" then
         groupSize = GetNumGroupMembers()
+        slotRoot = "raid"
     else
-        groupSize = GetNumSubgroupMembers()
+        -- GetNumSubgroupMembers excludes the player
+        groupSize = GetNumSubgroupMembers() + 1
+        slotRoot = "party"
     end
 
-    return contentType, groupSize
+    return contentType, groupSize, slotRoot
+end
+
+
+function ns:getSlotSet()
+    if not ns:addonIsActive() then
+        return {}
+    end
+
+    local contentType, groupSize, slotRoot = ns:getGroupContentInfo()
+    local slots = {}
+
+    -- Use the 'player' unit token only out of raid
+    if slotRoot == "party" then
+        groupSize = groupSize - 1
+        table.insert(slots, 'player')
+    end
+    for i=1, groupSize do
+        table.insert(slots, slotRoot..i)
+    end
+
+    return slots
 end
 
 
