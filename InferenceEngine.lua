@@ -23,7 +23,7 @@ ns.DURATION_TOLERANCE = 0.15
 --      no "concurrent" action occurred.
 --   2. Similar to duration tolerance, how far from the buff application
 --      counts as "concurrent"?
-ns.CONCURRENT_EVENT_TOLERANCE = 0.075
+ns.CONCURRENT_EVENT_TOLERANCE = 0.100
 
 -- How much better the best possible solution must be than the second
 -- best possible solution.
