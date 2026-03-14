@@ -103,7 +103,7 @@ print('updateTrackedSlots', slot)
 print(realm)
                 playerName = Ambiguate(playerName.."-"..realm, "none")
             end
-print('UnitExists(',slot,')',UnitExists(slot), 'playerName=', playerName)
+print('UnitExists(',slot,')',UnitExists(slot), 'playerName=', playerName, 'realm=', tostring(realm))
 
             slotToGUID[slot] = guid
             slotToFrame[slot] = frame
