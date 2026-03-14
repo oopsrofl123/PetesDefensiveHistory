@@ -75,20 +75,29 @@ function ns:Character(slot)
     local evidenceTracker = ns:makeEvidenceTracker()
 
     -- If this isn't an empty character, start populating it
-    --if slot and UnitExists(slot) then
-    if slot then
+    if slot and UnitExists(slot) then
         GUID = UnitGUID(slot) or
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
                 "Character("..slot.."): could not get GUID") -- Should error, not recoverable
         name = UnitName(slot)
         className, classFile, _ = UnitClass(slot)
         _, englishRaceName, raceId = UnitRace(slot)
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+            "Character(%s): new character GUID=[%s], name=[%s], class=[%s], raceId=[%s], raceName=[%s]",
+            slot, GUID, name, tostring(classFile), tostring(raceId), tostring(englishRaceName)))
+    else
+        if not slot then
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error, "Character(nil) called")
+        end
+        if not UnitExists(slot) then
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+                "Character(%s): tried to create new character with UnitExists(%s)=%s!",
+                slot, slot, UnitExists(slot)))
+        end
+        return nil
     end
 
 
-    ns:printDebug(string.format(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
-        "Character(%s): new character GUID=[%s], name=[%s], class=[%s], raceId=[%s], raceName=[%s]",
-        slot, GUID, name, tostring(classFile), tostring(raceId), tostring(englishRaceName)))
 
     -- Unsettable values --------------------------------------------------------
     -- Return the stable ID that is unique across factions and servers. This is
@@ -265,14 +274,10 @@ function ns:trackCharacter(slot)
         evidenceTrackersByGUID[guid] = char:getEvidenceTracker()
     end
 
-    -- Update the cache of possible abilities targeting this character.
-    -- Libspec callbacks may fire before all characters are tracked. E.g., if a 5th
-    -- joins the group without libspec.
-    for _, char in pairs(trackedCharacters) do
-        char:cachePossibleAbilities()
-    end
     return char
 end
+
+
 
 
 -- XXX: TODO: fold this into Character()
@@ -307,29 +312,9 @@ end
 
 local LibSpecialization = LibStub("LibSpecialization")
 
--- libspec only returns name as a string - no other information to identify which
--- group member the spec data is from. so must match libspec's name format
-local function nameToSlot(playerName)
-    for index=1, 5 do
-        local slot = ns:indexToSlot(index)
-        if UnitExists(slot) then
-            local name, realm = UnitNameUnmodified(slot)
-            if realm then
-                name = Ambiguate(name.."-"..realm, "none")
-            end
-            if name == playerName then
-                return slot
-            end
-        end
-    end
-    return nil
-end
-
-
 function ns:sendLibSpecRequest()
     LibSpecialization.RequestGroupSpecialization()
 end
-
 
 local internalGroupSpecs = {}    -- internal use by LibSpecialization
 LibSpecialization.RegisterGroup(internalGroupSpecs, 
@@ -340,7 +325,7 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
             return
         end
 
-        local slot = nameToSlot(playerName)
+        local slot = ns:playerNameToSlot(playerName)
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
             "Receiving LibSpecialization response for player=[%s], slot=[%s]",
             playerName, tostring(slot)))
@@ -356,15 +341,8 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
 
 print('trackCharacter() - called from libspec')
         local char = ns:trackCharacter(slot)
-
-        -- Use the (possibly new) spec ID and talents to determine which abilities
-        -- this character has and what their tracking properties are.
-        -- When anything changes the abilities of one character, all must re-cache
-        -- the possible spells that can target them.
         char:setSpecAndTalents(specId, talentExportString)
-        for _, char in pairs(trackedCharacters) do
-            char:cachePossibleAbilities()
-        end
+        ns:updateCharacterData()
 
         -- XXX: TODO: not correct - needs to live in Character objects.
         ns.cdTracker = ns:initCDTracker()
