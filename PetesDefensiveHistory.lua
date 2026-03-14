@@ -7,7 +7,7 @@ expireNonAuraEventsAfter = 0.5
 
 -- Other files shouldn't directly access this
 local slotToGUID = {}
-local slotToPlayerName = {}
+local playerNameToSlot = {}
 local slotToFrame = {}
 
 -- Converting GUID -> slot (=player, party1, arena1, etc) is FOR COSMETIC
@@ -89,6 +89,7 @@ local function updateTrackedSlots()
     -- getSlotSet returns ['player', 'party1', ...] or ['raid1', 'raid2', ... ] for the
     -- current set of group members.
     for _, slot in pairs(ns:getSlotSet()) do
+print('updateTrackedSlots', slot)
         if UnitExists(slot) then
             -- Unchanging player global ID
             local guid = UnitGUID(slot)
@@ -101,11 +102,14 @@ local function updateTrackedSlots()
             if realm then
                 playerName = Ambiguate(name.."-"..realm, "none")
             end
+print('UnitExists(',slot,')',UnitExists(slot), 'playerName=', playerName)
 
             slotToGUID[slot] = guid
             slotToFrame[slot] = frame
-            slotToPlayerName[slot] = playerName
+            playerNameToSlot[playerName] = slot
             GUIDToSlot[guid] = slot
+else
+print('UnitExists(',slot,')',UnitExists(slot))
         end
     end
 end
@@ -117,12 +121,7 @@ end
 
 
 function ns:playerNameToSlot(playerName)
-    for slot, thisName in pairs(slotToPlayerName) do
-        if thisName == playerName then
-            return slot
-        end
-    end
-    return nil
+    return playerNameToSlot[playerName]
 end
 
 
