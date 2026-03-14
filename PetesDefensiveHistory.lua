@@ -100,6 +100,7 @@ print('updateTrackedSlots', slot)
             -- Player name, hyphenated with realm if appropriate
             local playerName, realm = UnitNameUnmodified(slot)
             if realm then
+print(realm)
                 playerName = Ambiguate(playerName.."-"..realm, "none")
             end
 print('UnitExists(',slot,')',UnitExists(slot), 'playerName=', playerName)
