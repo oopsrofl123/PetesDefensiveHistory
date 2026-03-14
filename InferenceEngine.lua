@@ -586,8 +586,8 @@ local function getConfidentMatch(possibleSolutions)
 end
 
 
-local function makeReq(pass, timeSince)
-    return { pass=pass, timeSince=timeSince }
+local function makeReq(logicSummary, timeSince)
+    return { pass=logicSummary.pass, final=logicSummary.final, timeSince=timeSince }
 end
 
 
@@ -689,7 +689,6 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker, quiet)
     if not quiet then
         ns:printDebug(ns.LOGTYPE.Inference, ns.LOGLEVEL.Normal, nextLogString)
     end
-
 
     -- Check for disableInference here, not at function start, so that maxCD can
     -- be computed for use by the history tray.
