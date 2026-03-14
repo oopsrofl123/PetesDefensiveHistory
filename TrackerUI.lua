@@ -32,19 +32,6 @@ local texturePool = CreateTexturePool(UIParent, 'ARTWORK', 0, nil,
     end)
 
 
-function ns:indexToFrame(index)
-    if DandersFrames then
-        return _G["DandersPartyHeaderUnitButton" .. index]
-    else
-        return _G["CompactPartyFrameMember" .. index]
-    end
-end
-
-
-function ns:indexToSlot(index)
-    return ns:indexToFrame(index).unit
-end
-
 
 -- Initialize a history item with blank values and hide it. Do not perform
 -- allocation or do potentially unsafe things like move or reanchor elements.
@@ -102,8 +89,8 @@ end
 -- Used to have a GUID argument: if the event is going to the tracker, then it
 -- wasn't IDed, so it always goes to the target.
 function ns:addEventToHistoryTray(event)
-    local index = GUIDToIndex[event:getSource()]
-    local tray = ns.trackerUI[index].historyTray
+    local slot = ns:cosmeticOnlyMapGUIDToSlot(event:getSource())
+    local tray = ns.trackerUI[slot].historyTray
     local aura = event:getAura()
 
     -- Don't do anything if the user disabled the history tray
@@ -111,7 +98,7 @@ function ns:addEventToHistoryTray(event)
 
     ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal,
         "aura instance ID " .. event:getId() ..
-        " added to history tray "..index.." after ".. event:timeSince().."s")
+        " added to history tray "..slot.." after ".. event:timeSince().."s")
 
     -- Empty the youngest history slot
     shiftHistoryTrayLeftFrom(tray.items)
@@ -131,8 +118,8 @@ end
 
 -- Glow an item in the static cooldown tracker. Abilities have known casters
 function ns:startGlow(ability)
-    local index = GUIDToIndex[ability.caster]
-    local cd = ns.trackerUI[index].staticRow.items[ability.name]
+    local slot = ns:cosmeticOnlyMapGUIDToSlot(ability.caster)
+    local cd = ns.trackerUI[slot].staticRow.items[ability.name]
     -- The cooldown swipe could be active, e.g. for abilities with charges,
     -- CDR abilities, or redirected buffs like VDH meta, which can be applied
     -- by several other abilities.
@@ -144,8 +131,8 @@ end
 
 -- Stop glowing an item in the static cooldown tracker. Abilities have known casters
 function ns:stopGlow(ability)
-    local index = GUIDToIndex[ability.caster]
-    local cd = ns.trackerUI[index].staticRow.items[ability.name]
+    local slot = ns:cosmeticOnlyMapGUIDToSlot(ability.caster)
+    local cd = ns.trackerUI[slot].staticRow.items[ability.name]
     LibButtonGlow.HideOverlayGlow(cd)
     -- The cooldown swipe could be active, e.g. for abilities with charges,
     -- CDR abilities, or redirected buffs like VDH meta, which can be applied
@@ -184,10 +171,10 @@ end
 -- to 0. At t=23, we arrive here and it must be recorded that a charge
 -- at t=0 prevented CD recovery until t=20. This is exactly what the CD
 -- tracker provides.
-function ns:queueCooldown(ability)
-    local startTime = ns.cdTracker[ability.caster][ability.name]:head() - ability.cooldown
-    local index = GUIDToIndex[ability.caster]
-    local cd = ns.trackerUI[index].staticRow.items[ability.name]
+function ns:queueCooldown(ability, availableAt)
+    local startTime = availableAt - ability.cooldown
+    local slot = ns:cosmeticOnlyMapGUIDToSlot(ability.caster)
+    local cd = ns.trackerUI[slot].staticRow.items[ability.name]
 
     -- cd.startTime is the start time of the recharge, not the start time of the
     -- buff (=when the ability was cast). These can differ for abilities
@@ -262,7 +249,7 @@ end
 
 
 -- alloc* functions must not depend on any runtime data
-local function allocCountDownTimer(parent, frameName)
+local function allocCountDownTimer(parent)
     local textSize = ns:GetOption('textSize')
     local swipeTexture = cooldownFramePool:Acquire()
 
@@ -298,7 +285,8 @@ local function allocCountDownTimer(parent, frameName)
     local warning = texturePool:Acquire()
     warning:SetParent(parent)
     warning:SetDrawLayer('OVERLAY', 1)
-    warning:SetPoint('CENTER', parent.icon, 'TOPLEFT', 4, -1)
+    warning:ClearAllPoints()
+    warning:SetPoint('CENTER', warningbg) --, 'TOPLEFT', 4, -1)
     warning:SetAtlas("QuestNormal")
     warning:SetVertexColor(1, 0, 0)
 
@@ -338,8 +326,7 @@ end
 -- desired elements based on whether the ability represented by this history
 -- item is known.
 -- alloc* functions must not depend on any runtime data
-local function allocHistoryItem(parent, index, countUp)
-    local frameName = "item" .. index
+local function allocHistoryItem(parent, countUp)
     local f = framePool:Acquire()
     f:SetParent(parent)
 
@@ -356,7 +343,7 @@ local function allocHistoryItem(parent, index, countUp)
     if countUp then
         f.timer = allocCountUpTimer(f)
     else
-        f.swipeTexture, f.warningbg, f.warning = allocCountDownTimer(f, frameName)
+        f.swipeTexture, f.warningbg, f.warning = allocCountDownTimer(f)
         -- Show a spell tooltip on the history item
         f:SetScript("OnEnter", function(self)
             if ns:GetOption('showTooltips') then
@@ -394,10 +381,9 @@ end
 
 -- XXX: TODO: This function leaks frames, but it happens rarely enough that we
 -- can live with it for a while.
-local function updateStaticRow(index)
-    local tracker = ns.trackerUI[index]
+local function updateStaticRow(slot)
+    local tracker = ns.trackerUI[slot]
     local row = tracker.staticRow
-    local slot = ns:indexToSlot(index)
     local guid, char = ns:getTrackedCharacterBySlot(slot)
     -- There won't always be a char: before loading and players without libspec
     local abilities = char and char:getAbilities() or {}
@@ -409,7 +395,7 @@ local function updateStaticRow(index)
     -- Add a new frame for each tracked cooldown
     for _, ability in pairs(abilities) do
         if not row.items[ability.name] then
-            local newItem = allocHistoryItem(row, ability.name, false)
+            local newItem = allocHistoryItem(row, false)
             newItem.spellId = ability.id
             row.items[ability.name] = newItem
             if ability.iconId then
@@ -479,8 +465,8 @@ end
 
 
 -- Update a single row when visual options or party members change.
-local function updateHistoryTray(index)
-    local tracker = ns.trackerUI[index]
+local function updateHistoryTray(slot)
+    local tracker = ns.trackerUI[slot]
     local row = tracker.historyTray
     local iconSize = ns:GetOption('iconSize')
     local textSize = ns:GetOption('textSize')
@@ -510,38 +496,49 @@ end
 -- It is the UI's job to be able to map GUIDs -> indexes
 function ns:updateTrackerUI()
     ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal, "Updating TrackerUI")
-    for index=1, 5 do
-        local slot = ns:indexToSlot(index)
-        local guid, char = ns:getTrackedCharacterBySlot(slot)
-        if guid then
-            -- Keep the guid -> index map updated
-            GUIDToIndex[guid] = index
+    local trackedSlots = ns:getTrackedSlots()
+
+    for slot, _ in pairs(trackedSlots) do
+        if not ns.trackerUI[slot] then
+            ns.trackerUI[slot] = ns:allocTrackerUIForSlot(slot)
         end
-        ns:updateTrackerUIByIndex(index)
+
+        ns:updateTrackerUIBySlot(slot)
 
         -- XXX: TODO: hack to clear history tray while history items/cooldowns are being
         -- folded into Character(). updateHistoryTray() should ask Character() what
         -- historyItems it should show in updateTrackerUIByIndex()
-        for _, item in pairs(ns.trackerUI[index].historyTray.items) do
+        for _, item in pairs(ns.trackerUI[slot].historyTray.items) do
             clearHistoryItem(item)
+        end
+
+        if ns:addonIsActive() then
+            ns.trackerUI[slot]:Show()
+        end
+    end
+
+    -- Get rid of any UIs no longer tracked
+    for slot, ui in pairs(ns.trackerUI) do
+        if not trackedSlots[slot] then
+            -- XXX: TODO: Should do some more teardown/releasing here
+            ui:Hide()
         end
     end
 end
 
 
 
-function ns:updateTrackerUIByIndex(index)
+function ns:updateTrackerUIBySlot(slot)
     ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal,
-        "Updating TrackerUI for index="..tostring(index))
-    local tracker = ns.trackerUI[index]
-    local slot = ns:indexToSlot(index)
+        "Updating TrackerUI for slot="..tostring(slot))
+    local tracker = ns.trackerUI[slot]
     local guid, char = ns:getTrackedCharacterBySlot(slot)
     local iconSize = ns:GetOption('iconSize')
     local iconSpacing = ns:GetOption('iconSpacing')
     local textSize = ns:GetOption('textSize')
 
     -- Position UI next to frames
-    tracker:SetPoint("TOPRIGHT", ns:indexToFrame(index), "TOPLEFT", -SPACING_FROM_FRAMES, 0)
+    tracker:SetPoint("TOPRIGHT", ns:slotToFrame(slot), "TOPLEFT", -SPACING_FROM_FRAMES, 0)
 
     tracker.bg:SetAllPoints(tracker)
     tracker.bg:SetColorTexture(0,0,0,0.4)
@@ -553,15 +550,15 @@ function ns:updateTrackerUIByIndex(index)
     tracker.specLabel:SetText(spec)
     ns:showDebugVisual(tracker.specLabel)
 
-    tracker.indexLabel:SetPoint("TOPLEFT", tracker, "TOPRIGHT", 3, -3)
-    tracker.indexLabel:SetFont(tracker.indexLabel:GetFont(), 12, "OUTLINE")
-    tracker.indexLabel:SetText("["..index.."] "..ns:indexToFrame(index).unit)
-    ns:showDebugVisual(tracker.indexLabel)
-    tracker.indexLabel.bg:SetAllPoints(tracker.indexLabel)
-    ns:showDebugVisual(tracker.indexLabel.bg)
+    tracker.slotLabel:SetPoint("TOPLEFT", tracker, "TOPRIGHT", 3, -3)
+    tracker.slotLabel:SetFont(tracker.slotLabel:GetFont(), 12, "OUTLINE")
+    tracker.slotLabel:SetText("["..slot.."] "..ns:slotToFrame(slot).unit)
+    ns:showDebugVisual(tracker.slotLabel)
+    tracker.slotLabel.bg:SetAllPoints(tracker.slotLabel)
+    ns:showDebugVisual(tracker.slotLabel.bg)
 
-    updateStaticRow(index)
-    updateHistoryTray(index)
+    updateStaticRow(slot)
+    updateHistoryTray(slot)
 
     tracker:SetWidth(math.max(tracker.staticRow:GetWidth(), tracker.historyTray:GetWidth()))
     tracker:SetHeight(tracker.staticRow:GetHeight() + tracker.historyTray:GetHeight() + iconSpacing)
@@ -569,12 +566,12 @@ end
 
 
 
-local function allocTrackerUIForSlot(index)
+function ns:allocTrackerUIForSlot(slot)
     ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal,
-        "Allocating TrackerUI for index="..tostring(index))
+        "Allocating TrackerUI for slot="..tostring(slot))
     local tracker = framePool:Acquire()
     tracker:SetParent(UIParent)
-    tracker.index = index
+    tracker.slot = slot
 
     -- Debug mode transparent background
     tracker.bg = texturePool:Acquire()
@@ -588,16 +585,16 @@ local function allocTrackerUIForSlot(index)
     tracker.specLabel:SetTextColor(1,1,1)
 
     -- Debug mode text showing the CompactPartyFrameMember..i mapping
-    tracker.indexLabel = numberFontNormalSmallPool:Acquire()
-    tracker.indexLabel:SetParent(tracker)
-    tracker.indexLabel:SetDrawLayer('OVERLAY')
-    tracker.indexLabel:SetTextColor(1,1,1)
+    tracker.slotLabel = numberFontNormalSmallPool:Acquire()
+    tracker.slotLabel:SetParent(tracker)
+    tracker.slotLabel:SetDrawLayer('OVERLAY')
+    tracker.slotLabel:SetTextColor(1,1,1)
 
-    tracker.indexLabel.bg = texturePool:Acquire()
-    tracker.indexLabel.bg:SetParent(tracker)
-    tracker.indexLabel.bg:SetDrawLayer('ARTWORK', 0)
-    tracker.indexLabel.bg:SetAllPoints()
-    tracker.indexLabel.bg:SetColorTexture(1,0,0)
+    tracker.slotLabel.bg = texturePool:Acquire()
+    tracker.slotLabel.bg:SetParent(tracker)
+    tracker.slotLabel.bg:SetDrawLayer('ARTWORK', 0)
+    tracker.slotLabel.bg:SetAllPoints()
+    tracker.slotLabel.bg:SetColorTexture(1,0,0)
 
     -- The static cooldown tracker is just an empty list to be filled with icons
     tracker.staticRow = framePool:Acquire()
@@ -609,7 +606,7 @@ local function allocTrackerUIForSlot(index)
     tracker.historyTray:SetParent(tracker)
     tracker.historyTray.items = {}
     for i=1, MAX_HISTORY do
-        tracker.historyTray.items[i] = allocHistoryItem(tracker.historyTray, index, i, true)
+        tracker.historyTray.items[i] = allocHistoryItem(tracker.historyTray, true)
     end
 
     return tracker
@@ -619,8 +616,8 @@ end
 
 function ns:allocTrackerUI()
     ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal, "Allocating TrackerUI")
-    for index=1, 5 do
-        local tracker = allocTrackerUIForSlot(index)
-        ns.trackerUI[index] = tracker
+    for slot, _ in pairs(ns:getTrackedSlots()) do
+        local tracker = allocTrackerUIForSlot(slot)
+        ns.trackerUI[slot] = tracker
     end
 end
