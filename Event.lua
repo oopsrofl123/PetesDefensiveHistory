@@ -54,6 +54,7 @@ function ns:Event(newTrace, newSource)
     local closestEvidence = {}
     local expiration = nil
     local maxCD = ns.INFINITY
+    local abilityOffCooldown
 
     -- Optional fields
     local aura = nil
@@ -132,6 +133,8 @@ function ns:Event(newTrace, newSource)
 
     -- Trivial setters
     function e:setAbility(newAbility) ability = newAbility end
+
+    function e:setAbilityOffCooldown(at) abilityOffCooldown = at end
 
     function e:setCertain(newCertain) certain = newCertain end
 
@@ -284,7 +287,7 @@ function ns:Event(newTrace, newSource)
         -- More visual feedback
         local ability, certain = self:getAbility()
         if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
-            ns:queueCooldown(ability)
+            ns:queueCooldown(ability, abilityOffCooldown)
         elseif not self:isNonAuraEvent() then
             -- Can't add non-aura events for two reasons: (1) they don't have a texture to show,
             -- (2) many aren't interesting. E.g., every time anyone leaves combat or dismounts
