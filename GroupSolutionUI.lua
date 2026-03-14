@@ -15,12 +15,12 @@ local UI_CLOSE_BUTTON_HEIGHT = 28
 local UI_WIDTH = 200 + (UI_ICON_SIZE+UI_ICON_PADDING) * UI_MAX_ABILITIES_PER_SLOT
 -- XXX: TODO: the anchoring here is mostly static, so harder to support non-5 member
 -- layouts. Fix this later.
-local UI_HEIGHT = 10 + UI_TITLE_PADDING + 20 + UI_CLOSE_BUTTON_HEIGHT + 20 + UI_ROW_HEIGHT*5
+local UI_HEIGHT = 10 + UI_TITLE_PADDING + 20 + UI_CLOSE_BUTTON_HEIGHT + 20 + UI_ROW_HEIGHT*2
 
 
-local function updateGroupSolutionByIndex(index)
+-- uses index for layout, unfortunately
+local function updateGroupSolutionBySlot(slot, index)
     local row = ns.groupSolutionUI.rows[index]
-    local slot = ns:indexToSlot(index)
     local guid, char = ns:getTrackedCharacterBySlot(slot)
     local abilities = char and char:getPossibleAbilities() or {}
 
@@ -110,19 +110,10 @@ local function updateGroupSolutionByIndex(index)
         -- happens frequently (e.g., not in group)
         row.roleIcon:Hide()
     end
-
-    if not UnitExists(slot) then
-        row:Hide()
-    end
 end
 
 
 
-function ns:updateGroupSolutionUI()
-    for index=1, 5 do
-        updateGroupSolutionByIndex(index)
-    end
-end
 
 
 
@@ -175,7 +166,7 @@ end
 
 local function allocGroupSolutionRow(uiframe, index)
     -- Create the row frame
-    local row = CreateFrame("Frame", "Row"..index, uiframe)
+    local row = CreateFrame("Frame", "Row_"..index, uiframe)
     row:SetSize(UI_WIDTH, UI_ROW_HEIGHT)
     row:SetPoint("TOP", uiframe.uiTitle, "TOP", 0, -UI_ROW_HEIGHT * (index - 1) - UI_TITLE_PADDING)
 
@@ -249,6 +240,29 @@ end
 
 
 
+function ns:updateGroupSolutionUI()
+    local trackedSlots = ns:getTrackedSlots()
+    local index = 1
+    for slot, _ in pairs(trackedSlots) do
+        if not ns.groupSolutionUI.rows[index] then
+            table.insert(ns.groupSolutionUI.rows, allocGroupSolutionRow(ns.groupSolutionUI, index))
+        end
+        updateGroupSolutionBySlot(slot, index)
+        ns.groupSolutionUI.rows[index]:Show()
+        index = index + 1
+    end
+
+    ns.groupSolutionUI:SetHeight(
+        10 + UI_TITLE_PADDING + 20 + UI_CLOSE_BUTTON_HEIGHT + 20 + UI_ROW_HEIGHT*(index-1))
+
+    -- hide no longer used rows
+    for indexj = index, #ns.groupSolutionUI.rows do
+        ns.groupSolutionUI.rows[indexj]:Hide()
+    end
+end
+
+
+
 -- IMPORTANT: do not make assumptions about whether group ability solution code
 -- has been run when allocating the solution UI. The solutions happen at uncontrollable
 -- times during LibSpec callbacks.
@@ -256,8 +270,11 @@ function ns:allocGroupSolutionUI()
     local solutionUI = allocMainUIFrame()
 
     solutionUI.rows = {}
-    for index=1, 5 do
-        solutionUI.rows[index] = allocGroupSolutionRow(solutionUI, index)
+    local index = 1
+    for slot, _ in pairs(ns:getTrackedSlots()) do
+        --solutionUI.rows[slot] = allocGroupSolutionRow(solutionUI, index)
+        table.insert(solutionUI.rows, allocGroupSolutionRow(solutionUI, index))
+        index = index + 1
     end
 
     return solutionUI
