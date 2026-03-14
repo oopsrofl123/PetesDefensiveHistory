@@ -323,6 +323,31 @@ function ns:sendLibSpecRequest()
     LibSpecialization.RequestGroupSpecialization()
 end
 
+
+local function doLibSpecUpdate(specId, playerName, talentExportString, slot)
+    slot = slot or ns:playerNameToSlot(playerName)
+    if not slot then
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
+            'trackCharacter(): FATAL: failed to map player name=[' ..
+            playerName .. '] to a slot. proceeding without spec info')
+    end
+
+print('trackCharacter() - called from libspec')
+    local char = ns:trackCharacter(slot)
+    char:setSpecAndTalents(specId, talentExportString)
+    ns:updateCharacterData()
+
+    -- XXX: TODO: not correct - needs to live in Character objects.
+    ns.cdTracker = ns:initCDTracker()
+
+    -- Solve unique solutions group-wide. This is completely cosmetic: it only
+    -- affects the group solution UI.
+    ns:zeroKnowledgeSolve()
+
+    ns:respondToRosterUpdate()
+end
+
+
 local internalGroupSpecs = {}    -- internal use by LibSpecialization
 LibSpecialization.RegisterGroup(internalGroupSpecs, 
     function(specId, role, position, playerName, talentExportString)
@@ -340,23 +365,11 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
         -- LibSpec returns name in a specific format. If we fail to match it to a
         -- valid frame, just have to proceed without spec data.
         if not slot then
-            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
-                'trackCharacter(): FATAL: failed to map player name=[' ..
-                playerName .. '] to a slot. proceeding without spec info')
-            return
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+                "No slot for playerName=["..playerName.."], queueing update")
+            C_Timer.After(1, function() doLibSpecUpdate(specId, playerName, talentExportString) end)
+        else
+            doLibSpecUpdate(specId, playerName, talentExportString, slot)
         end
-
-print('trackCharacter() - called from libspec')
-        local char = ns:trackCharacter(slot)
-        char:setSpecAndTalents(specId, talentExportString)
-        ns:updateCharacterData()
-
-        -- XXX: TODO: not correct - needs to live in Character objects.
-        ns.cdTracker = ns:initCDTracker()
-
-        -- Solve unique solutions group-wide. This is completely cosmetic: it only
-        -- affects the group solution UI.
-        ns:zeroKnowledgeSolve()
-
-        ns:respondToRosterUpdate()
     end)
+
