@@ -238,7 +238,7 @@ function ns:Event(newTrace, newSource)
         -- that is tolerated for concurrent evidence. Add 10% (*1.1) for good measure.
         -- Removes most of the value a constant poller.
         C_Timer.After(1.1*ns.CONCURRENT_EVENT_TOLERANCE,
-            function() ns:manageEvents("Event:track()", source) end)
+            function() ns:manageEvents("E:track", source) end)
     end
 
     function e:untrack()
