@@ -133,7 +133,11 @@ function ns:printDebug(logtype, loglevel, string)
             (loglevel == ns.LOGLEVEL.Verbose and ns:GetOption('debugLoggingLevelVerbose'))
 
         if logTypeEnabled and logLevelEnabled then
-            print('|cff00ff00PDH:|r ' .. string)
+            local timeString = ''
+            if loglevel == ns.LOGLEVEL.Normal or loglevel == ns.LOGLEVEL.Error then
+                timeString = string.format("[%0.3f]", GetTime() % 10000)
+            end
+            print('|cff00ff00PDH'..timeString..':|r ' .. string)
         end
     end
 end
