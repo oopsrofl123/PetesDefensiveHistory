@@ -74,24 +74,6 @@ function ns:Character(slot)
     local possibleAbilities = {}
     local evidenceTracker = ns:makeEvidenceTracker()
 
-    -- If this isn't an empty character, start populating it
-    if slot and UnitExists(slot) then
-        GUID = UnitGUID(slot) or
-            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
-                "Character("..slot.."): could not get GUID") -- Should error, not recoverable
-
-        --self:setBasicInfo(slot)
-    else
-        if not slot then
-            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error, "Character(nil) called")
-        end
-        if not UnitExists(slot) then
-            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-                "Character(%s): tried to create new character with UnitExists(%s)=%s!",
-                slot, slot, UnitExists(slot)))
-        end
-        return nil
-    end
 
 
     -- Unsettable values --------------------------------------------------------
@@ -139,14 +121,14 @@ function ns:Character(slot)
         specId = spec
 
         -- Try this again. Often fails when zoning into LFG.
+        -- XXX: TODO: i think this needs to return nil, signaling a need to try again later
+        -- if classFile or englishRaceName are- still nil.
         self:setBasicInfo()
 
         -- This can disagree with UnitClass() because specId is derived from a LibSpec
         -- callback. The LibSpec callback is more reliable than UnitClass, so prefer it.
         _, specName, _, _, _, classFile, className = GetSpecializationInfoByID(specId)
 
-        -- XXX: TODO: i think this needs to return nil, signaling a need to try again later
-        --  if classFile or englishRaceName are- still nil.
         talentExportString = tstring
 
         talentRanks = ns:getTalentRanks(specId, talentExportString)
@@ -259,6 +241,26 @@ function ns:Character(slot)
 
     function char:getEvidenceTracker()
         return evidenceTracker
+    end
+
+
+    -- If this isn't an empty character, start populating it
+    if slot and UnitExists(slot) then
+        GUID = UnitGUID(slot) or
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
+                "Character("..slot.."): could not get GUID") -- Should error, not recoverable
+
+        char:setBasicInfo(slot)
+    else
+        if not slot then
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error, "Character(nil) called")
+        end
+        if not UnitExists(slot) then
+            ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+                "Character(%s): tried to create new character with UnitExists(%s)=%s!",
+                slot, slot, UnitExists(slot)))
+        end
+        return nil
     end
 
     return char
