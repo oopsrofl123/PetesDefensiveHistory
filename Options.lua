@@ -25,14 +25,15 @@ local optionsDefaults = {
 	debugVisuals = false,
 	debugLogging = false,
     debugLoggingLevelVerbose = false,
-    debugLoggingTypeTalents = true,
-    debugLoggingTypeInference = true,
-    debugLoggingTypeUI = true,
-    debugLoggingTypeData = true,
-    debugLoggingTypeDataMining = true,
+    debugLoggingTypeTalents = false,
+    debugLoggingTypeInference = false,
+    debugLoggingTypeUI = false,
+    debugLoggingTypeData = false,
+    debugLoggingTypeDataMining = false,
     debugLoggingTypeSimulation = false,
     runGC = false,
 }
+
 
 PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or optionsDefaults
 
@@ -499,8 +500,10 @@ local checkAll = CreateSettingsButtonInitializer(
     "Track all abilities",
     "Check all",
     function()
-        for _, setting in pairs(abilitySetters) do
-            setting:SetValue(true)
+        for _, data in pairs(abilitySetters) do
+            if not data.disable then
+                data.setting:SetValue(true)
+            end
         end
     end,
     "Select all checkboxes",
@@ -516,8 +519,8 @@ local uncheckAll = CreateSettingsButtonInitializer(
     "Track no abilities",
     "Uncheck all",
     function()
-        for _, setting in pairs(abilitySetters) do
-            setting:SetValue(false)
+        for _, data in pairs(abilitySetters) do
+            data.setting:SetValue(false)
         end
     end,
     "Unselect all checkboxes",
@@ -528,6 +531,50 @@ local uncheckAll = CreateSettingsButtonInitializer(
 
 layout:AddInitializer(uncheckAll)
 
+
+
+local disabledWarning = "Disabled by addon developer. This ability will be enabled in future updates, but has interactions that need more testing. Enable at your own risk."
+
+local function addOptionForAbility(ability)
+    -- set default enabled values
+    optionsDefaults["show_" .. ability.id] = not ability.developerDisable
+
+    local setter = function(value)
+        PetesDefensiveHistoryOptionsDb["show_" .. ability.id] = value
+        ns:updateTrackerUI()
+    end
+
+    -- Color the text red if the ability is still buggy due to complex interactions
+    local tag = (not ability.developerDisable and "" or "|cFFFF0000") .. ability.name .. "|r"
+
+    setting = Settings.RegisterProxySetting(
+        ns.optionsCategory,
+        "show_" .. ability.id,
+        Settings.VarType.Boolean,
+        tag,
+        not ability.developerDisable,
+        function() return ns:GetOption("show_"..ability.id) end,
+        setter)
+
+    Settings.CreateCheckbox(category, setting,
+        not ability.developerDisable and ability.name or disabledWarning)
+
+    -- Save whether this is a developer-disabled ability so that it isn't included in check all
+    table.insert(abilitySetters, { setting=setting, disable=ability.developerDisable ~= nil })
+end
+
+-- Racials first
+for englishRaceName, raceName in pairs(ns.englishRaceNameToLocalized) do
+    local abilities = ns.AbilityDb[englishRaceName]
+    if abilities and #abilities > 0 then
+        layout:AddInitializer(
+            Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name=raceName })
+        )
+        for _, ability in pairs(abilities) do
+            addOptionForAbility(ability)
+        end
+    end
+end
 
 -- These are the locale-independent class names that key into several tables.
 -- The display strings are different. The spec IDs are no longer used.
@@ -546,38 +593,6 @@ local orderedClasses = {
     "WARLOCK",       -- { 265, 266, 267 } },
     "WARRIOR",       -- { 71, 72, 73 } }
 }
-
-local function addOptionForAbility(ability)
-    -- set default true values
-    optionsDefaults["show_" .. ability.id] = true
-    local setter = function(value)
-        PetesDefensiveHistoryOptionsDb["show_" .. ability.id] = value
-        ns:updateTrackerUI()
-    end
-    setting = Settings.RegisterProxySetting(
-        ns.optionsCategory,
-        "show_" .. ability.id,
-        Settings.VarType.Boolean,
-        ability.name,
-        true,
-        function() return ns:GetOption("show_"..ability.id) end,
-        setter)
-    Settings.CreateCheckbox(category, setting)
-    table.insert(abilitySetters, setting)
-end
-
--- Racials first
-for englishRaceName, raceName in pairs(ns.englishRaceNameToLocalized) do
-    local abilities = ns.AbilityDb[englishRaceName]
-    if abilities and #abilities > 0 then
-        layout:AddInitializer(
-            Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name=raceName })
-        )
-        for _, ability in pairs(abilities) do
-            addOptionForAbility(ability)
-        end
-    end
-end
 
 -- Class/spec abilities
 for _, classFile in pairs(orderedClasses) do

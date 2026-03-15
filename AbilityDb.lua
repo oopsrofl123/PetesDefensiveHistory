@@ -152,6 +152,7 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
+            developerDisable=true,
 		},
         -- Cheat death from meta. Gives a full duration meta, so only way to differentiate
         -- is through concurrent debuff (Uncontained Fel, spellID=209261),
@@ -169,6 +170,7 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=false,
             requireDebuff=true,
+            developerDisable=true,
 		},
         -- Apex talent: allows meta to be cast but it only lasts 10s. So we can't ever
         -- know which meta is cast (and whether it incurred a cooldown) until after the
@@ -187,6 +189,7 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
+            developerDisable=true,
 		},
 		{
 			name="Fiery Brand",
@@ -1035,6 +1038,7 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
+            developerDisable=true,
 		},
         -- hero talent proc that grants avatar, but does not trigger avatar's CD. is a
         -- button press.
@@ -1053,6 +1057,7 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
+            developerDisable=true,
         },
 		{
 			name="Enraged Regeneration",
