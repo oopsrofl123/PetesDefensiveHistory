@@ -395,35 +395,40 @@ local function updateStaticRow(slot)
     -- Add a new frame for each tracked cooldown
     for _, ability in pairs(abilities) do
         if not row.items[ability.name] then
-            local newItem = allocHistoryItem(row, false)
-            newItem.spellId = ability.id
-            row.items[ability.name] = newItem
-            if ability.iconId then
-                newItem.icon:SetTexture(ability.iconId)
-            end
-            newItem.cooldown = ability.cooldown
-            newItem.charges = ability.charges
-            newItem.numQueued = 0
-            if newItem.charges > 1 then
-                -- XXX: TODO: doesn't show when not on cooldown
-                newItem.swipeTexture.chargeLabel:Show()
-                newItem.swipeTexture.chargeLabel:SetText(newItem.charges)
-            else
-                newItem.swipeTexture.chargeLabel:Hide()
-            end
-
-            if ability.cdr then
-                newItem.warningbg:Show()
-                newItem.warning:Show()
-            else
-                newItem.warningbg:Hide()
-                newItem.warning:Hide()
-            end
-            newItem:Show()
-            newItem.icon:Show()
+            row.items[ability.name] = allocHistoryItem(row, false)
+            -- XXX: TODO: active state data should be maintained elsewhere. the static ability
+            -- data is fine.
+            -- Don't set this below or it'll clobber the active state of the cooldown queue
+            row.items[ability.name].numQueued = 0
         end
 
         local item = row.items[ability.name]
+        
+        -- Always update static ability data. spec could have changed
+        item.spellId = ability.id
+        if ability.iconId then
+            item.icon:SetTexture(ability.iconId)
+        end
+        item.cooldown = ability.cooldown
+        item.charges = ability.charges
+        if item.charges > 1 then
+            -- XXX: TODO: doesn't show when not on cooldown
+            item.swipeTexture.chargeLabel:Show()
+            item.swipeTexture.chargeLabel:SetText(item.charges)
+        else
+            item.swipeTexture.chargeLabel:Hide()
+        end
+
+        if ability.cdr then
+            item.warningbg:Show()
+            item.warning:Show()
+        else
+            item.warningbg:Hide()
+            item.warning:Hide()
+        end
+        item:Show()
+        item.icon:Show()
+
         sizeHistoryItem(item)
         -- Did the user opt in to showing this ability?
         if not ns:GetOption("show_"..ability.id) then
