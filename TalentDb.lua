@@ -656,11 +656,13 @@ ns.SpecTalentModifiers = {
             { { id=86659, modifies=charges, amount=1 } }
         },
         [391142] = {
-            -- supposedly does not extend sentinel's duration, should test
+            -- wording doesn't mention sentinel, but does apply to it.
             -- rank 2 extends more than rank 1, but all that matters is the duration
-            -- is longer than base. we can't know how many extensions will happen
-            { { id=31884, modifies=duration_variable, amount=ns.DURATION_GTE } },
-            { { id=31884, modifies=duration_variable, amount=ns.DURATION_GTE } }
+            -- is longer than base.
+            { { id=31884, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=389539, modifies=duration_variable, amount=ns.DURATION_GTE } },
+            { { id=31884, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=389539, modifies=duration_variable, amount=ns.DURATION_GTE } },
         },
         [204074] = {
             { { id=389539, modifies=cooldown, amount=-50, mult=true },
