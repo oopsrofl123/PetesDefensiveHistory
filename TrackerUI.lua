@@ -9,25 +9,36 @@ local DEFAULT_ICON = 134400    -- Question mark
 ns.trackerUI = {}  -- The UI elements next to the frames
 
 
+-- XXX: TODO: These resetters should revert more of the :Set* calls used in the UI code
+local function clearAnchorsResetter(pool, frame)
+    frame:ClearAllPoints()
+    frame:Hide()
+end
+
+local function clearWidgetAnchorsResetter(pool, widget)
+    widget:ClearAllPoints()
+end
+    
 -- Make frame pools for the UI elements
 -- XXX: TODO: None of these pools properly reset the widgets they receive. So far it
 -- doesn't matter because only cooldown trackers release to or acquire from them, but
 -- surely one day something will break.
-local framePool = CreateFramePool("Frame", UIParent)
+local framePool = CreateFramePool("Frame", UIParent, clearAnchorsResetter)
 
-local cooldownFramePool = CreateFramePool("Cooldown", UIParent, "CooldownFrameTemplate")
+local cooldownFramePool = CreateFramePool("Cooldown", UIParent, "CooldownFrameTemplate", clearAnchorsResetter)
 
 local gameFontNormalPool =
-    CreateObjectPool(function() return UIParent:CreateFontString(nil, 'ARTWORK', 'GameFontNormal') end)
+    CreateObjectPool(function() return UIParent:CreateFontString(nil, 'ARTWORK', 'GameFontNormal') end, clearWidgetAnchorsResetter)
 
 local gameFontNormalSmallPool =
-    CreateObjectPool(function() return UIParent:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall') end)
+    CreateObjectPool(function() return UIParent:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall') end, clearWidgetAnchorsResetter)
 
 local numberFontNormalSmallPool =
-    CreateObjectPool(function() return UIParent:CreateFontString(nil, 'ARTWORK', 'numberFontNormalSmall') end)
+    CreateObjectPool(function() return UIParent:CreateFontString(nil, 'ARTWORK', 'numberFontNormalSmall') end, clearWidgetAnchorsResetter)
 
 local texturePool = CreateTexturePool(UIParent, 'ARTWORK', 0, nil,
     function(pool, frame)
+        frame:ClearAllPoints()
         frame:SetVertexColor(1, 1, 1)
     end)
 
