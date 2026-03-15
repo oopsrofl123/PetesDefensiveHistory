@@ -141,6 +141,10 @@ function ns:Character(slot)
         -- Try this again. Often fails when zoning into LFG.
         self:setBasicInfo()
 
+        -- This can disagree with UnitClass() because specId is derived from a LibSpec
+        -- callback. The LibSpec callback is more reliable than UnitClass, so prefer it.
+        _, specName, _, _, _, classFile, className = GetSpecializationInfoByID(specId)
+
         -- XXX: TODO: i think this needs to return nil, signaling a need to try again later
         --  if classFile or englishRaceName are- still nil.
         talentExportString = tstring
