@@ -78,8 +78,8 @@ function ns:InferenceRecord(now, trace, event)
 
     function r:toString()
         return string.format(
-            "|cffEFD097Infer(time=[%0.3f], tr(inference)=[%s], tr(event)=[%s], source=[%s], eventId=[%s/%d], attempt=[%d])|r",
-            inferenceTime, inferenceTrace, eventTrace,
+            "|cffEFD097Infer(tr(infer)=[%s], tr(event)=[%s], source=[%s], eventId=[%s/%d], attempt=[%d])|r",
+            inferenceTrace, eventTrace,
             eventSlot, eventId, batchId, inferenceAttempt)
     end
 
@@ -310,6 +310,23 @@ end
 
 
 
+-- Currently only applies to auras, but maybe there's a generalization.
+-- New events are fired when auras are updated because, in some cases, these updates
+-- are new ability uses that must be tracked. However, many auras update themselves
+-- without any link to a new ability use.
+--
+-- XXX: TODO: eventually: also exclude abilities that are known not to update. this
+-- requires a new "doesNotUpdate" flag from a comprehensive pass on the ability database,
+-- though.
+local function logicLayerAuraUpdateAllowed(event, ability)
+    if event:isUpdate() and ability.numAuraProviders == 1 then
+        return { pass=false, final=true }
+    end
+    return { pass=true, final=true }
+end
+
+
+
 -- 1 letter aliases for compact log strings
 ns.logicLayerAliases = {
     buff='B',
@@ -321,6 +338,7 @@ ns.logicLayerAliases = {
     flags='F',
     shield='S',
     appliesInferredAura='A',
+    updateAllowed='u'        -- u for _u_pdate
 }
     
 
@@ -380,6 +398,9 @@ local function getPossibleSolutions(event, cdTracker)
         -- Is this event part of a batch where the aura ID has already been inferred?
         if aura and aura.inferredId then
             logic['appliesInferredAura'] = logicLayerAppliesInferredAura(aura, ability)
+        end
+        if aura then
+            logic['updateAllowed'] = logicLayerAuraUpdateAllowed(event, ability)
         end
 
         local allPass = true
