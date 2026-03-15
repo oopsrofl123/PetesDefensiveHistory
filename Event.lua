@@ -43,6 +43,7 @@ function ns:Event(newTrace, newSource)
     lastNonBuffEventId = lastNonBuffEventId + 1
 
     local blocked = false
+    local isUpdate = false
     local trace = newTrace
     local source = newSource
     local char = ns:getTrackedCharacterByGUID(source)
@@ -65,6 +66,8 @@ function ns:Event(newTrace, newSource)
 
     -- Trivial getters
     function e:isBlocked() return blocked end
+
+    function e:isUpdate() return isUpdate end
 
     function e:isCertain() return certain end
 
@@ -139,6 +142,8 @@ function ns:Event(newTrace, newSource)
     function e:setCertain(newCertain) certain = newCertain end
 
     function e:setBlocked() blocked = true end
+
+    function e:setUpdate() isUpdate = true end
 
     function e:setNumPossibleSolutions(n) numPossibleSolutions = n end
 
@@ -246,7 +251,7 @@ function ns:Event(newTrace, newSource)
 
     
     -- Main action function for events.
-    function e:infer(inferenceTrace, now)
+    function e:infer(inferenceTrace)
         if not self:isCertain() then
             self:prepareForInference()
             local prevAbility, prevCertain = self:getAbility()
@@ -258,8 +263,8 @@ function ns:Event(newTrace, newSource)
                 -- Log an uncertain inference, but only if the ability is different from the last
                 ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
                     string.format(
-                        "|cff00CDCDUNCERTAIN(time=[%0.3f], event=[%s/%d], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
-                        now, self:getId(), self:getBatchId(), self:getInference(),
+                        "|cff00CDCDUNCERTAIN(event=[%s/%d], attempt=[%d]): [%s] cast [%s] at time [%0.3f]|r",
+                        self:getId(), self:getBatchId(), self:getInference(),
                         ns:cosmeticOnlyMapGUIDToSlot(ability.caster),
                         ability.alias or ability.name, self:getTime()))
             end
@@ -306,8 +311,8 @@ end
 
 function ns:trackAura(trace, aura)
     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-        '+++ trackAura(%s): time=[%0.3f], ID=[%d], target=[%s], flags=[%s %d%d CANCEL: %d NAMEPLATE: %d%d CC: %d%d]',
-        trace, aura.startTime, aura.auraInstanceId, ns:cosmeticOnlyMapGUIDToSlot(aura.target),
+        '+++ trackAura(%s): auraStart=[%0.3f] ID=[%d], target=[%s], flags=[%s %d%d CN: %d NP: %d%d CC: %d%d]',
+        trace, aura.startTime % 10000, aura.auraInstanceId, ns:cosmeticOnlyMapGUIDToSlot(aura.target),
         aura.flags,
         ns:boolstr(aura.HELPFUL), ns:boolstr(aura.HARMFUL), ns:boolstr(aura.CANCELABLE),
         ns:boolstr(aura.HELPNAMEPLATE), ns:boolstr(aura.NAMEPLATE),
@@ -324,7 +329,6 @@ end
 -- Loop through all events for the tracked character 'guid'. Try to infer them
 -- if they still aren't guessed and execute life cycle functions.
 function ns:manageEvents(updateTrace, guid)
-    local now = GetTime()
     local char = ns:getTrackedCharacterByGUID(guid)
 
     -- Tracking structure: each character has a list of events keyed by either
@@ -339,7 +343,7 @@ function ns:manageEvents(updateTrace, guid)
         for _, ev in pairs(evBatch) do
             -- Prevent tons of log spam and unnecessary :infer()s on unsolvable events
             if ev:hasPossibleSolutions() then
-                ev:infer(updateTrace, now)
+                ev:infer(updateTrace)
             end
 
             -- Propagate batch information through the shared aura.
@@ -357,18 +361,14 @@ function ns:manageEvents(updateTrace, guid)
                         ev:getId(), ev:getBatchId(), index, ability.id))
             end
 
-            if ev:isExpiring() then
-                ev:expire()
-            else
+            if not ev:isExpiring() then
                 -- special handling to reduce spam: for abilities with only one possible provider,
                 -- aura updates cannot mean a new ability was used. so block new events from
                 -- being registered.
                 -- N.B. do not :block() if the event batch is expiring, evBatch[1] may already
                 -- be nil.
                 --
-                -- XXX: TODO: blocks Avatar incorrectly. but while developing an Avatar solution,
-                -- it's much better to block() because the inference log spam is so bad debugging
-                -- becomes almost impossible.
+                -- XXX: TODO: blocks Avatar incorrectly
                 if ability and ability.numAuraProviders == 1 and not evBatch[1]:isBlocked() then
                     evBatch[1]:setBlocked()
                     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
@@ -376,16 +376,10 @@ function ns:manageEvents(updateTrace, guid)
                         ev:getId(), ev:getBatchId()))
                 end
 
-                -- numPossibleSolutions is the most permissive set of possible solutions - it includes
-                -- abilities that are not yet satisfied by the observed evidence but still *could be*
-                -- in future inferences. if there are 0 possibilities, then there will never be a
-                -- possible solution.
-                -- keep around the first event in the batch so it can be sent to the history tray, but
-                -- prune others.
-                --
-                -- When #solutions=0, do not :untrack() the original event. It needs to :expire() so
-                -- that it can be sent to the history tray. Do not immediately expire it either
-                -- since it is part of the history of this event.
+                -- if numPossibleSolutions=0, then there will never be a possible solution.
+                -- keep the first event in the batch so it can be sent to the history tray, on
+                -- :expire(), but silently drop others.
+                -- Do not immediately expire it; other updates would then go to history tray.
                 if index > 1 and ev:getNumPossibleSolutions() == 0 then
                     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Verbose, string.format(
                         'removing eventId=[%s/%d]: index=%d has 0 possible solutions',
@@ -395,6 +389,13 @@ function ns:manageEvents(updateTrace, guid)
                 end
             end
             index = index + 1
+        end
+
+        -- Separate expire loop to ensure no events go missing during batch processing
+        for _, ev in pairs(evBatch) do
+            if ev:isExpiring() then
+                ev:expire()
+            end
         end
     end
 end
