@@ -154,6 +154,9 @@ print('trackCharacter() - called from updateCharacterData')
     -- After all new characters are added and old characters are deleted, refresh the list
     -- of abilities targeting each player.
     for _, char in pairs(ns:getTrackedCharacters()) do
+        char:setBasicInfo()
+        -- XXX: TODO: the above could detect race, but does not add racial abilities.
+        -- abilities are only added in response to LibSpec.
         char:cachePossibleAbilities()
     end 
 end
