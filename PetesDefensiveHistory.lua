@@ -307,8 +307,8 @@ function ns:finalizeInference(ev, ability)
 
     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
         string.format(
-            "|cff00CDCDFINALIZED(time=[%0.3f], event=[%s/%d], attempt=[%d]): [%s] cast [%s] at [%0.3f]|r",
-            GetTime(), ev:getId(), ev:getBatchId(), ev:getInference(),
+            "|cff00CDCDFINALIZED(event=[%s/%d], attempt=[%d]): [%s] cast [%s] at [%0.3f]|r",
+            ev:getId(), ev:getBatchId(), ev:getInference(),
             ns:cosmeticOnlyMapGUIDToSlot(ability.caster),
             ability.alias or ability.name, ev:getTime()))
 
@@ -339,16 +339,15 @@ end
 -- EVENT HANDLERS
 --====================================================================================
 
-local function traceHandler(event, now, unit, message, ...)
-    --fmtString = "|cFFEB4EF7%s(time=[%0.3f], source=[%s])"
-    fmtString = "|cFFFF55FF%s(time=[%0.3f], source=[%s])"
+local function traceHandler(event, unit, message, ...)
+    fmtString = "|cFFFF55FF%s(source=[%s])"
     if message ~= nil then
         fmtString = fmtString..": "..message
     end
     fmtString = fmtString.."|r"
 
     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
-        string.format(fmtString, event, now, unit, ...))
+        string.format(fmtString, event, unit, ...))
 end
 
 
@@ -362,7 +361,7 @@ castHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID
     if not guid then return end
     local now = GetTime()
 
-    traceHandler("SPELLCAST", now, caster, "%s, %s",
+    traceHandler("SPELLCAST", caster, "%s, %s",
         tostring(ns:maskSecret(spellID)), tostring(ns:maskSecret(castBarID)))
 
     char:trackEvidence('cast', now)
@@ -381,7 +380,7 @@ absorbHandler:SetScript("OnEvent", function(self, event, target)
     if not guid then return end
     local now = GetTime()
 
-    traceHandler("ABSORB", now, target)
+    traceHandler("ABSORB", target)
 
     char:trackEvidence('shield', now)
 
@@ -400,7 +399,7 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
     local now = GetTime()
 
     local inCombat = UnitAffectingCombat(target)
-    traceHandler("FLAGS", now, target, "inCombat=[%s]", tostring(inCombat))
+    traceHandler("FLAGS", target, "inCombat=[%s]", tostring(inCombat))
 
     -- Check previously witnessed inCombat state. Did target leave combat?
     local lastInCombat = char:getEvidence('combatStatus'):head()
@@ -419,7 +418,7 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
         -- XXX: TODO: would be better to fold into Event(), but need some way to show
         -- special data like combat state or aura info in a generic event.
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-            "+++ track(FLAGS(combatDrop)): time=[%0.3f], source=[%s], flagChange=[%s], eventId=[%s/%d]",
+            "+++ track(FLAGS(combatDrop)): source=[%s], flagChange=[%s], eventId=[%s/%d]",
             ev:getTime(), ns:cosmeticOnlyMapGUIDToSlot(ev:getSource()),
             combatChange, ev:getId(), ev:getBatchId()))
     end
@@ -444,7 +443,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     local aurasUpdated = updateInfo['updatedAuraInstanceIDs'] or {}
     local now = GetTime()
 
-    traceHandler("AURA", now, unitTarget, "added=[%d], updated=[%d], removed=[%d]",
+    traceHandler("AURA", unitTarget, "added=[%d], updated=[%d], removed=[%d]",
         #aurasAdded, #aurasUpdated, #aurasRemoved)
 
     -- Mode for data collecting, e.g., out of combat. Shows secret values.
@@ -457,10 +456,14 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                     "DATA MINING: " .. ns.compactFormatter(v))
             end
         end
-        ns:printDebug(ns.LOGTYPE.DataMining, ns.LOGLEVEL.Normal,
-            "DATA MINING: auraInstanceIDs updated: " .. ns.compactFormatter(aurasUpdated))
-        ns:printDebug(ns.LOGTYPE.DataMining, ns.LOGLEVEL.Normal,
-            "DATA MINING: auraInstanceIDs removed: " .. ns.compactFormatter(aurasRemoved))
+        if #aurasUpdated > 0 then
+            ns:printDebug(ns.LOGTYPE.DataMining, ns.LOGLEVEL.Normal,
+                "DATA MINING: auraInstanceIDs updated: " .. ns.compactFormatter(aurasUpdated))
+        end
+        if #aurasRemoved > 0 then
+            ns:printDebug(ns.LOGTYPE.DataMining, ns.LOGLEVEL.Normal,
+                "DATA MINING: auraInstanceIDs removed: " .. ns.compactFormatter(aurasRemoved))
+        end
     end
 
     for _, v in pairs(aurasAdded) do
@@ -481,7 +484,8 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
                     "|cff00ff00++++++++++++++ target=" .. unitTarget ..
                     ": updating " .. ev:getId() .. "|r")
-                ns:trackAura("AURA(update)", ev:getAura()) -- always an aura event
+                local newEv = ns:trackAura("AURA(update)", ev:getAura()) -- aura is always present
+                newEv:setUpdate()  -- this is an update event
             end
         else
             -- concurrent buff/debuff evidence can also come from updates.
