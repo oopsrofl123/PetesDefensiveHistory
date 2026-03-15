@@ -357,24 +357,25 @@ function ns:manageEvents(updateTrace, guid)
                         ev:getId(), ev:getBatchId(), index, ability.id))
             end
 
-            -- special handling to reduce spam: for some abilities we know there will be many
-            -- updates that do not indicate a new cooldown was used. e.g.: sentinel updates
-            -- itself every 1s as it loses stacks, pillar of frost updates every time its
-            -- duration is extended.
-            --
-            -- XXX: TODO: blocks Avatar incorrectly. but while developing an Avatar solution,
-            -- it's much better to block() because the inference log spam is so bad debugging
-            -- becomes almost impossible.
-            if ability and ability.numAuraProviders == 1 and not evBatch[1]:isBlocked() then
-                evBatch[1]:setBlocked()
-                ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-                    'blocking eventId=[%s/%d]: numProviders=1',
-                    ev:getId(), ev:getBatchId()))
-            end
-
             if ev:isExpiring() then
                 ev:expire()
             else
+                -- special handling to reduce spam: for abilities with only one possible provider,
+                -- aura updates cannot mean a new ability was used. so block new events from
+                -- being registered.
+                -- N.B. do not :block() if the event batch is expiring, evBatch[1] may already
+                -- be nil.
+                --
+                -- XXX: TODO: blocks Avatar incorrectly. but while developing an Avatar solution,
+                -- it's much better to block() because the inference log spam is so bad debugging
+                -- becomes almost impossible.
+                if ability and ability.numAuraProviders == 1 and not evBatch[1]:isBlocked() then
+                    evBatch[1]:setBlocked()
+                    ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+                        'blocking eventId=[%s/%d]: numProviders=1',
+                        ev:getId(), ev:getBatchId()))
+                end
+
                 -- numPossibleSolutions is the most permissive set of possible solutions - it includes
                 -- abilities that are not yet satisfied by the observed evidence but still *could be*
                 -- in future inferences. if there are 0 possibilities, then there will never be a
