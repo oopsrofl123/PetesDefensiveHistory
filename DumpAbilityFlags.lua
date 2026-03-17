@@ -48,7 +48,7 @@ local edit = CreateFrame("EditBox", nil, scroll)
 edit:SetMultiLine(true)
 edit:SetFontObject(ChatFontNormal)
 edit:SetWidth(540)
-edit:SetAutoFocus(false)
+edit:SetAutoFocus(true)
 edit:EnableMouse(true)
 
 scroll:SetScrollChild(edit)
