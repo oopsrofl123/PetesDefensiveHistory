@@ -353,6 +353,23 @@ local function traceHandler(event, unit, message, ...)
         string.format(fmtString, event, unit, ...))
 end
 
+local eventPlaybackList = {}
+
+-- Record the WoW API events for export. This is very memory intensive and is only
+-- meant for developers.
+local function playback(event, source, ...)
+    local record = { event, source, ... }
+    table.insert(eventPlaybackList, record)
+end
+
+
+function ns:exportPlayback()
+    local rawString = C_EncodingUtil.SerializeCBOR(eventPlaybackList)
+    local compressedRecString = C_EncodingUtil.CompressString(rawString)
+    local finalString = C_EncodingUtil.EncodeBase64(compressedRecString)
+    return finalString
+end
+
 
 --------------------------------------------------------------------------------------
 -- Track player spell casts
@@ -363,6 +380,10 @@ castHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID
     local guid, char = ns:getTrackedCharacterBySlot(caster)
     if not guid then return end
     local now = GetTime()
+
+    -- the maybe secrets probably aren't useful
+    playback(now, "UNIT_SPELLCAST_SUCCEEDED", caster,
+        ns:maskSecret(castGUID), ns:maskSecret(spellID), ns:maskSecret(castBarId))
 
     traceHandler("SPELLCAST", caster, "%s, %s",
         tostring(ns:maskSecret(spellID)), tostring(ns:maskSecret(castBarID)))
@@ -383,6 +404,8 @@ absorbHandler:SetScript("OnEvent", function(self, event, target)
     if not guid then return end
     local now = GetTime()
 
+    playback(now, "UNIT_ABSORB_AMOUNT_CHANGED", target)
+
     traceHandler("ABSORB", target)
 
     char:trackEvidence('shield', now)
@@ -402,6 +425,9 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
     local now = GetTime()
 
     local inCombat = UnitAffectingCombat(target)
+
+    playback(now, "UNIT_FLAGS", target, inCombat)
+
     traceHandler("FLAGS", target, "inCombat=[%s]", tostring(inCombat))
 
     -- Check previously witnessed inCombat state. Did target leave combat?
@@ -469,8 +495,16 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         end
     end
 
+    local playbackFlags = {}
+    -- ensure no secret data is accessed for playback
+    local sanitizedAurasAdded = {}
     for _, v in pairs(aurasAdded) do
         local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
+        playbackFlags[v.auraInstanceID] = { aura.IMPORTANT, aura.BIG, aura.EXTERNAL,
+            aura.RAID, aura.RAIDINCOMBAT, aura.HELPFUL, aura.HARMFUL, aura.CANCELABLE,
+            aura.HELPNAMEPLATE, aura.NAMEPLATE, aura.HARMCC, aura.CC }
+        table.insert(sanitizedAurasAdded, { auraInstanceID=v.auraInstanceID,
+            icon=issecretvalue(v.icon) and 134400 or v.icon })
         if aura.HELPFUL and (aura.IMPORTANT or aura.BIG or aura.EXTERNAL) then
             -- This aura is important, likely from a big cooldown
             ns:trackAura("AURA(add)", aura)
@@ -479,6 +513,10 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             char:trackAuraEvidence(unitTarget, v.auraInstanceID, now)
         end
     end
+    if #aurasAdded > 0 then
+        updateInfo['addedAuras'] = sanitizedAurasAdded
+    end
+    playback(now, 'UNIT_AURA', unitTarget, updateInfo, playbackFlags)
 
     for _, auraInstanceId in pairs(aurasUpdated) do
         local ev = ns:getAuraEventByGUID(auraInstanceId, guid)
@@ -544,10 +582,11 @@ local function initAddon()
 
     -- Add precomputed flag strings to the abilities in AbilityDb so they don't have to be
     -- recomputed on each inference.
-    -- XXX: TODO: no longer used since the RAID flag change
+    ns.AbilityIdMap = {}  -- Provide an unnested spell ID -> ability map
     for category, abilities in pairs(ns.AbilityDb) do
         for _, ability in pairs(abilities) do
             ability.flags = ns:flagString(ability)
+            ns.AbilityIdMap[ability.id] = ability
         end
     end
 
