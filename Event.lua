@@ -65,6 +65,8 @@ function ns:Event(newTrace, newSource)
     end
 
     -- Trivial getters
+    function e:getExpiration() return expiration end
+
     function e:isBlocked() return blocked end
 
     function e:isUpdate() return isUpdate end
@@ -205,9 +207,19 @@ function ns:Event(newTrace, newSource)
         return GetTime() - time
     end
 
+    -- If source is nil, return a table of (actor, closest, diff) tuples for all tracked characters
     function e:timeSinceClosest(evidenceType, source)
-        local closest = closestEvidence[source][evidenceType] or 0
-        return closest, math.abs(closest - time)
+        if source then
+            local closest = closestEvidence[source][evidenceType] or 0
+            return closest, math.abs(closest - time)
+        else
+            local result = {}
+            for actor, evidence in pairs(closestEvidence) do
+                local closest = evidence[evidenceType] or 0
+                table.insert(result, { closest, math.abs(closest - time), actor })
+            end
+            return result
+        end
     end
 
     -- Can't do this in constructor because the common use case of :setAura() changes getId().
