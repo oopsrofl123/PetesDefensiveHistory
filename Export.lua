@@ -1,31 +1,62 @@
 local addonName, ns = ...
 
-local exportFrame --= allocExportFrame()
+local exportFrame
 
-function PetesDefensiveHistory_OnAddonCompartmentClick(addonName, buttonName)
-    local data = ns:exportPlayback()
-print("exporting event playback data")
-    ns:addToExportData(data)
+
+local function prepareExportData()
+    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Getting metadata")
+    local metadata = ns:getMetadata()
+
+    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Getting character data")
+    local characters = {}
+    for _, char in pairs(ns:getTrackedCharacters()) do
+        table.insert(characters, char:export())
+    end
+    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Found "..#characters.." characters")
+
+    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Getting event playback data")
+    local playback = ns:getPlaybackData()
+    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Found "..#playback.." playback events")
+
+    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Getting inference record data")
+    local inference = {}
+    for _, record in pairs(ns:getInferenceRecordData()) do
+        table.insert(inference, record:strip())
+    end
+    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Found "..#inference.." inference records")
+
+    local data = { metadata=metadata, characters=characters, playback=playback, inference=inference }
+    ns:setExportData(data)
     exportFrame:Show()
 end
 
 
--- XXX: TODO: terrible idea for the long term. just for early devel
-function ns:addToExportData(x)
-    if exportFrame.data then
-        exportFrame.data = exportFrame.data .. '\n' .. x
-    else
-        exportFrame.data = x
-    end
+function ns:setExportData(data)
+    exportFrame.data = data
     ns:updateExportString()
 end
 
+
+-- Whatever data is stored in the exportFrame: serialize, compress and encode it
 function ns:updateExportString()
-    local compressedString = C_EncodingUtil.CompressString(exportFrame.data or '')
+    local serializedData = C_EncodingUtil.SerializeCBOR(exportFrame.data)
+    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, string.format(
+        "Serialized: %0.1f kB", string.len(serializedData)/1000))
+    local compressedString = C_EncodingUtil.CompressString(serializedData)
+    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, string.format(
+        "Compressed: %0.1f kB", string.len(compressedString)/1000))
     local finalString = C_EncodingUtil.EncodeBase64(compressedString)
-    exportFrame.edit:SetText(not exportFrame.data and '' or finalString)
+    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, string.format(
+        "Encoded: %0.1f kB", string.len(finalString)/1000))
+    exportFrame.edit:SetText(finalString)
     exportFrame.edit:HighlightText()
 end
+
+
+function PetesDefensiveHistory_OnAddonCompartmentClick(addonName, buttonName)
+    prepareExportData()
+end
+
 
 local function allocExportFrame()
     -- Create a simple frame with an editbox
@@ -59,7 +90,8 @@ local function allocExportFrame()
 
     f.edit:SetScript("OnEscapePressed", function() f:Hide() end)
 
-    f:Show()
+    -- Don't show until the user clicks the compartment button
+    f:Hide()
 
     return f
 end
