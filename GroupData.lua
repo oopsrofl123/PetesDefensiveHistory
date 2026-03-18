@@ -75,6 +75,26 @@ function ns:Character(slot)
     local evidenceTracker = ns:makeEvidenceTracker()
 
 
+    -- Unlike inference records/events, the amount of character data stored doesn't grow
+    -- over time. There's no need to strip keys out of tables to save space. Here, just
+    -- choose what data to export. Main exclusions are runtime data like cooldown trackers
+    -- and evidence trackers - these contain data for very short windows and so aren't
+    -- useful.
+    function char:export()
+        return {
+            GUID=GUID,
+            playerName=name,
+            classFile=classFile,
+            raceName=englishRaceName,
+            raceId=raceId,
+            specId=specId,
+            specName=specName,
+            talentExportString=talentExportString,
+            talentRanks=talentRanks,
+            abilities=abilities,
+            possibleAbilities=possibleAbilities,
+        }
+    end
 
     -- Unsettable values --------------------------------------------------------
     -- Return the stable ID that is unique across factions and servers. This is
@@ -109,7 +129,7 @@ function ns:Character(slot)
         className, classFile, _ = UnitClass(slot)
         _, englishRaceName, raceId = UnitRace(slot)
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-            "Character(%s): new character GUID=[%s], name=[%s], class=[%s], raceId=[%s], raceName=[%s]",
+            "Character(%s,%s): set basic info name=[%s], class=[%s], raceId=[%s], raceName=[%s]",
             slot, GUID, name, tostring(classFile), tostring(raceId), tostring(englishRaceName)))
     end
 
@@ -250,6 +270,9 @@ function ns:Character(slot)
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
                 "Character("..slot.."): could not get GUID") -- Should error, not recoverable
 
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+            "Character(%s): new character with GUID=[%s]", slot, GUID))
+
         char:setBasicInfo(slot)
     else
         if not slot then
@@ -289,7 +312,6 @@ function ns:trackCharacter(slot)
 
     return char
 end
-
 
 
 
