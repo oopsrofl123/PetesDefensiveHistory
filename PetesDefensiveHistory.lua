@@ -131,6 +131,21 @@ function ns:slotToFrame(slot)
 end
 
 
+function ns:getMetadata()
+    local slotToFrameName = {}
+    for slot, frame in pairs(slotToFrame) do
+        slotToFrameName[slot] = frame:GetName()
+    end
+    return {
+        myGUID=myGUID,
+        slotToGUID=slotToGUID,
+        playerNameToSlot=playerNameToSlot,
+        slotToFrame=slotToFrameName,
+        GUIDToSlot=GUIDToSlot,
+        PetesDefensiveHistoryOptionsDb=PetesDefensiveHistoryOptionsDb,
+    }
+end
+
 
 function ns:updateCharacterData()
     -- Track newly observed characters
@@ -357,17 +372,15 @@ local eventPlaybackList = {}
 
 -- Record the WoW API events for export. This is very memory intensive and is only
 -- meant for developers.
+-- XXX: TODO: option to disable (for most users): reassign this function with a noop
 local function playback(event, source, ...)
     local record = { event, source, ... }
     table.insert(eventPlaybackList, record)
 end
 
 
-function ns:exportPlayback()
-    local rawString = C_EncodingUtil.SerializeCBOR(eventPlaybackList)
-    local compressedRecString = C_EncodingUtil.CompressString(rawString)
-    local finalString = C_EncodingUtil.EncodeBase64(compressedRecString)
-    return finalString
+function ns:getPlaybackData()
+    return eventPlaybackList
 end
 
 
@@ -561,6 +574,18 @@ end)
         --ns:manageEvents("POLL("..pollrate..", "..ns:cosmeticOnlyMapGUIDToSlot(guid)..")", guid)
     --end
 --end)
+
+
+--------------------------------------------------------------------------------------
+-- Detect when m+ keys and raid encounters start. Not sure what else triggers this.
+-- Does nothing for now.
+--------------------------------------------------------------------------------------
+
+encounterHandler:RegisterEvent("ENCOUNTER_START")
+local encounterHandler = CreateFrame("Frame", addonName .. "EncounterLoader")
+encounterHandler:SetScript("OnEvent", function(self, event, encounterID, encounterName, difficultyID, groupSize)
+    print(event, encounterID, encounterName, difficultyID, groupSize)
+end)
 
 
 --------------------------------------------------------------------------------------
