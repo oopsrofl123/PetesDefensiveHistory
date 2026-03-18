@@ -13,8 +13,8 @@ libs\LibSpecialization\LibSpecialization\LibSpecialization.lua
 Globals.lua
 AbilityDb.lua
 Utils.lua
-Export.lua
 Options.lua
+Export.lua
 Talents.lua
 TalentDb.lua
 Event.lua
