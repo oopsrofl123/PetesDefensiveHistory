@@ -31,6 +31,7 @@ local optionsDefaults = {
     debugLoggingTypeData = false,
     debugLoggingTypeDataMining = false,
     debugLoggingTypeSimulation = false,
+    debugLoggingTypeExport = false,
     runGC = false,
 }
 
@@ -463,6 +464,21 @@ child = Settings.CreateCheckbox(ns.optionsCategory, setting,
 child:SetParentInitializer(toplevel)
 
 
+-- Export logging
+local setting = Settings.RegisterProxySetting(
+    ns.optionsCategory,
+    "debugLoggingTypeExport",
+    Settings.VarType.Boolean,
+    "Export",
+    optionsDefaults['debugLoggingTypeExport'],
+    function() return ns:GetOption('debugLoggingTypeExport') end,
+    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeExport = value  end
+)
+
+child = Settings.CreateCheckbox(ns.optionsCategory, setting,
+    "Print inference traces when converting internal data to export strings.")
+child:SetParentInitializer(toplevel)
+
 
 
 -- Don't log extremely spammy messages like talent ranks and ability inference
@@ -507,9 +523,9 @@ local checkAll = CreateSettingsButtonInitializer(
         end
     end,
     "Select all checkboxes",
-    true, -- addSearchTags
-    nil, -- newTagID
-    nil -- gameDataFunc
+    true,
+    nil,
+    nil
 )
 
 layout:AddInitializer(checkAll)
@@ -524,9 +540,9 @@ local uncheckAll = CreateSettingsButtonInitializer(
         end
     end,
     "Unselect all checkboxes",
-    true, -- addSearchTags
-    nil, -- newTagID
-    nil -- gameDataFunc
+    true,
+    nil,
+    nil
 )
 
 layout:AddInitializer(uncheckAll)
