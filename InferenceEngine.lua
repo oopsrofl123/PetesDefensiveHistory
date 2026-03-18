@@ -1,5 +1,11 @@
 local _, ns = ...
 
+local inferenceRecordList = {}
+
+function ns:getInferenceRecordData()
+    return inferenceRecordList
+end
+
 -- Aura removal events aren't processed at exactly the moment the buff
 -- is removed. E.g., if a buff lasts 12s it is common to see the removal
 -- event at 12.05s or 11.95s.
@@ -83,9 +89,23 @@ function ns:InferenceRecord(now, trace, event)
             eventSlot, eventId, batchId, inferenceAttempt)
     end
 
+    -- Make a stripped-down table without key names to save space for exporting
+    local function stripLogic()
+        local logicLayers = {}
+        for abId, logicSummary in pairs(logicLayersByAbility) do
+            local thisAbil = {}
+            for name, result in pairs(logicSummary.logic) do
+                thisAbil[ns.logicLayerAliases[name]] = { result.pass, result.final }
+            end
+            logicLayers[abId] = { logicSummary.pass, thisAbil }
+        end
+        return logicLayers
+    end
+
     local function logicStringForAbility(abilityId, logicSummary, compact)
         -- supposedly building a table -> table.concat is faster than piecewise `..`
-        local t = { abilityId .. ":" }
+        local ability = ns.AbilityIdMap[abilityId]
+        local t = { ability.alias or ability.name .. ":" }
         for name, result in pairs(logicSummary.logic) do
             local s = (result.pass and "|cFFAFD5AB" or "|cFFFA003F") ..
                       (compact and ns.logicLayerAliases[name] or name) .. 
@@ -107,6 +127,21 @@ function ns:InferenceRecord(now, trace, event)
             end
         end
         return table.concat(t, " ")
+    end
+
+    -- Make a stripped-down table without key names to save space for exporting
+    local function stripConfidence()
+        local abId = confidenceLayers.ability and confidenceLayers.ability.id or nil
+        local certain = confidenceLayers.certain
+        local numPossible = confidenceLayers.numPossible
+        local layers = {}
+
+        for _, match in pairs(confidenceLayers.layers) do
+            local layerName, ability, certain = unpack(match)
+            layers[ns.confidenceLayerAliases[layerName]] = { ability and ability.id or nil, certain }
+        end
+
+        return { abId, certain, numPossible, layers }
     end
 
     function r:confidenceString(compact)
@@ -131,6 +166,15 @@ function ns:InferenceRecord(now, trace, event)
             confidenceLayers.numPossible, match, table.concat(t, ''))
     end
 
+    -- Make a stripped-down table without key names to save space for exporting
+    local function stripReqs()
+        local reqEvi = {}
+        for k, v in pairs(requiredEvidence) do
+            reqEvi[ns.logicLayerAliases[k]] = ns:stripKeys(v)
+        end
+        return reqEvi
+    end
+
     function r:reqString()
         local result = ""
         for reqName, req in pairs(requiredEvidence) do
@@ -139,6 +183,26 @@ function ns:InferenceRecord(now, trace, event)
                 req.pass and "|cFFAFD5AB" or "|cFFFA003F", reqName, req.timeSince)
         end
         return result
+    end
+
+    function r:strip()
+        return {
+            inferenceTime,
+            inferenceTrace,
+            inferenceAttempt,
+            eventTime,
+            eventTrace,
+            eventId,
+            eventSource,
+            eventSlot,
+            batchId,
+            ability and ability.id or nil,
+            certain,
+            ability and ability.caster or nil,
+            stripLogic(),
+            stripConfidence(),
+            stripReqs()
+        }
     end
 
     return r
@@ -295,6 +359,30 @@ local function evidenceWitnessed(event, ability, evidenceType, evidenceActor, pe
 end
 
 
+-- To reduce false positives on combat drops, check how many other characters dropped
+-- combat at the same time. If too many drop, then an ability probably was not used.
+local function logicLayerNotGroupCombatDrop(event, ability, evidenceActor, permissive)
+    -- Returns closest times for all characters if no actor provided
+    allDrops = event:timeSinceClosest('combatDrop')
+    local numDropsExcludingActor = 0
+    for _, drop in pairs(allDrops) do
+        closest, diff, actor = unpack(drop)
+        if actor ~= evidenceActor and diff <= ns.CONCURRENT_EVENT_TOLERANCE then
+            numDropsExcludingActor = numDropsExcludingActor + 1
+        end
+    end
+
+    -- If 2 or more people drop combat at the same time, combat likely ended. No need
+    -- to wait for more evidence.
+    if numDropsExcludingActor > 1 then
+        return { pass=false, final=true }
+    end
+        
+    local final = event:timeSince() > ns.CONCURRENT_EVENT_TOLERANCE
+    -- The final return value (timeSince) doesn't really make sense here
+    return { pass=permissive or final, final=final }, event:timeSince()
+end
+
 
 -- If we already identified the aura, does this ability apply that aura?
 -- N.B. assumes aura and aura.inferredId are both non-nil
@@ -330,10 +418,11 @@ end
 -- 1 letter aliases for compact log strings
 ns.logicLayerAliases = {
     buff='B',
-    cast='P',         -- p for button _p_ress
+    cast='P',                -- p for button _p_ress
     combatDrop='C',
-    cooldown='d',     -- d for cool_d_own
-    duration='U',     -- U for d_U_ration
+    notGroupCombatDrop='g',  -- g for not_G_roupCombatDrop
+    cooldown='d',            -- d for cool_d_own
+    duration='U',            -- U for d_U_ration
     debuff='D',
     flags='F',
     shield='S',
@@ -391,6 +480,7 @@ local function getPossibleSolutions(event, cdTracker)
         end
         if ability.requireCombatDrop then
             logic['combatDrop'] = evidenceWitnessed(event, ability, "combatDrop", "target", true)
+            logic['notGroupCombatDrop'] = logicLayerNotGroupCombatDrop(event, ability, "target", true)
         end
         if ability.requireButtonPress then
             logic['cast'] = evidenceWitnessed(event, ability, "cast", "caster", true)
@@ -406,7 +496,7 @@ local function getPossibleSolutions(event, cdTracker)
         local allPass = true
         for _, result in pairs(logic) do allPass = allPass and result.pass end
 
-        local abId = ability.alias or ability.name
+        local abId = ability.id
         if ability.caster ~= event:getSource() then
             abId = abId .. "_" .. ns:cosmeticOnlyMapGUIDToSlot(ability.caster)
         end
@@ -641,6 +731,8 @@ local function abilityMeetsRequirements(ev, ab)
     if ab.requireCombatDrop then
         reqs['combatDrop'] = makeReq(evidenceWitnessed(ev, ab, "combatDrop", "target", false))
         reqsMet = reqsMet and reqs['combatDrop'].pass
+        reqs['notGroupCombatDrop'] = makeReq(logicLayerNotGroupCombatDrop(ev, ab, "target", false))
+        reqsMet = reqsMet and reqs['notGroupCombatDrop'].pass
     end
     if ab.requireButtonPress then
         reqs['cast'] = makeReq(evidenceWitnessed(ev, ab, "cast", "caster", false))
@@ -717,6 +809,9 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker, quiet)
         ev:setAbility(abilityMatch)
         ev:setCertain(certain)
     end
+
+    -- XXX: TODO: add some option to disable (default:true)
+    table.insert(inferenceRecordList, record)
 
     return ev:getAbility()
 end
