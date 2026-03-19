@@ -419,7 +419,9 @@ absorbHandler:SetScript("OnEvent", function(self, event, target)
 
     playback(now, "UNIT_ABSORB_AMOUNT_CHANGED", target)
 
-    traceHandler("ABSORB", target)
+    -- XXX: TODO: re-enable this later through some option. it is a uniquely
+    -- spammy event.
+    --traceHandler("ABSORB", target)
 
     char:trackEvidence('shield', now)
 
