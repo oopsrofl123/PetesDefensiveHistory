@@ -1,196 +1,77 @@
 BUGS
 ===========================================================================
-- ZKS simulation doesn't know how to create nonAuraEvents
-- continue decoupling event from buff
-    - removing "buff" from most everything in PetesDefensiveHistory.lua
-- remove lastNegativeAuraId/makeAura hack for non-aura events in shadowmeld
-- retest meld since it exercises a completely different code path
+SHADOWMELD
+- seems to still be some erroneous shadowmelds. implement group drop protection
+    - done. needs testing
+- bug on open world and on dummies in silvermoon
+    - somehow there was no buff?
+    - target dummies do not allow combat to drop if you are close enough to them
+        - this is probably to help prevent annoying things like damage meters resetting on vanish
+          or something.
+    - but still lost meld on an outdoors mob because the flags event happened 0.1s away from
+      the aura event.
+    - might need a more lax tolerance for meld. leaving combat could be handled differently on the
+      server side from simple aura applications
+
+- there is a scenario where the visual debugging 'partyX' label does not show up on a frame
+    - happened once in an LFG heroic and one more time in random testing, but I can't make it happen again
+    - this did not affect the actual tracker UI weirdly enough, even though the visual debugging label
+      is attached to it
+
+* even if the recent change to setSpecAndTalents() fixed the error below, need to test 
+  exactly what order events occur when zoning into a dungeon
+    - the LFG system is probably a little different
+- bug in reading classFile in heroic dungeon
+    GroupData.lua: 139: bad argument #1 to 'pairs' (table expected, got nil)
+    ..setSpecAndTalents()
+    (i.e.,  through libspec)
+
+    self = table {
+    }
+    spec = 104
+    tstring = "talents.."
+    specId = 104
+    _ = 104
+    specName = "Guardian"
+    className = "Druid"
+    talentExportString = "talents.."
+    classFile = nil
+    talentRanks = {
+        102401=1,
+        ...
+    }
+    abilities = {
+    }
+    possibleAbilities = {
+    }
+    UID = "Player-3725-0C5D2422"
+    englishRaceName = nil
+
+
 - new bug in follower dungeon:
     - reload UI
     - immediately cast freedom
     - somehow this circumvents the glow/cooldown swipe
-- continue removing event>buff.duration
-    - need to retest vdh meta (forceFullDuration?)
-- test removing infer from buff added
-- get rid of all external uses of ns.eventsForInference
-    - move poller loop into Event.lua
-- generate an event on update
-- generalized event system
-    - make inferAbility not depend on buff-specific stuff
-      fields expected by inferAbility:
-        - buff.ability
-        - buff.certain
-        - buff.target
-        - buff.{IMPORTANT,BIG,EXTERNAL,RAID,RIC}
-        - buff.startTime
-        - buff.duration
-        - buff.endTime (for isBeingRemoved)
-        - buff.closest_cast
-        - buff.inference
-        - buff.auraInstanceId (printing - events just need names)
-        - buff.maxCD
-    - events have:
-        - basic info (most of above)
-        - evidence (current event trackers)
-        - whether the event is flagged to be untracked
-    - remember:
-        - want to be able to query evidence when deciding to make an event. examples:
-            * meld: drop combat + button press + aura
-            * updates: button press + aura update
-    - getCastTimeDiff(): should this be part of Event()?
-    - generally: getEventTimeDiff/ConcurrentEvent(): these are about evidence, which
-      should be handled by Event(). the later judgment and weight of evidence by the
-      confidenceNetwork will *NOT* be delegated to Event.
-
-- WoW BUGS TO HANDLE:
-    - VDH meta: procing last resort puts meta on CD
-
-- Change how uncertain inference is handled. "uncertain" does not fully convey the situation:
-  the only current use of uncertain is VDH meta. what it means is we have identified the buff,
-  but don't know which ability caused it. this generalizes to GoAK.
-    * when a certain OR uncertain inference is made, save the ability to the event
-        - e.g., buff.ability=Metamorphosis of buff.ability=Guardian of Ancient Kings
-    * regardless of certain vs. uncertain, this event may be subject additional rounds of inference
-        - certain: buff updates (another charged used?)
-        - uncertain: buff updates, buff expiry
-    * if buff.ability is set:
-        - prune the possibleAbilities list
-        - potentially different confidence layer?
 
 
-- last big change before r1: multi-ability buffs
-    - where does the "1 buff, many abilities" bridge come in?
-    - CURRENT PROBLEM: where is the line between logic and UI?
-    - sketch hierarchy:
-EVENTS 
-    - EVENTS have a many-to-many mapping to ABILITIES
-        - 1 event -> many abilities: buff that can be updated with second charge (GoAK, VDH meta)
-        - many events -> 1 ability: AoE stops create (possibly) many debuffs, many spellcast interrupts
-    - all events go into a history
-    - Some events are tracked for inference
-        * Auras (buffs, debuffs). Debuffs on nameplates with flag=CROWD_CONTROL are CCs
-        * Spellcast interrupted (kicks, CCs)
-        * Shadowmeld (UNIT_AURA, UPDATE_STEALTH, PLAYER_REGEN_ENABLED, UNIT_THREAT_LIST_UPDATE, PLAYER_IN_COMBAT_CHANGED, etc.?)
-    Events are either :witnessed() or :tracked(); if :tracked() they need to be :inferred() and eventually :untracked()
-    1. :witness()
-    2. :track()
-    3. :getTracked()
-        need to be able to loop over the "important" events so they can be inferred, but :infer()
-        might not be an event method
-    4. :loop over evidence events "getEvidence()"?
-        the current prepareClosestEvents: need to loop over some specific set of events
-        to gather evidence for inference
-    5. :untrack()
-    **6**. :consume()
-        CRITICAL: event > ability assignments must sometimes consume events.
-        PROBLEM: ringbuffer FIFO isn't a good data structure for removing arbitrary elements
-        Examples:
-        a. must consume: GoAK vs. cheat. there are two relevant evidentiary events: a spellcast and a debuff.
-           if GoAK is used at the same time cheat procs, these events are too close to the buff add/updates
-           to use them to differentiate which happened first. but, because they're so close together, it doesn't
-           really matter which happened first, just make an assignment and move on and tolerate a <0.1s inaccuracy
-           in the CD tracker.
-           TO DO THIS: either: GoAK *consumes* the spellcast event when it is assigned or cheat *consumes* the
-           debuff when it is assigned. consumption means the evidentiary event is no longer present in a followup
-           inference.
-        b. must not consume: AoE CCs. an AoE CC cast creates one spellcast event but may cause many CCs. the point
-           is that consumption is not always correct
-          
 
-    HOW COULD THE NEW SYSTEM HELP TO HANDLE GOAK/META?
-    - do we need a system to tell the user when something happened that we couldn't figure out?
-      maybe the exclamation mark badge should be a dynamic thing?
-    GOAK:
-        - in certain cases, decoupling event tracking from visuals is why it helps
-        - in uncertain cases: C=cheat, G=GoAK
-            CASE: C>G where G cast is close enough to C proc that can't determine which was which
-                  need a VDH-like "return GoAK even though it could be cheat"
-                  if uncertain, then the two abilities were used so close together that we can't
-                  discern which caused the debuff. so just assign arbitrarily. first can always
-                  be GoAK. the CD will be off by fractions of a second.
-            ^^^ this won't work because we can't distinguish C>G from G>G without C's duration.
-                a debuff is not POSITIVE evidence of C - but lack of a debuff is POSITIVE evidence of G by excluding C
-                no spellcast is POSITIVE evidence of C - excludes G, leaving only C
-                REQUIRES CONSUMPTION TO AUTOMATICALLY RESOLVE (ARBITRARILY)
+V1.0 RELEASE FEATURES
+===========================================================================
+- some amount of export support. otherwise there's just no way to know how well it works
 
-    - what actions are performed on *a buff*?
-        BUFFs have a lifecycle:
-        1. add
-        2. update
-        3. remove
-        The purpose of a buff is to create structured events telling us WHEN
-        to do things. The things we do during the buff lifecycle:
-        1. infer new ability was used
-        2. UI feedback
-        BUFF API should contain -------------------------------
-            1. infer()
-                c. finalizeInference - harden the link between buff <-> ability (commit with UI feedback)
-                    d. trackCooldown - subroutine of finalize. only exists as a function for the BoP/spellward hack
-                    *** should finalizing a buff take it out of the tracked list?
-                d. inferAndAct - run infer() and react with feedback. this is necessary since there are many events
-                    that trigger inference and the reaction needs to be uniform. OTOH, the stand-alone infer() needs
-                    to exist for things like simulations
-                e. buffExpiredOrReplaced - visual reactions
-            2. make() - just alloc a standard structure
-        BUFF API should NOT contain -------------------------------
-            [3. track() - decide if the buff is one we want to infer or just an event to witness]
-                a. prepareClosestEvents  } - these should be in InferenceEngine, pass the event trackers
-                b. prepareForInference   }
-    * abilities with charges should be given DURATION_LTE
-        - this was identified as a clever hack for vdh apex meta, but really it's what describes
-          most charge abilities
-            - the only counterexample i've seen is shadow dance, which doesn't allow dance to be pressed
-              a second time while it's running
-        - setting DURATION_LTE affects other ability inferences since the duration of the charge ability
-          can now be consistent with shorter duration abilities
+- use the new export functionality to export raw events from a few dungeon runs
 
-    - what are the actions performed on *an ability*?
-        1. claim ability was used
-            a. TTS announce
-            b. glow the UI element
-            c. track the CD
-        2. claim the ability is done
-            a. unglow UI
-            b. start the cooldown swipe
-    - why do we check for buffs in update? TO SEE IF NEW ABILITIES ARE USED
-        - might need to determine all updateable abilities per spec
-    - exposing some internals of inferAbility: check was button pressed?
-    - extend buff.ability to be a list of abilities
-    - buff.ability is never used directly
-    - buff -> ability mappings are always from getAbility
-        - getAbility:
-            1. buffExpiredOrReplaced()
-                -> visual response to a buff going away
-            2. update loop: GOAL: detect whether new ability caused this update
-                -> new ability occured that caused update?
-                -> more information came in about an uncertain ability
-            3. remove loop
-                -> stop visuals
-        - buffExpiredOrReplaced
-            1. update loop - before infer
-            2. remove loop - after infer
-    - update loop: if there's a reason to associate a new ability, append to list
-        - things like finalize need to happen here so that cooldowns are known ASAP, not
-          when the buff expires (affects potentially other abilities)
-    - remove loop: go through and expire all abilities
 
-BUFF LIFECYCLE:
+- watch m0 vod to find bugs
+    - why was freedom often in history tray? (was it on non-libspec players?)
 
-OBSERVATION     ACTION      ABILITY             VISUALS                 DATA
-BUFF ADDED      INFER       ability occurred    GLOW+ANNOUNCE           TRACK CD
-POLL/EVENT      INFER
-POLL/EVENT      INFER
-    ...
-POLL/EVENT      INFER       another ability?    GLOW+ANNOUNCE/HIDE
-    ...
-BUFF UPDATED    INFER
-    ...
-BUFF UPDATED    INFER
-BUFF REMOVED    INFER                           HIDE
+- update github/curseforge readmes
+    - mention restricted license for now with intended open license later
+    - want to work with frontend UI designers
 
-- hardest part: full pass on ability testing, especially with updating. this
-  is not easy to do since seemingly uninteresting talents can cause updating.
-  see, e.g., the mage hero talent that causes ice cold/ice block to constantly
+
+- full pass on ability testing, especially with updating. not easy to do since seemingly uninteresting
+  talents can cause updating.  see, e.g., the mage hero talent that causes ice cold/ice block to constantly
   update as they allow you to move
 ****** CHECK UPDATES
 ****** CHECK CONCURRENTBUFF ABILITIES - SEE TalentDb - ONLY SHADOW DANCE HAS A non-talented CONCURRENT BUFF
@@ -220,8 +101,33 @@ pain supp
     - warrior
 avatar (proc>press)
 
-- handle some special cases
+
+
+NOTES ON COMPLEX CASES
     - [UPDATE] meta vs. apex is solved. now cheat death (should be easier)
+    - AVATAR SHOULD BE HANDLED WITH UNCERTAIN=true
+        - [UPDATE] just guessing that avatar on add is the real avatar is a decent approx. when proc>avatar
+          happens, the potential differentiating signals are (a) total duration and (b) an update that happens
+          "too fast". avatar updates for two reasons:
+            * real avatar was pressed during proc avatar
+            * tblast was pressed
+          tblast has a 6s (reduced by haste) cooldown, which is where (b)'s "too fast" comes from. (a) can
+          also be calculated but will be confused by things like bloodlust, which will allow many more
+          avatar extensions than usual due to reduced tblast cooldown. [FOR NOW] treat avatar like every
+          other extension ability, guessing that the ADD event is real avatar. as long as stand-alone proc
+          avatars are not confused for real avatar, this approximation won't be noticeable since avatar has
+          CDR anyway.
+        - can't tell whether the proc or real buff was pressed until duration exceeds 4s.
+          but it is unambiguous which buff is active, so just light it up immediately.
+        - the AotS proc can't happen during avatar
+        - is avatar of the storm properly tracked? needs testing
+            - cast at 939.946
+            - proc > avatar overwrites duration (sets to 20s), doesn't extend
+            - avatar can update for 2 reasons: proc, +2s extension
+            - if there is a proc, it must be the AURA(add) event
+            - but if so, is it possible to determine which of the updates was the real avatar?
+                - sad part is even if this can be figured out, avatar has CDR anyway so the timer won't be correct
+            - avatar procs don't grant 2 thunder blast stacks
     - THE VDH META SPECIAL CASE: when meta extends, which ability was pressed first?
       this determines the cooldown. when apex>meta, the duration does not
       extend. when meta>apex, it does. so:
@@ -260,21 +166,26 @@ avatar (proc>press)
           a button within tolerance of cheat
         - cheat does not glow goak. so it also never deglows goak. seems glowing goak is the better thing
           to do, similar to that dh talent
+        MORE NOTES FROM A DIFFERENT DISCUSSION ----------------
+        - in uncertain cases: C=cheat, G=GoAK
+            CASE: C>G where G cast is close enough to C proc that can't determine which was which
+                  need a VDH-like "return GoAK even though it could be cheat"
+                  if uncertain, then the two abilities were used so close together that we can't
+                  discern which caused the debuff. so just assign arbitrarily. first can always
+                  be GoAK. the CD will be off by fractions of a second.
+            ^^^ this won't work because we can't distinguish C>G from G>G without C's duration.
+                a debuff is not POSITIVE evidence of C - but lack of a debuff is POSITIVE evidence of G by excluding C
+                no spellcast is POSITIVE evidence of C - excludes G, leaving only C
+                REQUIRES CONSUMPTION TO AUTOMATICALLY RESOLVE (ARBITRARILY)
 
 
-- [NEEDS TESTING] concurrentBuffs: if the buff that must be applied by an ability that can be updated,
-  these currently will not fire. need to check the updated list in UNIT_AURA while
-  pushing into eventTracker.buffs
-    * e.g., thunder blast from avatar
-
-
-- hides chubb's micromenu (bags, character sheet, group finder, etc. buttons)
-    - if it helps: it's from dominos, not the blizz default menu
 
 
 
 NEEDS TESTING
 ===========================================================================
+- hides chubb's micromenu (bags, character sheet, group finder, etc. buttons)
+    - if it helps: it's from dominos, not the blizz default menu
 - better handling of spec querying
 	- libspecialization updates during m+ runs. need to figure out why
 - groups with sac and ironbark
@@ -286,17 +197,175 @@ NEEDS TESTING
 
 
 
-V1.0 RELEASE FEATURES
-===========================================================================
-- bugs
-
-- update github/curseforge readmes
-
-
-
 
 V1.1 RELEASE FEATURES
 ===========================================================================
+TEST HARNESS
+    - wrap the very few WoW API calls with functions that can inject correct responses when run
+      in standalone mode
+    - if this is possible, could feed public logs into harness to test on massive amounts of data
+    - figure out a way to run those raw events through the addon lua code for inference
+        - playback() in each handler mostly works, but need wrappers that defer to internally-stored
+          data for:
+            * UnitAffectingCombat()
+            * fasterGetFilterFlagsForAuraInstanceId()
+            * GetTime()
+        - also need a way to set up trackedCharacters
+    - assess accuracy through an accompanying log
+        - there will probably be issues with ability ID mapping for those abilities with
+          several possible IDs. the IDs are necessary for the extraction step
+
+EXPORTING
+    * ALIGNER:
+        - appliesOtherAuraId should not work but appears to
+            - turns out the cheat death version of GoAK (393108) is in the log alongside normal GoAK
+              (86659). this might not apply to other overwrites (maybe even related to 12s cheat bug?)
+    * NEEDS TESTING: can the combat log come from someone other than the addon exporter? the decoder
+      script supports mapping to the correct slot (i.e., vis-a-vis the addon exporter) but the log and
+      export timestamps might be more discordant
+    * MUST DO: add option to compartment menu to reset the internal data trackers
+        - need this to allow resetting when entering a new instance, e.g.
+        - or could do it on ZONE_AREA_CHANGED?
+    * would be nice to log encounter IDs/zone IDs somehow. the current ones at the time of export aren't
+      necessarily informative
+        - right now, collecting data over several m+ runs likely won't work. aligning it to the combat log
+          will probably fail. instead, export data needs to be organized by encounter/zone ID. this would
+          be pretty clean in raids/m+ but in open world/non-m+ dungeons there is no "start event"
+        - would need to key the inference/playback event lists by encounter/zone ID
+        - would also have to copy the chardata/metadata per encounter/zone ID
+    - finish work on InferenceRecord (logic, conf, reqs, metadata: timestamps, source/aura, ID, traces, etc)
+        * add evidence? maybe not necessary
+    - add handler triggers to data
+        - might require handler collapsing especially for crazy ones like absorb
+    - make record type to distinguish inference records from handler events
+    - for combat log parsing -> creating tracked characters, have to parse COMBATANT_INFO, which
+      fires when starting a key. not sure if anything fires for m0.
+        - https://warcraft.wiki.gg/wiki/COMBAT_LOG_EVENT#COMBATANT_INFO
+    * have to encode slot=player GUID in playback output for log alignment
+        - in real code would encode the whole trackedCharacters(), but myGUID isn't that much to add
+    * need to encode ability.caster in InferenceRecord output
+    * could logs help tune the time tolerances?
+        - motivated by how close log and playback spellcast times are. if aura applications were
+          similar, then could get some distributions on tolerances
+
+- char:setBasicInfo() is now updated regularly, but will not do expected things like add racials
+  to the ability list because abilities are only added in setSpecAndTalents(), which is not called
+  regularly (for good reason).
+
+- EVENT ARCHITECTURE add :consume(), consider moving finalizeInference/trackCooldown to Event
+- :consume() - event > ability inferences should somtimes consume the evidence associated with them.
+               this essentially assigns evidence to an event.
+  there must be a no-side effects version of consume
+  PROBLEM: ringbuffer FIFO is a bad data structure for removing arbitrary elements
+    - rather than remove, set the item to nil or whatever the initializer element was?
+    - solution: ringbuffer becomes 2-tuples of (timestamp, #events), solving 2 problems:
+        a. can squish multiple simultaneous events into a single record, reducing the need for
+           a large queue size
+        b. can set #events=0 when they're consumed and leave the count=0 records in the ringbuffer
+  Examples:
+    a. must consume: GoAK vs. cheat. there are two relevant evidentiary events: a spellcast and a debuff.
+       if GoAK is used at the same time cheat procs, these events are too close to the buff add/updates
+       to use them to differentiate which happened first. but, because they're so close together, it doesn't
+       really matter which happened first, just make an assignment and move on and tolerate a <0.1s inaccuracy
+       in the CD tracker.
+       TO DO THIS: either: GoAK *consumes* the spellcast event when it is assigned or cheat *consumes* the
+       debuff when it is assigned. consumption means the evidentiary event is no longer present in a followup
+       inference.
+    b. must not consume: AoE CCs. an AoE CC cast creates one spellcast event but may cause many CCs. the point
+       is that consumption is not always correct
+
+
+- arena: GetArenaOpponentSpec() and GetNumArenaOpponentSpecs() to get specs. doubt we can get talents.
+
+- event handler output collapsing
+    - or as a bandaid fix, just mute ABSORB
+
+- what to do with double freedom? the second freedom's caster is known (assuming only 1 paladin)
+  but only one can be finalized since it will put freedom on cd.
+    - the one that isn't finalized will be continually inferred (with failure), is a very common
+      flagset (10000), and will be put in the tray.
+    - special handling around cooldown exclusion is necessary to solve
+
+- addon show/hide is a hack right now but happens to work. need to:
+    1. delegate showing/hiding responsibility to the TrackerUI update* functions
+    2. get rid of extra :Show() loop in respondToRosterUpdate()
+    3. consider whether data updating should remain tied to UI updating (respondToRosterUpdate())
+
+- UNIT_FLAGS fires on dismount (and fires an AURA)
+
+- convert evidence trackers from timestamps -> (timestamp, count)
+    - squash multiple events at same (or within tol ~1ms) into a single event to avoid
+      overflowing the ringbuffer.
+    - UNIT_ABSORB is a particularly bad offender, e.g. on prot paladin throwing divine toll grants
+      an absorb for every shield hit.
+
+- meld protection: check for combat drops of other players. if too many others also left combat,
+  then prevent inferring meld
+    - example of meld FP in heroic nexus point at 12:34
+
+- rather than polling, just queue a callback for TOLERANCE seconds in the future
+
+- batch inference
+    - when multiple events attached to same ability, perform inference on the batch.
+      this generalizes the case of abilities that update themselves without button presses
+      (i.e., the old numUpdates data, which was never used) and also is the basis for complex
+      chains of aura updates like vdh meta and goak
+    - for logging: must print batch ID in addition to event ID
+    - when none of the abilities in a batch are certain, only add 1 copy of the secret texture to history tray
+    - avatar
+        - avatar proc can't occur during avatar, meaning two things:
+            a. no procs during avatar
+            b. no procs during PROCS
+        - every tblast is an aura update and a new event, will be LOTS of events in this batch
+        - tblast has the same cooldown as tclap (6s, scales with haste)
+            - this constrains number of extensions for both AotS and avatar.
+            - AotS: 6s base, 10s max (2 exts): extension 1 -> 8s allowing for cd to finish and cast 2nd
+                * need >50% haste to get a 3rd. prob happens during lust
+        - since each update = new event, every update that isn't IDed will get sent to the history tray
+          batch logic needs prune out extra events to prevent this
+            - similar to VDH meta where the apex talent cd isn't tracked, AotS' cooldown also is untracked
+            - so the batch logic just needs to determine if the event was long enough for a real avatar to
+              put on cd. unfortunately it probably can't be determined whether avatar occurred on the
+              AURA(add) or was a proc>avatar. so the exact start of the CD often won't be possible. can take
+              the worst case approach and always assume first. an exact CD timer won't matter since there is
+              dynamic CDR anyway.
+    - goak
+    - vdh meta
+    - sentinel
+        - this is already handled but in a hamfisted way. prevented from AURA(update) by charges=1
+          and naturallyUpdates=true. which is another way of saying updates aren't of interest.
+        - just need to prevent this from filling up the history tray. not a complex ability
+
+- make certain evidence queryable without going through infer
+    - example: player pressed a button. important for making updates generate events
+
+- make a better "isOffCooldown()" function for use in inference engine and in the update aura loop.
+  incorporate heuristics for dynamic CDR + charge abilities.
+
+- [MAYBE FALSE REPORT] cooldown visual state is forgotten between zone loads
+  internal data in cdtracker is not forgotten, so should be possible to correct.
+
+- WoW BUGS TO HANDLE:
+    - VDH meta: procing last resort puts meta on CD
+    - generalize the BoP puts spellward on CD subroutine
+        - affecting other cooldowns: maybe when BoP is detected, generate a new event with
+          the same auraID but a certain ability ID and ability set to spellward?
+            - would not work with evidence consumption
+            - would possibly glow the spellward icon
+
+
+- exclamation badges: visual feedback to the user when cooldown tracking (e.g. CDR or
+  possibly other reasons) is inconclusive.
+
+- add Vanish ability for rogues not because we can track it but because it looks
+  similar (identical?) to shadowmeld and needs to prevent vanish inference on
+  night elf rogues.
+
+- ZKS simulation doesn't know how to create nonAuraEvents
+
+- don't push duplicate time stamps for evidence (some abilities like bubble taunt
+  generate 1 event per mob taunted (maybe)). allows reducing buffer size
+
 - generalize Event to allow non-tracked characters to be event sources
     - happens when CC is used: the source is the target (or multiple targets, for AoE)
     - for AoE CCs: need to prevent adding tons of events for a single ability (one
@@ -368,6 +437,32 @@ NICE-TO-HAVE FEATURES
 ===============================================================================
 
 RANDOM IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
+- could record exact duration extends. since these extends always fire updates, it could be
+  possible to accurately calculate the extended duration rather than just saying GTE (though
+  this is not trivial - sentinel updates every 1s, proc>avatar would update avatar button press..)
+    - would require button press evidence+update
+    - but is this useful at all?
+
+- cooldown backpropagation: comment from infer
+    - let cooldowns back-propagate. e.g. bubble and wings cast close together: bubble 1st
+      is not IDable. wings 2nd (during bubble) is IDable b/c of lack of debuff. once wings is
+      IDed, it will be entered into the CD tracker, but starting after bubble. so we can infer
+      that wings was not the button press at the time of bubble, but the current method of
+      detecting off-cd abilities will still (correctly) say that wings was available when bubble
+      was pressed.
+        - the logic needs to be: IF the ability was pressed then, would that violate other known
+          CD info?
+
+- the sacred weapon buff from wings is RIC=1. maybe helps ID.
+
+- after learning that RAID doesn't apply to others: ideas for additional evidence:
+    1. freedom (with talent): applies to multiple people. it's rare for one ability to apply 2 important
+       buffs. though there's no direct link between the two buffs (diff IDs) other than proximity in time
+    2. sac: shows a big center icon. could be a bad idea since i'm not sure how center big icon priority
+       works. i.e., if the target already has a big defensive running, would sac always overwrite it?
+    3. divine toll: a zillion absorbs when used in aoe
+- other WoW events to handle?
+    - UNIT_THREAT_LIST_UPDATE?
 - nameplate personal buffs/debuffs
     - this could be a massive information source for IDing buffs that we'd like
       to track but didn't make it onto blizzard's IMPORTANT/BIG/EXTERNAL flag set.
@@ -379,9 +474,6 @@ RANDOM IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
         * would not be able to track the reset ability if it was used to reset
           something else. e.g., if prep was used while adrenaline rush was available,
           the prep usage would not be noticed. but that's fine.
-- UPDATE_STEALTH event for shadowmeld? should also look for leave-combat events like
-    - PLAYER_REGEN_ENABLED (mentions "and player not on hate list of any NPC"..)
-    - PLAYER_LEAVE_COMBAT (mentions leaves combat "through abilities")
 - [maybe] add CCs/stops if the blizzard CC flags cause uniquely identifiable events
 - do cheat death events generally fire IMPORTANT events? rogue, evoker, DH, warrior, mage..
 - could hunter exhil be detected by the idea that they only have one
@@ -442,21 +534,33 @@ RANDOM IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
 
 ARCHITECTURE FEATURES ----------------------------------------------------------
 
+INFERENCE ARCHITECTURE (maybe)
+- instrumenting inferAbility suggested an Inference class that manages both the
+  execution and record keeping for each inference could be beneficial.
+    - replaces InferenceRecord
+    - would store much of the data used and offer various ways of viewing/exporting it
+
+ABILITY ARCHITECTURE (maybe)
+- Abilities may need a formal object. Not yet convinced about this. This could be
+  the solution to another arch issue about moving cooldown information out of the
+  UI elements (swipe trackers)
+- EVENTS map one-to-many to ABILITIES
+
+- (ARCH) SUMMARY OF UI FEEDBACK
+1. claim ability was used
+    a. TTS announce
+    b. glow the UI element
+    c. track the CD
+2. claim the ability is done
+    a. unglow UI
+    b. start the cooldown swipe
+
 - fold eventTrackers, cdTrackers and buffsForInference into Character.
     - buffsForInference: consider generalization to kicks, stops
     - empty eventTrackers and cdTrackers need to be easily creatable for ZKS
 
 - could buff removal become an event for eventTrackers, further generalizing the
   event architecture and removing special logic in UNIT_AURA?
-
-- add list of annotated frames, which could be party/raid/arena.
-    - replace for index=1,5 loops for a loop over a set of "annotated frames", which
-      can be blizz compact party frames, raid frames, danders frames, etc. so long
-      as each frame has a .unit member that gives a unit token like player, partyN,
-      raidN, arenaN, etc.
-
-- support verbosity levels (and checking option muteVerboseDebugging) in
-  printDebug via a first argument (verbosity level or something)
 
 - [NOT SURE - is this really helpful?] better non-fixed duration support: generalize
   current FIXED, LTE, GTE system to a duration range (min, max) where the default
@@ -548,14 +652,6 @@ LIMITATIONS
   buffs or might they update? Sacs must be different since they deal damage
   to the casters, but what about freedoms?
 
-- Re-application of buffs when inference fails (or is turned off) can't be
-  detected. For example, if a charge>1 ability is pressed a second time while it's
-  already running, we will miss the first use if it wasn't inferred (or the user
-  disabled inference). the first use can't be distinguished from a buff that
-  naturally updates itself (e.g., paladin sentinel) since inference doesn't know
-  what's going on. in this case, only the second use will be sent to the history
-  tray when it expires.
-
 - Abilities with dynamic cooldown reduction (CDR) are hard to handle. This means
   abilities that reduce their cooldown due to some event - for example, a guardian
   druid's Incarn cooldown is reduced by 1 sec for for every 25 rage spent. Since these
@@ -593,6 +689,8 @@ LIMITATIONS
 
 KNOWN BUGS
 ===========================================================================
+- double freedom
+
 - Death handling is not implemented. For now, buffs that are running **and**
   not inferred when the unit dies will be lost. This behavior will be fixed
   in a later update.
@@ -612,6 +710,210 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- why is Character(player): new character called so many times on simple UI reload?
+    - it isn't. the new character log message was accidentally moved into setBasicInfo. fixed.
+
+- force disable non-working abilities
+    THESE ARE JUST SET TO DISABLED BY DEFAULT AND RED TEXT EXPLAIN WHY
+    - better to say "more abilities coming soon!" than to include difficult, buggy abilities and
+      make people think it's a mess.
+
+- multiple icons in tray for 1 ability use:
+    SHOULD NO LONGER OCCUR DUE TO THE numAuraProviders=1 EXCLUSION
+    - pillars
+        * many talents extend pillar duration
+    - AMSes in tray
+        * AMS naturally updates. maybe when the immunity aspect is broken or
+          a rider of the apocalypse proc
+
+- extend frame/slot tracking beyond the hardcoded 5-man party system
+    1. move cachePossibleAbilities out of trackCharacter
+    2. better separate maintenance of roster data from UI state
+    3. extend beyond 5-man m+ groups
+        - remove "index=1,5" loops
+    4. fix trackerUI. moving from stable indices back to unstable slots means update() will have to
+       do more work.
+
+- respondToRosterUpdate() needs to do more data maintenance
+    - needs to run cachePossibleAbilities. currently is only done on the initial trackCharacter(),
+      which makes no sense, and after libspec gets talents.
+        * this needs to be removed from trackCharacter
+    - probably also a good time to update data trackers like evidence, cdtracker, slot/guid/etc maps
+
+- more explicitly delegate code to determine which GUIDs/slots are "tracked"
+    - GroupData.lua: trackedCharacters[] is the list. maintained exclusively by trackCharacter()
+    - trackCharacter: in updateSlotToGUID and libspec callback
+
+BIG PICTURE: need special handling for AURA(update) events. required concurrent events will
+only happen on cast, not on update, making updates look like other abilities. however, when
+a new ability really is used, it should have all of those concurrent events on update.
+    - could numAuraProviders=1 be the easy answer? if =1, then that ability cannot have been
+      cast on an update.
+    - added this, but should also propagate to the other events that this aura was updated. the
+      numAuraProviders=1 check will prevent the update event from wrongly triggering freedom, but
+      if the main event knew an update happened on this aura, it could also exclude freedom and ID wings
+- new endless Event bug in manageEvents:368
+    * maybe it's double freedom
+    * seems it was wings. see video 3:34
+        - wings>toll at 3:17
+        - 3:20 wings updates and gets IDed as freedom
+            - the ID as freedom is because there is no concurrent buff when the second update happens
+            - should be able to tell this isn't freedom because freedom doesn't update
+expiring batch of size 2 for id=aura175
+aura instance ID aura175 added to history tray party1 after 18.013999999s
+    * the error is blocking evBatch[1] in the expiration loop. fixed.
+        - but maybe the expire loop should be a separate one from the infer loop..
+
+- sentinel never stops glowing
+    - maybe not reproducible
+
+- leaving follower dungeon with solo unchecked still doesn't work
+    - see recording
+    - why does it open to addon options? [nvm]
+    - becauser respondToRosterUpdate() is always called in the loader handler
+    - ok, the recorded problem happened because ZONE_CHANGED_NEW_AREA was not unregistered,
+      but this whole system will not work. zone changed/roster update need to remain registered
+      at all times so the addon can detect changes to group/instance state
+    - new changes may have fixed it. let's see.
+    - [SOLVED] but the solution is messy because there isn't a clear separation between data
+      collection, UI updating and :Show()ing. the biggest offender is the explicit :Show() loop
+      in respondToRosterUpdate()
+
+- behavior to solve with updates/batch inferences
+    - MUST DO: ensure new batch inference doesn't trigger feedback on every certain inference
+        * it seems this is the most natural design. AURA(update) events are always created (even
+          for certain inferences - multi-charge abilities must do this), then data sharing through
+          a shared aura object implicitly incurs "batch" inference when inferAbility() is called
+          in sequence across events in a batch.
+    - good test: sentinel - is a self updater that doesn't instant ID because of bubble
+    - if an aura update arrives before a certain ID (e.g., in this case because we can't rule out
+      bubble until no debuff is observed in the tolerance window), an update event is added to
+      sentinel's batch. later, when the first AURA(add) event is IDed with certainty, it is no
+      longer the event checked by the AURA(update) handler. instead, the update event is. the
+      update event will never ID because the original add event put sentinel on CD.
+        * the result is a cascade of update events that trigger because of the second update
+          event being uncertain.
+        * this now rarely happens because of the tolerance tail re-evaluation, but it is still
+          possible and the system should be built to handle this
+    - the answer to all of the above was to remove events from the queue when there are 0 possible
+      solutions under permissive evidence filters
+
+- UNCERTAIN spam
+    * only show on first uncertain inf
+
+- as i guessed long ago: the RAID flag is only 1 for the player that casts the ability. it
+  seems RAIDINCOMBAT does not require this. see: freedom is RAID=1 but shows as 0 when another
+  paladin casts it and sac is RAIDINCOMBAT=1 and remains =1 when another paladin casts it.
+  when i cast ironbark (RAID,RIC=1,1), both are 1.
+
+- abilities that apply other auras
+    - general confidence function
+    - *consistently* glow otherAura's cooldown box
+        - right now the redirection is only honored if there's an uncertain inference (i.e.
+          both abilities are off CD and can't decide between the two). e.g., if avatar is on
+          CD and AotS procs, then AotS will be inferred with certain=true and will not glow
+          avatar.
+    - don't clobber the other aura's cooldown swipe/timer (probably does)
+
+- enable/disable option
+    - enable solo
+    - enable in 5-man groups
+    - always enable (UNSAFE)!
+    TESTING
+    - toggle enable/disable while solo
+    - toggle enable/disable in fol dung
+    NOTES
+    * hide UI elements
+    * delete all character data/internal trackers (?)
+        - :untrack()ing all tracked characters
+        - delete ns.cdTracker
+            - is another good reason why ns.cdTracker should live in Character()
+        - force-expire all events
+        - check all tracked data in ns.*: make sure deleting the above removes everything
+        * to recover from this, must manually send LibSpecialization.RequestGroupSpecialization().
+          this shouldn't be done in the normal code, so maybe generate it when the option is checked?
+
+- debugging options
+    - talents
+    - inference
+    - verbose (rename muteverbose -> enable verbose)
+        - has multiple effects: talents+verbose, inference+verbose
+
+- only enable in party
+    - raid/arena support (whatever it will be) can come later
+
+- These bugs were caused by not appending realm name to character names. This prevented
+  playerName -> slot mapping in the libspec callback.
+
+    * Bugs on loading into dungeon. first frame they are already present. looks
+        to have something to do with querying character information too early.
+        messages on console show Character() constructors with everyone properly
+        named on frame 1 after loading.
+
+    1. this one happens during the GROUP_ROSTER_UPDATE/PLAYER_ENTERING_WORLD handler.
+        was only one character in the tracker when this was thrown.
+        (3x over the whole run)
+
+        GUID is valid yet name="Unknown", className=classFile=raceId=nil for slot=party2 in a real run
+            GroupData:82: classFile is nil
+            ns:printDebug(string.format(
+                "Character(%s): new character GUID=[%s], name=[%s], class=[%s]",
+                slot, GUID, name, classFile))
+
+    2. this one happens during the libspec callback's trackCharacter(). slot=nil
+        (6x over the whole run)
+
+        function ns:trackCharacter(slot)
+            local guid = UnitGUID(slot) 
+
+    3. new error for the same reason. prev errors didnt happen
+        groupdata:110: attempt to index local 'coldata' (a nil value) in getClassColor
+        groupsolutionUI:92
+
+- for debugging: show the reqs met somewhere in the final inference string
+    - e.g.: reqs[buff=<diff>s|cast=<diff>s] etc.
+
+- Aura update rewrite using events
+    (NOTES CONSOLIDATED FROM ELSEWHERE)
+    1. update loop: GOAL: detect whether new ability caused this update
+        -> new ability occured that caused update?
+        -> more information came in about an uncertain ability
+    - update loop: if there's a reason to associate a new ability, append to list
+        - things like finalize need to happen here so that cooldowns are known ASAP, not
+          when the buff expires (affects potentially other abilities)
+
+- new event on update system implemented for most trivial cases
+    - no code uses naturallyUpdates anymore. sentinel is a good test case
+- batch-resolve events attached to the same aura
+    - first: store aura-tracked events as a list per auraID
+- [NEEDS TESTING] concurrentBuffs: if the buff that must be applied by an ability that can be updated,
+  these currently will not fire. need to check the updated list in UNIT_AURA while
+  pushing into eventTracker.buffs
+    * e.g., thunder blast from avatar
+- bug squashing during the event framework rewrite
+- massive aura spam 1000s of attempts
+- continue decoupling event from buff
+    - removing "buff" from most everything in PetesDefensiveHistory.lua
+- remove lastNegativeAuraId/makeAura hack for non-aura events in shadowmeld
+- retest meld since it exercises a completely different code path
+- continue removing event>buff.duration
+- test removing infer from buff added
+- get rid of all external uses of ns.eventsForInference
+    - move poller loop into Event.lua
+- generalized event system
+    - make inferAbility not depend on buff-specific stuff
+    - events have:
+        - basic info (most of above)
+        - evidence (current event trackers)
+        - whether the event is flagged to be untracked
+    - remember:
+        - want to be able to query evidence when deciding to make an event. examples:
+            * meld: drop combat + button press + aura
+            * updates: button press + aura update
+    - generally: getEventTimeDiff/ConcurrentEvent(): these are about evidence, which
+      should be handled by Event(). the later judgment and weight of evidence by the
+      confidenceNetwork will *NOT* be delegated to Event.
+
 - SHADOWMELD: support non-buff events. Although shadowmeld creates a buff, it is an
   unremarkable buff so it would be hard to trigger an event from it. Instead, trigger
   a "tracked event" when a character of interest leaves combat. This tracked event
@@ -977,3 +1279,21 @@ DONE (not necessarily in order of completion)
     - [PROBABLY FIXED] older code assumed auraInstanceIDs were unique across
       characters when they might not be.
 - use different textures when it makes sense (e.g., gift of the golden valkyr)
+
+- Re-application of buffs when inference fails (or is turned off) can't be
+  detected. For example, if a charge>1 ability is pressed a second time while it's
+  already running, we will miss the first use if it wasn't inferred (or the user
+  disabled inference). the first use can't be distinguished from a buff that
+  naturally updates itself (e.g., paladin sentinel) since inference doesn't know
+  what's going on. in this case, only the second use will be sent to the history
+  tray when it expires.
+
+- add list of annotated frames, which could be party/raid/arena.
+    - replace for index=1,5 loops for a loop over a set of "annotated frames", which
+      can be blizz compact party frames, raid frames, danders frames, etc. so long
+      as each frame has a .unit member that gives a unit token like player, partyN,
+      raidN, arenaN, etc.
+
+- support verbosity levels (and checking option muteVerboseDebugging) in
+  printDebug via a first argument (verbosity level or something)
+
