@@ -1,5 +1,11 @@
 BUGS
 ===========================================================================
+- disable arcane surge by default
+
+- freedom that never fades
+
+- slotToFrame() = nil failure in trackerui:571
+
 SHADOWMELD
 - seems to still be some erroneous shadowmelds. implement group drop protection
     - done. needs testing
@@ -700,6 +706,10 @@ LIMITATIONS
 
 KNOWN BUGS
 ===========================================================================
+- Cooldowns that are active (glowing) while changing zones will never stop glowing
+  until used because the aura event either doesn't fire while loading or the
+  handler is not active.
+
 - double freedom
 
 - Death handling is not implemented. For now, buffs that are running **and**
