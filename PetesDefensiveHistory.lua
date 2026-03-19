@@ -147,13 +147,13 @@ function ns:getMetadata()
 end
 
 
-function ns:updateCharacterData()
+function ns:updateCharacterData(trace)
     -- Track newly observed characters
     for slot, guid in pairs(slotToGUID) do
         if not ns:getTrackedCharacterByGUID(guid) then
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-                "updateCharacterData -> trackCharacter(%s, %s, UnitName=%s)",
-                slot, guid, tostring(UnitName(slot))))
+                "updateCharacterData(%s) -> trackCharacter(%s, %s, UnitName=%s)",
+                trace, slot, guid, tostring(UnitName(slot))))
 print('trackCharacter() - called from updateCharacterData')
             ns:trackCharacter(slot)
         end
@@ -174,6 +174,9 @@ print('trackCharacter() - called from updateCharacterData')
         -- abilities are only added in response to LibSpec.
         char:cachePossibleAbilities()
     end 
+
+    -- Track for exporting
+    ns:recordCharacterDataUpdate(trace)
 end
 
 
@@ -641,7 +644,7 @@ loader:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 --loader:RegisterEvent("ARENA_OPPONENT_UPDATE")
 --loader:RegisterEvent("ARENA_PREP_OPPONENT_SPECIALIZATIONS")
 local loadNum = 1
-loader:SetScript("OnEvent", function(self, event)
+loader:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
         initAddon()
         -- XXX: TODO: useful when debugging options
@@ -658,15 +661,21 @@ loader:SetScript("OnEvent", function(self, event)
     -- XXX: TODO: it probably shouldn't, but
     -- respondToRosterUpdate builds and shows a UI regardless of addonIsActive()
     if ns:addonIsActive() then
-        ns:respondToRosterUpdate()
+        -- Get the player that triggered the event
+        if event == "PLAYER_SPECIALIZATION_CHANGED" then
+            slot = select(1, ...)
+            guid = tostring(slotToGUID[slot])  -- might not be populated eyt
+            event = string.format("%s(%s,%s)", event, slot, guid)
+        end
+        ns:respondToRosterUpdate(event)
     end
 end)
 
 
 
-function ns:respondToRosterUpdate()
+function ns:respondToRosterUpdate(trace)
     updateTrackedSlots()
-    ns:updateCharacterData()
+    ns:updateCharacterData(trace)
     ns:updateTrackerUI()         -- Update UI elements
     ns:updateGroupSolutionUI()
 end
@@ -698,7 +707,7 @@ function ns:enableAddon()
     flagsHandler:RegisterEvent("UNIT_FLAGS")
     --poller:Invoke()
 
-    ns:respondToRosterUpdate()
+    ns:respondToRosterUpdate('enableAddon')
     ns:sendLibSpecRequest()
     ns:printMemUsage("enableAddon: after constructing UI")
     if ns:GetOption('runGC') then
@@ -722,7 +731,7 @@ function ns:disableAddon()
     flagsHandler:UnregisterEvent("UNIT_FLAGS")
     --poller:Cancel()
 
-    ns:respondToRosterUpdate()
+    ns:respondToRosterUpdate('disableAddon')
     ns:printMemUsage("disableAddon: after deconstructing UI and deleting data")
     if ns:GetOption('runGC') then
         collectgarbage('collect')

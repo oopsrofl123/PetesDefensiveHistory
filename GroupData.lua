@@ -42,6 +42,27 @@ end
 -- list of all relevant characters
 local trackedCharacters = {}
 
+-- save a copy of all character metadata on every event that triggers updates.
+-- e.g., GROUP_ROSTER_UPDATE, LibSpec callbacks, etc. Each update requires a fairly
+-- large amount of memory, so disable this later.
+-- XXX: TODO: disable later via options
+local characterUpdatesData = {}
+
+
+function ns:recordCharacterDataUpdate(trace)
+    local characters = {}
+    for _, char in pairs(ns:getTrackedCharacters()) do
+        table.insert(characters, char:export())
+    end
+    table.insert(characterUpdatesData, { GetTime(), trace, characters })
+end
+
+
+function ns:getCharacterUpdatesData()
+    return characterUpdatesData
+end
+
+
 function ns:getTrackedCharacterByGUID(guid)
     -- protect the call if guid=nil: return nil
     -- XXX: TODO: it might be more elegant to return an empty character
@@ -363,7 +384,10 @@ local function doLibSpecUpdate(specId, playerName, talentExportString, slot)
 print('trackCharacter() - called from libspec')
     local char = ns:trackCharacter(slot)
     char:setSpecAndTalents(specId, talentExportString)
-    ns:updateCharacterData()
+    --ns:updateCharacterData()
+    -- XXX: don't see why a separate update is needed or why respondToRoster has to wait until
+    -- after the next two lines.
+    ns:respondToRosterUpdate('doLibSpecUpdate('..playerName..')')
 
     -- XXX: TODO: not correct - needs to live in Character objects.
     ns.cdTracker = ns:initCDTracker()
@@ -372,7 +396,6 @@ print('trackCharacter() - called from libspec')
     -- affects the group solution UI.
     ns:zeroKnowledgeSolve()
 
-    ns:respondToRosterUpdate()
 end
 
 

@@ -8,11 +8,8 @@ local function prepareExportData()
     local metadata = ns:getMetadata()
 
     ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Getting character data")
-    local characters = {}
-    for _, char in pairs(ns:getTrackedCharacters()) do
-        table.insert(characters, char:export())
-    end
-    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Found "..#characters.." characters")
+    local characterUpdates = ns:getCharacterUpdatesData()
+    ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Found "..#characterUpdates.." character updates")
 
     ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Getting event playback data")
     local playback = ns:getPlaybackData()
@@ -25,7 +22,7 @@ local function prepareExportData()
     end
     ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Found "..#inference.." inference records")
 
-    local data = { metadata=metadata, characters=characters, playback=playback, inference=inference }
+    local data = { metadata=metadata, characterUpdates=characterUpdates, playback=playback, inference=inference }
     ns:setExportData(data)
     exportFrame:Show()
 end
