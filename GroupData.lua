@@ -409,6 +409,7 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
         end
 
         local slot = ns:playerNameToSlot(playerName)
+        ns:playback(GetTime(), "LIB_SPEC_RESPONSE", playerName, slot)
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
             "Receiving LibSpecialization response for player=[%s], slot=[%s]",
             playerName, tostring(slot)))
