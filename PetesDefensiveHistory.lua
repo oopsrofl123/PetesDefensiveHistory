@@ -581,11 +581,12 @@ end)
 -- Does nothing for now.
 --------------------------------------------------------------------------------------
 
-encounterHandler:RegisterEvent("ENCOUNTER_START")
-local encounterHandler = CreateFrame("Frame", addonName .. "EncounterLoader")
-encounterHandler:SetScript("OnEvent", function(self, event, encounterID, encounterName, difficultyID, groupSize)
-    print(event, encounterID, encounterName, difficultyID, groupSize)
-end)
+-- XXX: Not sure 
+--local encounterHandler = CreateFrame("Frame", addonName .. "EncounterLoader")
+--encounterHandler:RegisterEvent("ENCOUNTER_START")
+--encounterHandler:SetScript("OnEvent", function(self, event, encounterID, encounterName, difficultyID, groupSize)
+    --print(event, encounterID, encounterName, difficultyID, groupSize)
+--end)
 
 
 --------------------------------------------------------------------------------------
