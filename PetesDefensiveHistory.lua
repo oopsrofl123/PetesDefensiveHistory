@@ -42,8 +42,10 @@ end
 
 
 local function findFrameForSlot(slot, slotRoot)
+    local framesChecked = 0
     if DandersFrames then
         for _, frame in pairs(DandersFrames_GetAllFrames()) do
+            framesChecked = framesChecked + 1
             if frame.unit == slot then
                 return frame
             end
@@ -62,11 +64,16 @@ local function findFrameForSlot(slot, slotRoot)
         end
 
         for i=1, maxN do
+            framesChecked = framesChecked + 1
             if _G[frameRoot .. i].unit == slot then
                 return _G[frameRoot..i]
             end
         end
     end
+    ns.printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error, string.format(
+        "Couldn't find unit frame for slot=[%s], slotRoot=[%s] in [%d] frames",
+        slot, slotRoot, framesChecked))
+    return nil
 end
 
 
@@ -376,8 +383,8 @@ local eventPlaybackList = {}
 -- Record the WoW API events for export. This is very memory intensive and is only
 -- meant for developers.
 -- XXX: TODO: option to disable (for most users): reassign this function with a noop
-local function playback(event, source, ...)
-    local record = { event, source, ... }
+function ns:playback(now, event, ...)
+    local record = { now, event, ... }
     table.insert(eventPlaybackList, record)
 end
 
@@ -398,7 +405,7 @@ castHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID
     local now = GetTime()
 
     -- the maybe secrets probably aren't useful
-    playback(now, "UNIT_SPELLCAST_SUCCEEDED", caster,
+    ns:playback(now, "UNIT_SPELLCAST_SUCCEEDED", caster,
         ns:maskSecret(castGUID), ns:maskSecret(spellID), ns:maskSecret(castBarId))
 
     traceHandler("SPELLCAST", caster, "%s, %s",
@@ -420,7 +427,7 @@ absorbHandler:SetScript("OnEvent", function(self, event, target)
     if not guid then return end
     local now = GetTime()
 
-    playback(now, "UNIT_ABSORB_AMOUNT_CHANGED", target)
+    ns:playback(now, "UNIT_ABSORB_AMOUNT_CHANGED", target)
 
     -- XXX: TODO: re-enable this later through some option. it is a uniquely
     -- spammy event.
@@ -444,7 +451,7 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
 
     local inCombat = UnitAffectingCombat(target)
 
-    playback(now, "UNIT_FLAGS", target, inCombat)
+    ns:playback(now, "UNIT_FLAGS", target, inCombat)
 
     traceHandler("FLAGS", target, "inCombat=[%s]", tostring(inCombat))
 
@@ -534,7 +541,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     if #aurasAdded > 0 then
         updateInfo['addedAuras'] = sanitizedAurasAdded
     end
-    playback(now, 'UNIT_AURA', unitTarget, updateInfo, playbackFlags)
+    ns:playback(now, 'UNIT_AURA', unitTarget, updateInfo, playbackFlags)
 
     for _, auraInstanceId in pairs(aurasUpdated) do
         local ev = ns:getAuraEventByGUID(auraInstanceId, guid)
@@ -669,6 +676,8 @@ loader:SetScript("OnEvent", function(self, event, ...)
         end
         ns:respondToRosterUpdate(event)
     end
+
+    ns:playback(GetTime(), event, ...)
 end)
 
 
