@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 import math
 import time
 import base64
@@ -8,9 +9,15 @@ import cbor2
 import numpy as np
 
 ascii_cyan = "\033[36m"
+ascii_purple = "\033[35m"
+ascii_yellow = "\033[33m"
 ascii_green = "\033[32m"
 ascii_red = "\033[31m"
 ascii_reset = "\033[0m"
+
+def d(x):
+    return x.decode() if type(x) is bytes else x
+
 
 def passcolor(passes):
     return ascii_green if passes else ascii_red
@@ -26,8 +33,8 @@ def decode_export_blob(compressed):
     return cbor2.loads(decompressed)
 
 
-def one_logic_string(ability_id, layers):
-    string = "[" + str(ability_id) + ":"
+def one_logic_string(ability, layers):
+    string = "[" + str(ability) + ":"
     for name, summary in layers.items():
         passes, certain = summary
         string += "%s%s%s" % (passcolor(passes), name.decode(), certainmark(certain))
@@ -40,7 +47,8 @@ def logic_string(logic, pass_type):
     for logic_summary in logic:
         caster, ability_id, passes, layers = logic_summary
         if passes == pass_type:
-            string += one_logic_string(ability_id, layers)
+            ability = character_abilities[caster.decode()][ability_id]
+            string += one_logic_string(ability['alias'] if 'alias' in ability else ability['name'], layers)
     return string
 
 
@@ -54,10 +62,25 @@ def confidence_string(conf):
     return string
 
 
-def req_string(reqs):
-    string = ""
-    for req in reqs:
-        passcolor(reqs)
+def reqs_string(reqs):
+    string = "reqs: "
+    for name, req in (reqs.items() if len(reqs) > 0 else {}):
+        value, passes, final = req
+        string += "[" + passcolor(reqs) + name.decode() + "=" + ("%0.3f" % value) + ascii_reset + "]"
+    return string
+
+
+def decision_string(inf):
+    inference_time, inference_trace, inference_attempt, \
+        event_time, event_trace, event_id, event_source, event_slot, batch_id, \
+        ability_id, certain, ability_caster, \
+        logic, conf, reqs = inf
+    if ability_id is None:
+        return "coudln't infer ability"
+    else:
+        return "%s%0.3f %s: event=[%s/%d], attempt=[%d], caster=[%s], time=[%0.3f]%s" % \
+            (ascii_cyan, inference_time, "FINALIZED" if certain else "UNCERTAIN",
+            event_id, batch_id, inference_attempt, ability_caster, event_time, ascii_reset)
 
 
 def infer_string(inf):
@@ -65,75 +88,93 @@ def infer_string(inf):
         event_time, event_trace, event_id, event_source, event_slot, batch_id, \
         ability_id, certain, ability_caster, \
         logic, conf, reqs = inf
-    return "%0.3f %sInfer(tr(infer)=[%s], tr(event)=[%s], source=[%s], eventId=[%s/%d], attempt=[%d]%s" % \
-        (inference_time, ascii_cyan, inference_trace, event_trace, event_slot, event_id, batch_id, inference_attempt, ascii_reset)
+    return "%s%0.3f Infer(tr(infer)=[%s], tr(event)=[%s], source=[%s], eventId=[%s/%d], attempt=[%d]%s" % \
+        (ascii_yellow, inference_time, inference_trace, event_trace, event_slot, event_id, batch_id, inference_attempt, ascii_reset)
     
 
+def make_abilities(abils):
+    result = {}
+    for a in abils:
+        a = { k.decode(): d(v) for k, v in a.items() }
+        result[a['id']] = a
+    return result
 
-with open("inference_and_playback_data.txt", "r") as f:
+
+def character_string(char):
+    string = ""
+    for k, v in char.items():
+        thisv = str(v)
+        if type(v) is list:
+            thisv = '[%d]' % len(v)
+        if type(v) is dict:
+            thisv = '{%d}' % len(v)
+        string += (" " if string != "" else "") + k + "=" + thisv
+    return string
+
+
+with open(sys.argv[1], "r") as f:
     data = decode_export_blob(f.read())
-    print(data.keys())
     metadata = data[b'metadata']
-    metadata = { k.decode(): (v.decode() if type(v) is bytes else v) for k, v in metadata.items() }
+    metadata = { k.decode(): d(v) for k, v in metadata.items() }
     print('METADATA ------------------------------------------------------------------------')
     player_guid = metadata['myGUID']
     print('Exporter:', player_guid)
 
 
     character_updates = data[b'characterUpdates']
+    character_abilities = {}
     print('CHARACTERS ----------------------------------------------------------------------')
     print('got', len(character_updates), 'character updates')
     for update in character_updates:
         time, trace, characters = update
         print('    time=[%0.3f] responded to [%s]: character data:' % (time, trace.decode()))
         for char in characters:
-            char = { k.decode(): (v.decode() if type(v) is bytes else v) for k, v in char.items() }
-            print('        ', end='')
-            for k, v in char.items():
-                thisv = str(v)
-                if type(v) is list:
-                    thisv = '[%d]' % len(v)
-                if type(v) is dict:
-                    thisv = '{%d}' % len(v)
-                print(" " + k + "=" + thisv, end='')
-            print('\n', end='')
+            char = { k.decode(): d(v) for k, v in char.items() }
+            if 'abilities' in char:
+                character_abilities[char['GUID']] = make_abilities(char['abilities'])
+            #print("        " + character_string(char))
 
-    playback = data[b'playback']
+    playback = [ ('event', e[0], [ d(x) for x in e ]) for e in data[b'playback'] ]
     print('PLAYBACK ------------------------------------------------------------------------')
     print('got', len(playback), 'events')
 
-    cast_events = []
-    cast_times = []
-    for e in playback:
-        # playback event records are not all the same structure
-        e = [ x.decode() if type(x) is bytes else x for x in e ]
-        time, event, actor = e[0:3]
-        if event == "UNIT_SPELLCAST_SUCCEEDED":
-            cast_events.append(e)
-            cast_times.append(time)
 
+    # XXX: TODO: old code for matching cast events with inference events
+    #cast_events = []
+    #cast_times = []
+    #for _, e in playback.items():
+        # playback event records are not all the same structure
+        #time, event, actor = e[0:3]
+        #if event == "UNIT_SPELLCAST_SUCCEEDED":
+            #cast_events.append(e)
+            #cast_times.append(time)
     # there should be many more spellcast events than inferences, so optimize this one
-    cast_times = np.array(cast_times)
+    #cast_times = np.array(cast_times)
 
 
     print('INFERENCE -----------------------------------------------------------------------')
     inferences = data[b'inference']
     # Remove simulation inferences from zero knowledge solves
-    inferences = [ inf for inf in inferences if not inf[4].decode().startswith("SIMULATE(") ]
+    inferences = [ ('inf', inf[0], [ d(x) for x in inf ]) for inf in inferences if not inf[4].decode().startswith("SIMULATE(") ]
     print('found', len(inferences), 'inference records')
 
-    # for each inference, find the closest matching cast record
-    for inf in inferences:
-        inf = [ x.decode() if type(x) is bytes else x for x in inf ]
-        inference_time, inference_trace, inference_attempt, \
-        event_time, event_trace, event_id, event_source, event_slot, batch_id, \
-        ability_id, certain, ability_caster, \
-        logic, conf, reqs = inf
-        best = np.argmin(np.absolute(cast_times - inference_time))
-        #print(inference_time, best, ability_id, cast_events[best])
-        if ability_id == 389539: #True or event_source == b"Player-3721-0C5111C6":
-            print(infer_string(inf))
-            print("PASS:", logic_string(logic, True))
-            print("FAIL:", logic_string(logic, False))
-            print("CONF:", confidence_string(conf))
-            #print(inf)
+    for rectype, time, record in sorted(playback + inferences, key=lambda x: x[1]):
+        if rectype == "inf":
+            inference_time, inference_trace, inference_attempt, \
+                event_time, event_trace, event_id, event_source, event_slot, batch_id, \
+                ability_id, certain, ability_caster, \
+                logic, conf, reqs = record
+            #best = np.argmin(np.absolute(cast_times - inference_time))
+            #print(inference_time, best, ability_id, cast_events[best])
+            if event_source == "Player-3721-0C5111C6":
+                print(infer_string(record))
+                print("PASS:", logic_string(logic, True))
+                print("FAIL:", logic_string(logic, False))
+                print("CONF:", confidence_string(conf) + " " + reqs_string(reqs))
+                print(decision_string(record))
+        elif rectype == "event":
+            time, event, actor = record[0:3]
+            if actor == "party3":
+                print(record)
+                print("%s%0.3f %s(%s)%s" % \
+                    (ascii_purple, time, event, actor, ascii_reset))
