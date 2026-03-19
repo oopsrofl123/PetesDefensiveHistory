@@ -92,20 +92,26 @@ function ns:InferenceRecord(now, trace, event)
     -- Make a stripped-down table without key names to save space for exporting
     local function stripLogic()
         local logicLayers = {}
-        for abId, logicSummary in pairs(logicLayersByAbility) do
+        for _, record in pairs(logicLayersByAbility) do
             local thisAbil = {}
-            for name, result in pairs(logicSummary.logic) do
+            for name, result in pairs(record.logicSummary.logic) do
                 thisAbil[ns.logicLayerAliases[name]] = { result.pass, result.final }
             end
-            logicLayers[abId] = { logicSummary.pass, thisAbil }
+            local stripped = { record.caster, record.abilityId, record.logicSummary.pass, thisAbil }
+            table.insert(logicLayers, stripped)
         end
         return logicLayers
     end
 
-    local function logicStringForAbility(abilityId, logicSummary, compact)
+    local function logicStringForAbility(caster, abilityId, logicSummary, compact)
         -- supposedly building a table -> table.concat is faster than piecewise `..`
         local ability = ns.AbilityIdMap[abilityId]
-        local t = { ability.alias or ability.name .. ":" }
+        local tag = (ability.alias or ability.name)
+        -- only show the caster if it isn't the same as the target
+        if caster ~= eventSource then
+            tag = tag .. "_" .. ns:cosmeticOnlyMapGUIDToSlot(caster)
+        end
+        local t = { tag .. ":" }
         for name, result in pairs(logicSummary.logic) do
             local s = (result.pass and "|cFFAFD5AB" or "|cFFFA003F") ..
                       (compact and ns.logicLayerAliases[name] or name) .. 
@@ -121,9 +127,13 @@ function ns:InferenceRecord(now, trace, event)
 
         -- supposedly building a table -> table.concat is faster than piecewise `..`
         local t = {}
-        for abilityId, logicSummary in pairs(logicLayersByAbility) do
-            if logicSummary.pass == passing then
-                table.insert(t, logicStringForAbility(abilityId, logicSummary, compact))
+        for _, record in pairs(logicLayersByAbility) do
+            if record.logicSummary.pass == passing then
+                local str = logicStringForAbility(
+                    record.caster,
+                    record.abilityId, 
+                    record.logicSummary, compact)
+                table.insert(t, str)
             end
         end
         return table.concat(t, " ")
@@ -496,11 +506,9 @@ local function getPossibleSolutions(event, cdTracker)
         local allPass = true
         for _, result in pairs(logic) do allPass = allPass and result.pass end
 
-        local abId = ability.id
-        if ability.caster ~= event:getSource() then
-            abId = abId .. "_" .. ns:cosmeticOnlyMapGUIDToSlot(ability.caster)
-        end
-        logicLayersByAbility[abId] = { pass=allPass, logic=logic}
+        -- The numeric ability ID must be recorded. Don't try to key by a string
+        -- that incorporates caster ID.
+        table.insert(logicLayersByAbility, { caster=ability.caster, abilityId=ability.id, logicSummary={ pass=allPass, logic=logic} })
 
         if allPass then
             traceLogic(event, ability, "is a possible solution")
