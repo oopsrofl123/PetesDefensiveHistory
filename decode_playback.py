@@ -166,15 +166,18 @@ with open(sys.argv[1], "r") as f:
                 logic, conf, reqs = record
             #best = np.argmin(np.absolute(cast_times - inference_time))
             #print(inference_time, best, ability_id, cast_events[best])
-            if event_source == "Player-3721-0C5111C6":
+            if True or event_source == "Player-3721-0C5111C6":
                 print(infer_string(record))
                 print("PASS:", logic_string(logic, True))
                 print("FAIL:", logic_string(logic, False))
                 print("CONF:", confidence_string(conf) + " " + reqs_string(reqs))
                 print(decision_string(record))
         elif rectype == "event":
-            time, event, actor = record[0:3]
-            if actor == "party3":
-                print(record)
+            time, event = record[0:2]
+            actor = ""
+            if len(record) > 2:
+                actor = record[2]
+            if True or actor == "party3":
+                #print(record)
                 print("%s%0.3f %s(%s)%s" % \
-                    (ascii_purple, time, event, actor, ascii_reset))
+                    (ascii_purple, time, event, ",".join([ str(x) for x in record[2:] ]), ascii_reset))
