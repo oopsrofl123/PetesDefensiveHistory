@@ -436,7 +436,18 @@ EXPORTING
 NICE-TO-HAVE FEATURES
 ===============================================================================
 
-RANDOM IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
+IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
+
+- ARCANE SURGE ID. hard to do since mirror images is identical duration/flags
+    * MANY talents affect surge
+    * PLAYER_DAMAGE_DONE_MODS?
+    * required sunfury talent gives spell haste that procs a unique event
+      (UNIT_SPELL_HASTE)
+    * optional sunfury talent extends duration
+    * causes (i think?) a massive number of mana updates through UNIT_POWER{,_FREQUENT}
+      because it drains almost all mana which is then replenished quickly
+    * mirror images doesn't generate any other buffs (maybe - could some talents change that?)
+    
 - could record exact duration extends. since these extends always fire updates, it could be
   possible to accurately calculate the extended duration rather than just saying GTE (though
   this is not trivial - sentinel updates every 1s, proc>avatar would update avatar button press..)
