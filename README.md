@@ -28,6 +28,7 @@ There are several known bugs. Here are a few in no particular order:
 * Changes to party sort order aren't detected, so trackers will not follow the sorting. A `/reload` will fix the issue.
 * Cooldown tracker states are lost on `/reload` or if a player leaves the group.
 * VDH meta is currently bugged in WoW: the cheat death proc also puts meta on cooldown if it is available. This bug will be added to the addon if it continues to exist for much longer.
+* If an active (glowing) cooldown buff expires while in a loading screen, the glow will remain until the ability is used again.
 
 
 ### History tray fallback mode when cooldown is ambiguous
