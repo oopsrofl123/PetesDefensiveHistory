@@ -554,7 +554,10 @@ function ns:updateTrackerUIBySlot(slot)
     local textSize = ns:GetOption('textSize')
 
     -- Position UI next to frames
-    tracker:SetPoint("TOPRIGHT", ns:slotToFrame(slot), "TOPLEFT", -SPACING_FROM_FRAMES, 0)
+    local frame = ns:slotToFrame(slot)
+    if frame then
+        tracker:SetPoint("TOPRIGHT", frame, "TOPLEFT", -SPACING_FROM_FRAMES, 0)
+    end
 
     tracker.bg:SetAllPoints(tracker)
     tracker.bg:SetColorTexture(0,0,0,0.4)
@@ -568,7 +571,7 @@ function ns:updateTrackerUIBySlot(slot)
 
     tracker.slotLabel:SetPoint("TOPLEFT", tracker, "TOPRIGHT", 3, -3)
     tracker.slotLabel:SetFont(tracker.slotLabel:GetFont(), 12, "OUTLINE")
-    tracker.slotLabel:SetText("["..slot.."] "..ns:slotToFrame(slot).unit)
+    tracker.slotLabel:SetText("["..slot.."] "..(frame and frame.unit or "nil"))
     ns:showDebugVisual(tracker.slotLabel)
     tracker.slotLabel.bg:SetAllPoints(tracker.slotLabel)
     ns:showDebugVisual(tracker.slotLabel.bg)
