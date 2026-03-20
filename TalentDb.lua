@@ -527,6 +527,9 @@ ns.SpecTalentModifiers = {
         [365350] = {
             { { id=365350, modifies=hasAbility, amount=true } },
         },
+        [449412] = {   -- sunfury hero talent extends arcane surge
+            { { id=365350, modifies=duration_variable, amount=ns.DURATION_GTE } },
+        },
     },
     -- Fire mage ------------------------------------------------------------------------------
     [63] = {
@@ -682,7 +685,8 @@ ns.SpecTalentModifiers = {
               { id=498, modifies=cooldown, amount=30 } }      -- but ret DP is a 90s cd
         },
         [1261562] = {
-            { { id=498, modifies=requireShield, amount=true } }
+            { { id=498, modifies=requireShield, amount=true },
+              { id=498, modifies=requireBuff, amount=true } }
         },
         [384820] = {
             { { id=6940, modifies=cooldown, amount=-60 } }
@@ -702,7 +706,12 @@ ns.SpecTalentModifiers = {
         [458359] = {
             { { id=255937, modifies=hasAbility, amount=true },
               { id=31884, modifies=hasAbility, amount=false } }
-        }
+        },
+        [431730] = {  -- hero talent: wake of ashes gives a 10% hp shield as a separate buff
+                      -- XXX: TODO: buff requirements currently don't add
+            { { id=255937, modifies=requireShield, amount=true },
+              { id=255937, modifies=requireBuff, amount=true } }
+        },
     },
 
 
