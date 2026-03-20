@@ -373,6 +373,17 @@ function ns:manageEvents(updateTrace, guid)
                         ev:getId(), ev:getBatchId(), index, ability.id))
             end
 
+            -- Catch orphaned aura events: expirations aren't set on auras when created -
+            -- instead they expire on UNIT_AURA(remove). In some rare cases, that event can
+            -- be lost (for example, if the aura expires during a loading screen), creating
+            -- an orphan event that will never expire. Catch these cases by ensuring that
+            -- the aura with this event's auraInstanceId is still present.
+            if aura then
+                if not C_UnitAuras.GetAuraDataByAuraInstanceID(ev:getSlot(), aura.auraInstanceId) then
+                    ev:setExpiration(GetTime())
+                end
+            end
+
             if not ev:isExpiring() then
                 -- special handling to reduce spam: for abilities with only one possible provider,
                 -- aura updates cannot mean a new ability was used. so block new events from
