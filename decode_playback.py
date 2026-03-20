@@ -33,22 +33,23 @@ def decode_export_blob(compressed):
     return cbor2.loads(decompressed)
 
 
-def one_logic_string(ability, layers):
+def one_logic_string(ability, source, caster, layers):
     string = "[" + str(ability) + ":"
     for name, summary in layers.items():
         passes, certain = summary
-        string += "%s%s%s" % (passcolor(passes), name.decode(), certainmark(certain))
+        # XXX: disable until fix guid/slot maps
+        string += "%s%s%s%s" % (passcolor(passes), name.decode(), "" if True or source == caster else "_" + caster, certainmark(certain))
     string += ascii_reset + "]"
     return string
 
 
-def logic_string(logic, pass_type):
+def logic_string(logic, source, pass_type):
     string = ""
     for logic_summary in logic:
         caster, ability_id, passes, layers = logic_summary
         if passes == pass_type:
             ability = character_abilities[caster.decode()][ability_id]
-            string += one_logic_string(ability['alias'] if 'alias' in ability else ability['name'], layers)
+            string += one_logic_string(ability['alias'] if 'alias' in ability else ability['name'], source, d(caster), layers)
     return string
 
 
@@ -168,8 +169,8 @@ with open(sys.argv[1], "r") as f:
             #print(inference_time, best, ability_id, cast_events[best])
             if True or event_source == "Player-3721-0C5111C6":
                 print(infer_string(record))
-                print("PASS:", logic_string(logic, True))
-                print("FAIL:", logic_string(logic, False))
+                print("PASS:", logic_string(logic, event_source, True))
+                print("FAIL:", logic_string(logic, event_source, False))
                 print("CONF:", confidence_string(conf) + " " + reqs_string(reqs))
                 print(decision_string(record))
         elif rectype == "event":
@@ -177,7 +178,7 @@ with open(sys.argv[1], "r") as f:
             actor = ""
             if len(record) > 2:
                 actor = record[2]
-            if True or actor == "party3":
+            if True or actor == "player":
                 #print(record)
                 print("%s%0.3f %s(%s)%s" % \
                     (ascii_purple, time, event, ",".join([ str(x) for x in record[2:] ]), ascii_reset))
