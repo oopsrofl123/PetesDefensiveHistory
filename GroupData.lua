@@ -381,12 +381,8 @@ local function doLibSpecUpdate(specId, playerName, talentExportString, slot)
             playerName .. '] to a slot. proceeding without spec info')
     end
 
-print('trackCharacter() - called from libspec')
     local char = ns:trackCharacter(slot)
     char:setSpecAndTalents(specId, talentExportString)
-    --ns:updateCharacterData()
-    -- XXX: don't see why a separate update is needed or why respondToRoster has to wait until
-    -- after the next two lines.
     ns:respondToRosterUpdate('doLibSpecUpdate('..playerName..')')
 
     -- XXX: TODO: not correct - needs to live in Character objects.

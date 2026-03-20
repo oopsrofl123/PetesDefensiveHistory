@@ -96,7 +96,6 @@ local function updateTrackedSlots()
     -- getSlotSet returns ['player', 'party1', ...] or ['raid1', 'raid2', ... ] for the
     -- current set of group members.
     for _, slot in pairs(ns:getSlotSet()) do
-print('updateTrackedSlots', slot)
         if UnitExists(slot) then
             -- Unchanging player global ID
             local guid = UnitGUID(slot)
@@ -107,17 +106,13 @@ print('updateTrackedSlots', slot)
             -- Player name, hyphenated with realm if appropriate
             local playerName, realm = UnitNameUnmodified(slot)
             if realm then
-print(realm)
                 playerName = Ambiguate(playerName.."-"..realm, "none")
             end
-print('UnitExists(',slot,')',UnitExists(slot), 'playerName=', playerName, 'realm=', tostring(realm))
 
             slotToGUID[slot] = guid
             slotToFrame[slot] = frame
             playerNameToSlot[playerName] = slot
             GUIDToSlot[guid] = slot
-else
-print('UnitExists(',slot,')',UnitExists(slot))
         end
     end
 end
@@ -161,7 +156,6 @@ function ns:updateCharacterData(trace)
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
                 "updateCharacterData(%s) -> trackCharacter(%s, %s, UnitName=%s)",
                 trace, slot, guid, tostring(UnitName(slot))))
-print('trackCharacter() - called from updateCharacterData')
             ns:trackCharacter(slot)
         end
     end
