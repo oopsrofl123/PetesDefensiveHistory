@@ -1,80 +1,34 @@
 BUGS
 ===========================================================================
-- disable arcane surge by default
 
-- freedom that never fades
+- hides chubb's micromenu (bags, character sheet, group finder, etc. buttons)
+    - if it helps: it's from dominos, not the blizz default menu
+    - just ask him to retest
 
-- slotToFrame() = nil failure in trackerui:571
+- [OLD BUG: check this now with replays] better handling of spec querying
+	- libspecialization updates during m+ runs. need to figure out why
 
-SHADOWMELD
-- seems to still be some erroneous shadowmelds. implement group drop protection
-    - done. needs testing
-- bug on open world and on dummies in silvermoon
-    - somehow there was no buff?
-    - target dummies do not allow combat to drop if you are close enough to them
-        - this is probably to help prevent annoying things like damage meters resetting on vanish
-          or something.
-    - but still lost meld on an outdoors mob because the flags event happened 0.1s away from
-      the aura event.
+- double freedom: explain this in known bugs, because players will see lots of freedoms in the
+  history tray and wonder why
+    - also spec into this on my paladin and do a test run
+
+SHADOWMELD ACCURACY
+- test group drop protection
+- missed a meld on an outdoors mob because the flags event happened 0.1s from the aura
     - might need a more lax tolerance for meld. leaving combat could be handled differently on the
       server side from simple aura applications
 
-- there is a scenario where the visual debugging 'partyX' label does not show up on a frame
-    - happened once in an LFG heroic and one more time in random testing, but I can't make it happen again
-    - this did not affect the actual tracker UI weirdly enough, even though the visual debugging label
-      is attached to it
-
-* even if the recent change to setSpecAndTalents() fixed the error below, need to test 
-  exactly what order events occur when zoning into a dungeon
-    - the LFG system is probably a little different
-- bug in reading classFile in heroic dungeon
-    GroupData.lua: 139: bad argument #1 to 'pairs' (table expected, got nil)
-    ..setSpecAndTalents()
-    (i.e.,  through libspec)
-
-    self = table {
-    }
-    spec = 104
-    tstring = "talents.."
-    specId = 104
-    _ = 104
-    specName = "Guardian"
-    className = "Druid"
-    talentExportString = "talents.."
-    classFile = nil
-    talentRanks = {
-        102401=1,
-        ...
-    }
-    abilities = {
-    }
-    possibleAbilities = {
-    }
-    UID = "Player-3725-0C5D2422"
-    englishRaceName = nil
-
-
-- new bug in follower dungeon:
-    - reload UI
-    - immediately cast freedom
-    - somehow this circumvents the glow/cooldown swipe
 
 
 
 V1.0 RELEASE FEATURES
 ===========================================================================
-- some amount of export support. otherwise there's just no way to know how well it works
-
 - use the new export functionality to export raw events from a few dungeon runs
 
-
-- watch m0 vod to find bugs
-    - why was freedom often in history tray? (was it on non-libspec players?)
-
 - update github/curseforge readmes
-    - mention restricted license for now with intended open license later
-    - want to work with frontend UI designers
-
+    - [DONE] mention restricted license for now with intended open license later
+    - [DONE] want to work with frontend UI designers
+    - add better pictures/GIF in action
 
 - full pass on ability testing, especially with updating. not easy to do since seemingly uninteresting
   talents can cause updating.  see, e.g., the mage hero talent that causes ice cold/ice block to constantly
@@ -106,7 +60,6 @@ pain supp
     - warlock
     - warrior
 avatar (proc>press)
-
 
 
 NOTES ON COMPLEX CASES
@@ -183,22 +136,31 @@ NOTES ON COMPLEX CASES
                 a debuff is not POSITIVE evidence of C - but lack of a debuff is POSITIVE evidence of G by excluding C
                 no spellcast is POSITIVE evidence of C - excludes G, leaving only C
                 REQUIRES CONSUMPTION TO AUTOMATICALLY RESOLVE (ARBITRARILY)
+    - avatar
+        - avatar proc can't occur during avatar, meaning two things:
+            a. no procs during avatar
+            b. no procs during PROCS
+        - every tblast is an aura update and a new event, will be LOTS of events in this batch
+        - tblast has the same cooldown as tclap (6s, scales with haste)
+            - this constrains number of extensions for both AotS and avatar.
+            - AotS: 6s base, 10s max (2 exts): extension 1 -> 8s allowing for cd to finish and cast 2nd
+                * need >50% haste to get a 3rd. prob happens during lust
+        - since each update = new event, every update that isn't IDed will get sent to the history tray
+          batch logic needs prune out extra events to prevent this
+            - similar to VDH meta where the apex talent cd isn't tracked, AotS' cooldown also is untracked
+            - so the batch logic just needs to determine if the event was long enough for a real avatar to
+              put on cd. unfortunately it probably can't be determined whether avatar occurred on the
+              AURA(add) or was a proc>avatar. so the exact start of the CD often won't be possible. can take
+              the worst case approach and always assume first. an exact CD timer won't matter since there is
+              dynamic CDR anyway.
+    - goak
+    - vdh meta
+    - sentinel
+        - this is already handled but in a hamfisted way. prevented from AURA(update) by charges=1
+          and naturallyUpdates=true. which is another way of saying updates aren't of interest.
+        - just need to prevent this from filling up the history tray. not a complex ability
 
 
-
-
-
-NEEDS TESTING
-===========================================================================
-- hides chubb's micromenu (bags, character sheet, group finder, etc. buttons)
-    - if it helps: it's from dominos, not the blizz default menu
-- better handling of spec querying
-	- libspecialization updates during m+ runs. need to figure out why
-- groups with sac and ironbark
-- warrior avatar procs
-- test rider of the apocalypse AMS proc. does it give the same AMS buff? if so
-  we might need to catch it. has 45s cd. might have identical duration? might
-  not be able to differentiate except by isButtonPress
 
 
 
@@ -206,6 +168,30 @@ NEEDS TESTING
 
 V1.1 RELEASE FEATURES
 ===========================================================================
+- there is a scenario where the visual debugging 'partyX' label does not show up on a frame
+    - happened once in an LFG heroic and one more time in random testing, but I can't make it happen again
+    - this did not affect the actual tracker UI weirdly enough, even though the visual debugging label
+      is attached to it
+    - can't reproduce
+
+- arcane surge: try PLAYER_DAMAGE_DONE_MODS
+    - if it works, re-enable by default
+    - maybe not worth the time, PLAYER_* events usually only trigger for the player, not group members
+
+- test rider of the apocalypse AMS proc. does it give the same AMS buff? if so
+  we might need to catch it. has 45s cd. might have identical duration? might
+  not be able to differentiate except by isButtonPress
+
+- might need a more lax tolerance for meld. leaving combat could be handled differently on the
+  server side from simple aura applications
+
+- required debuffs on tanks
+    - debuff updates, not just applications, have to be recorded as evidence (e.g., the bubble
+      forbearance talent).
+    - tanks can receive LOTS of debuff updates, making nonstop debuff evidence
+    - COULD DO BETTER: the only relevant buff i know of that updates is forbearance. we could
+      exclude debuffs that update more frequently
+
 TEST HARNESS
     - wrap the very few WoW API calls with functions that can inject correct responses when run
       in standalone mode
@@ -221,7 +207,7 @@ TEST HARNESS
         - there will probably be issues with ability ID mapping for those abilities with
           several possible IDs. the IDs are necessary for the extraction step
 
-EXPORTING
+REPLAYS
     * ALIGNER:
         - appliesOtherAuraId should not work but appears to
             - turns out the cheat death version of GoAK (393108) is in the log alongside normal GoAK
@@ -292,11 +278,6 @@ EXPORTING
       flagset (10000), and will be put in the tray.
     - special handling around cooldown exclusion is necessary to solve
 
-- addon show/hide is a hack right now but happens to work. need to:
-    1. delegate showing/hiding responsibility to the TrackerUI update* functions
-    2. get rid of extra :Show() loop in respondToRosterUpdate()
-    3. consider whether data updating should remain tied to UI updating (respondToRosterUpdate())
-
 - UNIT_FLAGS fires on dismount (and fires an AURA)
 
 - convert evidence trackers from timestamps -> (timestamp, count)
@@ -305,51 +286,11 @@ EXPORTING
     - UNIT_ABSORB is a particularly bad offender, e.g. on prot paladin throwing divine toll grants
       an absorb for every shield hit.
 
-- meld protection: check for combat drops of other players. if too many others also left combat,
-  then prevent inferring meld
-    - example of meld FP in heroic nexus point at 12:34
-
-- rather than polling, just queue a callback for TOLERANCE seconds in the future
-
-- batch inference
-    - when multiple events attached to same ability, perform inference on the batch.
-      this generalizes the case of abilities that update themselves without button presses
-      (i.e., the old numUpdates data, which was never used) and also is the basis for complex
-      chains of aura updates like vdh meta and goak
-    - for logging: must print batch ID in addition to event ID
-    - when none of the abilities in a batch are certain, only add 1 copy of the secret texture to history tray
-    - avatar
-        - avatar proc can't occur during avatar, meaning two things:
-            a. no procs during avatar
-            b. no procs during PROCS
-        - every tblast is an aura update and a new event, will be LOTS of events in this batch
-        - tblast has the same cooldown as tclap (6s, scales with haste)
-            - this constrains number of extensions for both AotS and avatar.
-            - AotS: 6s base, 10s max (2 exts): extension 1 -> 8s allowing for cd to finish and cast 2nd
-                * need >50% haste to get a 3rd. prob happens during lust
-        - since each update = new event, every update that isn't IDed will get sent to the history tray
-          batch logic needs prune out extra events to prevent this
-            - similar to VDH meta where the apex talent cd isn't tracked, AotS' cooldown also is untracked
-            - so the batch logic just needs to determine if the event was long enough for a real avatar to
-              put on cd. unfortunately it probably can't be determined whether avatar occurred on the
-              AURA(add) or was a proc>avatar. so the exact start of the CD often won't be possible. can take
-              the worst case approach and always assume first. an exact CD timer won't matter since there is
-              dynamic CDR anyway.
-    - goak
-    - vdh meta
-    - sentinel
-        - this is already handled but in a hamfisted way. prevented from AURA(update) by charges=1
-          and naturallyUpdates=true. which is another way of saying updates aren't of interest.
-        - just need to prevent this from filling up the history tray. not a complex ability
-
 - make certain evidence queryable without going through infer
     - example: player pressed a button. important for making updates generate events
 
 - make a better "isOffCooldown()" function for use in inference engine and in the update aura loop.
   incorporate heuristics for dynamic CDR + charge abilities.
-
-- [MAYBE FALSE REPORT] cooldown visual state is forgotten between zone loads
-  internal data in cdtracker is not forgotten, so should be possible to correct.
 
 - WoW BUGS TO HANDLE:
     - VDH meta: procing last resort puts meta on CD
@@ -360,12 +301,8 @@ EXPORTING
             - would possibly glow the spellward icon
 
 
-- exclamation badges: visual feedback to the user when cooldown tracking (e.g. CDR or
-  possibly other reasons) is inconclusive.
-
-- add Vanish ability for rogues not because we can track it but because it looks
-  similar (identical?) to shadowmeld and needs to prevent vanish inference on
-  night elf rogues.
+- general use of exclamation badges: rather than permanently attaching these to cooldowns suspected
+  to be wrong, use them more dynamically.
 
 - ZKS simulation doesn't know how to create nonAuraEvents
 
@@ -376,6 +313,7 @@ EXPORTING
     - happens when CC is used: the source is the target (or multiple targets, for AoE)
     - for AoE CCs: need to prevent adding tons of events for a single ability (one
       AoE cast = possibly many mobs fire UNIT_AURA->events)
+
 - fold evidence tracking into Character
 
 - fix the fiery brand 2-charge problem
@@ -390,13 +328,7 @@ EXPORTING
       register OnUpdate, so are constantly checking for changes, e.g., when a recharge
       completes
 
-- UNIT_DIED handler. Seems the GUID is secret - probably fires for deaths
-  of NPCs as well as players. PLAYER_DEAD also fires, has no payload. would
-  be better than UNIT_DIED if that includes NPCs
-    - combine with UNIT_FLAGS-based combatDrops
-
-- Detect ability resets. E.g., detect when cold snap is used to reset ice cold/
-  ice block.
+- Detect ability resets. E.g., detect when cold snap is used to reset ice cold/ice block.
 
 - Minimap button
     - re-anchor frames to deal with sort changes
@@ -413,28 +345,6 @@ EXPORTING
         - Blizzard opts not to show buffs some would like to see. E.g.,
           bubble, evasion and meta.
 
-- [PROBABLY LATER] Major debugging feature: export string with all trace data from e.g., a dungeon.
-    - [In the short term, ignore everything below] Compressing data into a shareable string is great for
-      debugging, but in the near term, an uncompressed record with an explorer will be very useful. The
-      calculations below indicate that storing inference records without compression should be no problem.
-    - Some ideas about compressing inference history into a shareable string
-        - layout: one block per target guid, so every record in that block can be assumed to target
-          the same guid without wasting storage space. when caster != target, encode guids
-        - header: build guid encoding (e.g., slot indexes 1..5 in 3 bits).
-        - inferAbility: make bit string of all logic layer and confidence network results
-          for each inference call.
-            - [maybe] record large data like timestamps only for failing logic elements or passing network elements
-            - run length encoding for multiple inference calls made on the same data changes
-                - how to deal with duration changing?
-            - time stamp encoding? 4B=32b float probably. can an offset encoding help? if dungeon < 40m is the longest
-              tracker, 40*60*1k is ~2.5M ms is the max offset, needs 22 bits. so 68% compression. maybe helpful.
-        - game loop: store bit-compressed records of every aura with an interesting flag and a bit on
-          whether they were correctly inferred. ~8 bits of flags, 3 bits for slot (5 man content). header flag can
-          help 
-        - quick and dirty calc: worst case is probably prot paladin with ~10 tracked cds, 1 CPM. so 30 min
-          dungeon would be 300 inference requests. assume avg 3 inference attempts per success = 900 traced
-          events. 10 bytes per inference (how realistic is that? one time stamp is 4B) = 9kB, so base 64 encoded
-          would be a 12,000 character string. Not that bad.
     
 
 
@@ -446,7 +356,9 @@ IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
 
 - ARCANE SURGE ID. hard to do since mirror images is identical duration/flags
     * MANY talents affect surge
-    * PLAYER_DAMAGE_DONE_MODS?
+    * PLAYER_DAMAGE_DONE_MODS? this procs in response to changing mana, might be too frequent to
+      use as positive ID?
+        - worth trying
     * required sunfury talent gives spell haste that procs a unique event
       (UNIT_SPELL_HASTE)
     * optional sunfury talent extends duration
@@ -494,16 +406,11 @@ IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
 - [maybe] add CCs/stops if the blizzard CC flags cause uniquely identifiable events
 - do cheat death events generally fire IMPORTANT events? rogue, evoker, DH, warrior, mage..
 - could hunter exhil be detected by the idea that they only have one
-- GoAK might not be cancellable? check. helps identify.
-    - it isn't. right clicking and /cancelaura do not work
-    - however filter=HELPFUL|CANCELABLE is the same for ardent defender and GOAK,
-      despite AD being cancelable (right click and /cancelaura)
 - self-cast heal that requires a button press (i.e., isn't a proc) and also
   applies a hot? how to distinguish from health pot?
     - buttonPress
     - UNIT_COMBAT heal where the caster=target=a hunter
     - UNIT_AURA applied a HoT (basically required talent)
-    - is SPELL_UPDATE_COOLDOWN sent to party? or only fires in the player's client
 - more work to distinguish divine protection from wings
     - some wings constantly update themselves (sentinel), though in that case there
       is no DP..
@@ -540,6 +447,8 @@ IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
   cold) while ice cold was known to be on CD.
 - get data to make better estimates on duration solve tolerance
     - both the "match" epsilon and the minimum difference
+    - replays should enable this
+    - probably changes from player to player depending on ping, FPS
 - use updating to ID spells
     - e.g., fiery brand, sentinel constantly self-update
 - better handle CDR
@@ -563,21 +472,10 @@ ABILITY ARCHITECTURE (maybe)
   UI elements (swipe trackers)
 - EVENTS map one-to-many to ABILITIES
 
-- (ARCH) SUMMARY OF UI FEEDBACK
-1. claim ability was used
-    a. TTS announce
-    b. glow the UI element
-    c. track the CD
-2. claim the ability is done
-    a. unglow UI
-    b. start the cooldown swipe
-
 - fold eventTrackers, cdTrackers and buffsForInference into Character.
     - buffsForInference: consider generalization to kicks, stops
     - empty eventTrackers and cdTrackers need to be easily creatable for ZKS
 
-- could buff removal become an event for eventTrackers, further generalizing the
-  event architecture and removing special logic in UNIT_AURA?
 
 - [NOT SURE - is this really helpful?] better non-fixed duration support: generalize
   current FIXED, LTE, GTE system to a duration range (min, max) where the default
@@ -641,6 +539,15 @@ OTHER FEATURES -----------------------------------------------------------------
 
 - inferAbility() - save the conflicting spells/casters for UI elements
 
+
+FEATURES THAT NO LONGER MAKE SENSE ---------------------------------------
+[WHAT IS THIS FOR? Originally thought death would cause incorrect durations and therefore
+ruin inferences. But not many abilities require duration to ID and aura expirations work
+as expected.]
+- UNIT_DIED handler. the GUID is likely secret - probably fires for deaths
+  of NPCs as well as players. PLAYER_DEAD also fires, has no payload. would
+  be better than UNIT_DIED if that includes NPCs
+    - combine with UNIT_FLAGS-based combatDrops
 
 
 
@@ -731,6 +638,60 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- [DOESN'T HAPPEN ANYMORE] new bug in follower dungeon:
+    - reload UI
+    - immediately cast freedom
+    - somehow this circumvents the glow/cooldown swipe
+
+- test UNIT_FLAGS firing with dismounts
+    - shouldn't matter, won't cause a combat state change
+    - not sure this is even true
+
+- [NEEDS TESTING] add orphaned event check in manageEvents
+    - check C_UnitAuras.GetAuraDataByAuraInstanceID on each event pass
+    - [FIXES] freedom that never fades
+        - moved to known bugs: cooldown active during loading screen
+        - deglow all icons on player_entering_world?
+
+- batch inference
+    - when multiple events attached to same ability, perform inference on the batch.
+      this generalizes the case of abilities that update themselves without button presses
+      (i.e., the old numUpdates data, which was never used) and also is the basis for complex
+      chains of aura updates like vdh meta and goak
+    - for logging: must print batch ID in addition to event ID
+    - when none of the abilities in a batch are certain, only add 1 copy of the secret texture to history tray
+
+- watch m0 vod to find bugs
+    - why was freedom often in history tray? (was it on non-libspec players?)
+
+- some amount of export support. otherwise there's just no way to know how well it works
+
+- add Vanish ability for rogues not because we can track it but because it looks
+  similar (identical?) to shadowmeld and needs to prevent vanish inference on
+  night elf rogues.
+
+* [FIXEDBY: replays] even if the recent change to setSpecAndTalents() fixed the error below, need to test 
+  exactly what order events occur when zoning into a dungeon
+    - the LFG system is probably a little different
+
+- remove raw print statements for chardata tracking now that we have replays
+
+- disable arcane surge by default
+
+- check don't attempt to anchor TrackerUI if slotToFrame()=nil
+    - [FIXES] slotToFrame() = nil failure in trackerui:571
+
+- meld protection: check for combat drops of other players. if too many others also left combat,
+  then prevent inferring meld
+    - example of meld FP in heroic nexus point at 12:34
+
+- rather than polling, just queue a callback for TOLERANCE seconds in the future
+
+- addon show/hide is a hack right now but happens to work. need to:
+    1. delegate showing/hiding responsibility to the TrackerUI update* functions
+    2. get rid of extra :Show() loop in respondToRosterUpdate()
+    3. consider whether data updating should remain tied to UI updating (respondToRosterUpdate())
+
 - why is Character(player): new character called so many times on simple UI reload?
     - it isn't. the new character log message was accidentally moved into setBasicInfo. fixed.
 
