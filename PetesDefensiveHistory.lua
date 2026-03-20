@@ -205,7 +205,8 @@ local function fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
         getFlag("HELPFUL"),
         getFlag("HARMFUL"),
         -- Some auras we track are not cancelable (like GoAK). Unfortunately this filter
-        -- does not correctly reflect that  for GoAK. But maybe it is correct for others?
+        -- does not correctly reflect that for GoAK. But maybe it is correct for others?
+        -- Arcane surge is also not cancelable but returns true.
         getFlag("HELPFUL|CANCELABLE"),
         getFlag("HELPFUL|INCLUDE_NAME_PLATE_ONLY"),
         getFlag("INCLUDE_NAME_PLATE_ONLY"),
