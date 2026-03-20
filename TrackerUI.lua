@@ -193,7 +193,13 @@ function ns:queueCooldown(ability, availableAt)
     --   * Single charge abilities: cdEndsAt = buff.startTime + ability.cooldown,
     --     even if there is dynamic CDR
     --   * Multi-charge abilities: cdEndsAt accounts for previous recharge completions.
-    if cd.charges == 1 or cd.numQueued == 0 then
+    -- startTime < cd.startTime: there is a rare case where two ability charges are used
+    -- very close together and the second is IDed first (GoAK is an example). in this
+    -- case, the first event will get the later cooldown charge (and is actually wrong, but
+    -- by a small amount). since event batches are processes in order, it will be the first
+    -- event to call queueCooldown and set numQueued=1. a correct solution requires reworking
+    -- the cdfifo. this hack solution ensures the younger charge controls the swipe.
+    if cd.charges == 1 or cd.numQueued == 0 or startTime < cd.startTime then
         cd.startTime = startTime
         cd.swipeTexture:SetCooldown(startTime, ability.cooldown)
     end
