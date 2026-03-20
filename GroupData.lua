@@ -150,7 +150,7 @@ function ns:Character(slot)
         className, classFile, _ = UnitClass(slot)
         _, englishRaceName, raceId = UnitRace(slot)
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-            "Character(%s,%s): set basic info name=[%s], class=[%s], raceId=[%s], raceName=[%s]",
+            "Character(%s,%s): name=[%s], class=[%s], raceName=[%s]",
             slot, GUID, name, tostring(classFile), tostring(raceId), tostring(englishRaceName)))
     end
 
