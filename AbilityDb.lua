@@ -455,7 +455,8 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            requireBuff=true             -- Base line: "Generates Clearcasting"
+            requireBuff=true,             -- Base line: "Generates Clearcasting"
+            developerDisable=true,        -- needs more work to distinguish from mirror images
 		},
         -- XXX: use cancellation to help detect?
 		{
