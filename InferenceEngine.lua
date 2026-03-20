@@ -11,8 +11,11 @@ end
 -- event at 12.05s or 11.95s.
 --
 -- The tolerance defines the maximum difference between the nominal buff
--- duration and the measured buff duration that counts as match.
-ns.DURATION_TOLERANCE = 0.15
+-- duration and the measured buff duration that counts as match. This can
+-- be lax - usually abilities differ by at least 1s in nominal duration if
+-- they differ at all. I have seen cases of 0.23s differences. Should be
+-- less than DURATION_CONFIDENT_DIFFERENCE
+ns.DURATION_TOLERANCE = 0.30
 
 -- Some abilities cause concurrent events. Some apply other buffs or
 -- debuffs (e.g., hypothermia/ice block, forbearance/bubble) or fire other
@@ -248,7 +251,7 @@ local function logicLayerAuraFlags(event, ability)
     if aura.IMPORTANT ~= ability.IMPORTANT or
        aura.BIG ~= ability.BIG or
        aura.EXTERNAL ~= ability.EXTERNAL or
-       (requireRaidFlag and aura.RAID ~= ability.RAID) or
+       (false and requireRaidFlag and aura.RAID ~= ability.RAID) or
        aura.RAIDINCOMBAT ~= ability.RAIDINCOMBAT then
         traceLogic(event, ability,
             "excluded (flags): requireRaidFlag=%d, aura=(%d%d%d%d%d), ability=(%d%d%d%d%d)",
