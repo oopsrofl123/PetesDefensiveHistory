@@ -573,7 +573,7 @@ end
 local function confidenceLayerDuration(possibleSolutions)
     best, second = getTopTwo(possibleSolutions,
         { name='dummy', durationDiff=ns.INFINITY },
-        function(a, b) return a.durationDiff <= b.durationDiff end)
+        function(a, b) return a.durationDiff < b.durationDiff end)
 
     if second.durationDiff - best.durationDiff >= DURATION_CONFIDENT_DIFFERENCE then
         traceConfidence('duration', 'success: best=%0.3f, second=%0.3f, required diff=%0.3f',
@@ -593,7 +593,7 @@ end
 local function confidenceLayerCastTime(possibleSolutions)
     best, second = getTopTwo(possibleSolutions,
         { name='dummy', castTimeDiff=ns.INFINITY },
-        function(a, b) return a.castTimeDiff <= b.castTimeDiff end)
+        function(a, b) return a.castTimeDiff < b.castTimeDiff end)
 
     if second.castTimeDiff - best.castTimeDiff >= CASTTIME_CONFIDENT_DIFFERENCE then
         return { "castTime", best, true }
