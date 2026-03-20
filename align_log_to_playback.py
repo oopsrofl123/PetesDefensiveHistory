@@ -48,13 +48,15 @@ def read_addon_export(filename):
         player_guid = metadata['myGUID']
         print('Exporter:', player_guid)
 
-        characters = data[b'characters']
-        print('CHARACTERS ------------------------------------------------------------')
-        print('Found', len(characters), 'characters')
-        for char in characters:
-            char = { k.decode(): (v.decode() if type(v) is bytes else v) for k, v in char.items() }
-            print('   ', char['playerName'], char['GUID'], char['raceName'],
-                char['specName'], char['classFile'])
+        # not used for now
+        characters = None
+        #characters = data[b'characters']
+        #print('CHARACTERS ------------------------------------------------------------')
+        #print('Found', len(characters), 'characters')
+        #for char in characters:
+            #char = { k.decode(): (v.decode() if type(v) is bytes else v) for k, v in char.items() }
+            #print('   ', char['playerName'], char['GUID'], char['raceName'],
+                #char['specName'], char['classFile'])
 
         def normalize(record, start, is_inference=False):
             result = [ record[0] - start ] + \
@@ -83,10 +85,10 @@ def read_addon_export(filename):
 # events from the appropriate character.
 def get_inferences_to_assess(metadata, playback, inferences):
     slot_to_guid = { k.decode(): v.decode() for k, v in metadata['slotToGUID'].items() }
-    print(slot_to_guid)
+
     cast_events = {}
     cast_times = {}
-    for e in playback:
+    for e in ( e for e in playback if e[1] == 'UNIT_SPELLCAST_SUCCEEDED' ):
         # playback event records are not all the same structure
         e = [ x.decode() if type(x) is bytes else x for x in e ]
         time, event, actor = e[0:3]
@@ -203,16 +205,18 @@ def write_adjusted(filename, events, adj):
 # Suppress scientific notation
 numpy.set_printoptions(suppress=True)
 
-combatlog_in = "WoWCombatLog-031826_055026.txt"
-combatlog_out = pathlib.Path(combatlog_in).with_suffix('.aligned.txt')
-print(combatlog_out)
-addon_export_in = "inference_and_playback_data.txt"
+addon_export_in = sys.argv[1]  #"inference_and_playback_data.txt"
 addon_export_out = pathlib.Path(addon_export_in).with_suffix('.aligned.txt')
 print(addon_export_out)
+
+combatlog_in = sys.argv[2]      #"WoWCombatLog-031826_055026.txt"
+combatlog_out = pathlib.Path(combatlog_in).with_suffix('.aligned.txt')
+print(combatlog_out)
 
 
 addon_user_guid, metadata, characters, playback, inferences = read_addon_export(addon_export_in)
 guid_to_slot = { k.decode(): v.decode() for k, v in metadata['GUIDToSlot'].items() }
+
 player_name_to_slot = { k.decode(): v.decode() for k, v in metadata['playerNameToSlot'].items() }
 slot_to_player_name = { v: k for k, v in player_name_to_slot.items() }
 
@@ -223,7 +227,7 @@ for caster, inflist in inferences_to_assess.items():
     player = slot_to_player_name[slot]
     print("    %s(%s)=%s: %d" % (player, slot, caster, len(inflist)))
 
-full_playback = playback #get_playback(playback)
+full_playback = playback
 
 full_combatlog = read_combatlog(combatlog_in)
 
