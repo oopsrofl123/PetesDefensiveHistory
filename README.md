@@ -17,15 +17,19 @@ PetesDefensiveHistory uses a flexible inference engine to identify abilities thr
 
 Layout options are currently limited, mimicking OmniCD layouts with cooldowns to the left of party frames. **Would love to integrate the inference engine with a UI-focused addon. Please contact me if interested!**
 
+
 # Limitations
 * **Tracking is not 100% accurate.** Which cooldown has been used is guessed based on the small number of Blizzard marked buffs and some additional logic about who those buffs can be cast by and applied to. This addon does not rely on exploits in which secret spell IDs are inadvertently leaked.
 * **Tracking only works for players with LibSpecialization.** LibSpecialization is included in this addon as well as many common addons such as BigWigs. For players without LibSpecialization, all buffs will be sent to the history tracker (i.e., treated as unidentified).
 * **Dynamic cooldown reduction cannot be tracked.** While static cooldown reduction from talents (e.g., cooldown reduced by 60s) is handled, dynamic cooldown reduction (CDR)--e.g., the cooldown of Shield Wall is reduced by 6s when you use Shield Slam--cannot generally be tracked. Timers for abilities with both CDR and multiple charges are especially inaccurate since the second charge can only begin cooling down once the first charge completes. These ability trackers are displayed with a (!) badge and can be disabled if desired.
+* Shadowmeld tracking does not work on target dummies if the player is too close to the dummy. Dummies prevent you from dropping combat when too close.
+
 
 # Known bugs
-There are several known bugs. Here are a few in no particular order:
+There are several known bugs. Unlike *limitations*, which are permanent inadequacies of the approach used, these bugs will be fixed in upcoming releases. Here are a few in no particular order:
+* Blessing of freedoms in history tray: the free second Blessing of Freedom talent Unbound Freedom creates two freedoms for one cast. Currently only one freedom will be assigned to the caster and the other will go to the history tray when it times out.
 * Avatar, Guardian of Ancient Kings, and VDH (tank) Metamorphosis inference is currently inaccurate, but is solvable.
-* Changes to party sort order aren't detected, so trackers will not follow the sorting. A `/reload` will fix the issue.
+* Changes to party sort order aren't detected, so trackers will not follow the sorting. For example, if you change your party sort order in the default Blizzard frames through edit mode the attached trackers will not follow. A `/reload` will fix the issue.
 * Cooldown tracker states are lost on `/reload` or if a player leaves the group.
 * VDH meta is currently bugged in WoW: the cheat death proc also puts meta on cooldown if it is available. This bug will be added to the addon if it continues to exist for much longer.
 * If an active (glowing) cooldown buff expires while in a loading screen, the glow will remain until the ability is used again.
