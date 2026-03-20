@@ -1,16 +1,39 @@
 BUGS
 ===========================================================================
+- required buff is only binary, so abilities with multiple required buffs
+  (e.g., wake of ashes: HoW talent and shield talent each give a different buff)
+  don't look for the extra buffs.
+    - requires :consume()
+
+- metadata is not tracked as an update list, so when exported it doesn't
+  match the infers/events
+
+- tons of ret paladin mis-IDs
+    - maybe disable ret DP? seems like it is impossible to distinguish from freedom
+      unless we want to positive ID it based on shield.
+    - after looking into these, the IDs actually seem correct. what is weird is that
+      the ret paladin had the wings animation at ~2345=52:26 in vod. since no log, can't
+      figure out what happened.
+    - wake of ashes as freedom
+        - might be related to cooldown
+        - 158: 2292.029     2300.080     2302.913    [wake: many buffs]
+52:04   - 187: 2323.667     2331.987     2334.662    [wake: many buffs, nil bug on attempt=1]
+        - 209: 2341.035     2345.873     2349.039    [DP: absorb/buff in same tick]
+        - 221: 2345.757     2345.873     2354.745    [freedom: 8s?]
+        - 277: 2439.400                  2447.416    [DP: nil bug, fail attempt=1, abs/buff same tick]
+        - 307: 2477.284
+
+- the nil ability in topTwo bug is back. means that there is a nil in possibleSolutions
+
+- internal memory usage is WAY more than export:
+    - AddOn panel: 159MB
+    - export serialized string: ~6MB
+    - compressed string: 600kB
+    - likely need a disable feature for playback/internal tracking
 
 - hides chubb's micromenu (bags, character sheet, group finder, etc. buttons)
     - if it helps: it's from dominos, not the blizz default menu
     - just ask him to retest
-
-- [OLD BUG: check this now with replays] better handling of spec querying
-	- libspecialization updates during m+ runs. need to figure out why
-
-- double freedom: explain this in known bugs, because players will see lots of freedoms in the
-  history tray and wonder why
-    - also spec into this on my paladin and do a test run
 
 SHADOWMELD ACCURACY
 - test group drop protection
@@ -18,16 +41,17 @@ SHADOWMELD ACCURACY
     - might need a more lax tolerance for meld. leaving combat could be handled differently on the
       server side from simple aura applications
 
+- use the new export functionality to export raw events from a few dungeon runs
+    - LOG
 
 
 
 V1.0 RELEASE FEATURES
 ===========================================================================
-- use the new export functionality to export raw events from a few dungeon runs
 
 - update github/curseforge readmes
-    - [DONE] mention restricted license for now with intended open license later
-    - [DONE] want to work with frontend UI designers
+    - [done] mention restricted license for now with intended open license later
+    - [done] want to work with frontend UI designers
     - add better pictures/GIF in action
 
 - full pass on ability testing, especially with updating. not easy to do since seemingly uninteresting
@@ -168,13 +192,34 @@ NOTES ON COMPLEX CASES
 
 V1.1 RELEASE FEATURES
 ===========================================================================
+- 260s cooldown on GoAK? what?
+    - the double cast bug is back: both charges used together -> the second
+      charge puts its timeout on the cooldown swipe
+    - no, the bug is different. this happened because the first charge coincided
+      with a random debuff from a mob and thus could not exclude cheat death.
+      the second charge IDed almost instantly (application+tolerance) because a
+      debuff did not randomly coincide with it.
+        - this caused the second charge to be queued in trackCooldown first,
+          which made the first charge's "availableAt" time AFTER the second charge.
+        - the events are expired in order in manageEvents, so the first event's
+          later availableAt is used in queueCooldown's :SetCooldown
+    - a hack could be to allow queueCooldown to set the swipe if the proposed
+      startTime is < the current start time
+        - this hack doesn't fix the incorrect cooldown time though. in this goak
+          example, the first charge is off by 4s (time to exclude cheat death)
+    - this should be a very rare bug. very few people probably have the goak issue I
+      have (bound to mousewheel so both charges fire off back to back).
+    - the correct fix is to change cdfifo to record start times and have it
+      re-solve cooldowns when new abilities are added
+        - this relates to the cooldown backpropagate idea
+
 - there is a scenario where the visual debugging 'partyX' label does not show up on a frame
     - happened once in an LFG heroic and one more time in random testing, but I can't make it happen again
     - this did not affect the actual tracker UI weirdly enough, even though the visual debugging label
       is attached to it
     - can't reproduce
 
-- arcane surge: try PLAYER_DAMAGE_DONE_MODS
+- arcane surge: try PLAYER_DAMAGE_DoNE_MODS
     - if it works, re-enable by default
     - maybe not worth the time, PLAYER_* events usually only trigger for the player, not group members
 
@@ -356,7 +401,7 @@ IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
 
 - ARCANE SURGE ID. hard to do since mirror images is identical duration/flags
     * MANY talents affect surge
-    * PLAYER_DAMAGE_DONE_MODS? this procs in response to changing mana, might be too frequent to
+    * PLAYER_DAMAGE_DoNE_MODS? this procs in response to changing mana, might be too frequent to
       use as positive ID?
         - worth trying
     * required sunfury talent gives spell haste that procs a unique event
@@ -613,6 +658,10 @@ LIMITATIONS
 
 KNOWN BUGS
 ===========================================================================
+- LibSpec responses wipe internal cooldown trackers (not the visual indicators) and
+  can occur up to ~5s after a group member changes. If this occurs during combat,
+  issues likely to ensue.
+
 - Cooldowns that are active (glowing) while changing zones will never stop glowing
   until used because the aura event either doesn't fire while loading or the
   handler is not active.
@@ -638,6 +687,19 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- [OLD BUG: check this now with replays] better handling of spec querying
+	- libspecialization updates during m+ runs. need to figure out why
+    - replays show LibSpec firing ~5s after zoning into LFG instance
+
+- combust that never fires
+    - turns out wrong duration in db. 12->10
+        - 2 extension talents: apex and sunfury talent bottom left (also extends surge)
+        - make sure both talents are in the talentdb
+
+- double freedom: explain this in known bugs, because players will see lots of freedoms in the
+  history tray and wonder why
+    - also spec into this on my paladin and do a test run
+
 - [DOESN'T HAPPEN ANYMORE] new bug in follower dungeon:
     - reload UI
     - immediately cast freedom
