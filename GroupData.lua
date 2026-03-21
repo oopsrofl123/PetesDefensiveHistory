@@ -46,6 +46,7 @@ local trackedCharacters = {}
 -- e.g., GROUP_ROSTER_UPDATE, LibSpec callbacks, etc. Each update requires a fairly
 -- large amount of memory, so disable this later.
 -- XXX: TODO: disable later via options
+local characterUpdatesIndex = 0
 local characterUpdatesData = {}
 
 
@@ -54,7 +55,10 @@ function ns:recordCharacterDataUpdate(trace)
     for _, char in pairs(ns:getTrackedCharacters()) do
         table.insert(characters, char:export())
     end
-    table.insert(characterUpdatesData, { GetTime(), trace, characters })
+    local now = GetTime()
+    characterUpdatesData[characterUpdatesIndex] = { now, trace, characters }
+    ns:playback(now, "CHARACTER_DATA_UPDATE", characterUpdatesIndex, trace)
+    characterUpdatesIndex = characterUpdatesIndex + 1
 end
 
 
