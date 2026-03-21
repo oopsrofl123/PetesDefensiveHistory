@@ -113,27 +113,43 @@ def character_string(char):
     return string
 
 
+# Get the metadata at this time
+def get_metadata(metadata_index):
+    meta = metadata_updates[metadata_index]
+    meta = { k.decode(): d(v) for k, v in meta.items() }
+    return meta
+    
+
+def get_characters(update_index):
+    update = character_updates[update_index]
+    time, trace, characters = update
+    return [ { d(k): d(v) for k, v in char.items() } for char in characters ]
+    
+
+# Return the character abilities at this time
+def get_character_abilities(characters):
+    character_abilities = {}
+    for char in characters:
+        if 'abilities' in char:
+            character_abilities[char['GUID']] = make_abilities(char['abilities'])
+    return character_abilities
+
+
 with open(sys.argv[1], "r") as f:
     data = decode_export_blob(f.read())
-    metadata = data[b'metadata']
-    metadata = { k.decode(): d(v) for k, v in metadata.items() }
+    metadata_updates = data[b'metadataUpdates']
     print('METADATA ------------------------------------------------------------------------')
-    player_guid = metadata['myGUID']
-    print('Exporter:', player_guid)
+    print('got', len(metadata_updates), 'metadata updates')
 
 
     character_updates = data[b'characterUpdates']
     character_abilities = {}
     print('CHARACTERS ----------------------------------------------------------------------')
     print('got', len(character_updates), 'character updates')
-    for update in character_updates:
+    for index, update in character_updates.items():
         time, trace, characters = update
-        print('    time=[%0.3f] responded to [%s]: character data:' % (time, trace.decode()))
-        for char in characters:
-            char = { k.decode(): d(v) for k, v in char.items() }
-            if 'abilities' in char:
-                character_abilities[char['GUID']] = make_abilities(char['abilities'])
-            #print("        " + character_string(char))
+        print('    index=%d, time=[%0.3f] responded to [%s]: character data:' % \
+            (index, time, trace.decode()))
 
     playback = [ ('event', e[0], [ d(x) for x in e ]) for e in data[b'playback'] ]
     print('PLAYBACK ------------------------------------------------------------------------')
@@ -160,7 +176,30 @@ with open(sys.argv[1], "r") as f:
     print('found', len(inferences), 'inference records')
 
     for rectype, time, record in sorted(playback + inferences, key=lambda x: x[1]):
-        if rectype == "inf":
+        if rectype == "event":
+            time, event = record[0:2]
+            print("%s%0.3f %s(%s)%s" % \
+                (ascii_purple, time, event, ",".join([ str(x) for x in record[2:] ]), ascii_reset))
+            if event == "METADATA_DATA_UPDATE":
+                print("updating metadata")
+                update_index = record[2]
+                metadata = get_metadata(update_index)
+            elif event == "CHARACTER_DATA_UPDATE":
+                print("updating character data")
+                update_index = record[2]
+                characters = get_characters(update_index)
+                for char in characters:
+                    print(character_string(char))
+
+                print('updating abilities..')
+                character_abilities = get_character_abilities(characters)
+            else:
+                actor = ""
+                #if len(record) > 2:
+                    #actor = record[2]
+                #if True or actor == "player":
+                    #print(record)
+        elif rectype == "inf":
             inference_time, inference_trace, inference_attempt, \
                 event_time, event_trace, event_id, event_source, event_slot, batch_id, \
                 ability_id, certain, ability_caster, \
@@ -173,12 +212,3 @@ with open(sys.argv[1], "r") as f:
                 print("FAIL:", logic_string(logic, event_source, False))
                 print("CONF:", confidence_string(conf) + " " + reqs_string(reqs))
                 print(decision_string(record))
-        elif rectype == "event":
-            time, event = record[0:2]
-            actor = ""
-            if len(record) > 2:
-                actor = record[2]
-            if True or actor == "player":
-                #print(record)
-                print("%s%0.3f %s(%s)%s" % \
-                    (ascii_purple, time, event, ",".join([ str(x) for x in record[2:] ]), ascii_reset))
