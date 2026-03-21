@@ -133,12 +133,23 @@ function ns:slotToFrame(slot)
 end
 
 
-function ns:getMetadata()
+local metadataUpdatesIndex = 0  -- index in updates table
+local metadataUpdatesData = {}
+
+function ns:getMetadataUpdatesData()
+    return metadataUpdatesData
+end
+
+local function recordMetadataUpdate(trace)
     local slotToFrameName = {}
     for slot, frame in pairs(slotToFrame) do
         slotToFrameName[slot] = frame:GetName()
     end
-    return {
+    local now = GetTime()
+    local record = {
+        time=now,
+        trace=trace,
+        updateId=metadataUpdatesIndex,
         myGUID=myGUID,
         slotToGUID=slotToGUID,
         playerNameToSlot=playerNameToSlot,
@@ -146,10 +157,13 @@ function ns:getMetadata()
         GUIDToSlot=GUIDToSlot,
         PetesDefensiveHistoryOptionsDb=PetesDefensiveHistoryOptionsDb,
     }
+    metadataUpdatesData[metadataUpdatesIndex] = record
+    ns:playback(now, 'METADATA_DATA_UPDATE', metadataUpdatesIndex, trace)
+    metadataUpdatesIndex = metadataUpdatesIndex + 1
 end
 
 
-function ns:updateCharacterData(trace)
+local function updateCharacterData(trace)
     -- Track newly observed characters
     for slot, guid in pairs(slotToGUID) do
         if not ns:getTrackedCharacterByGUID(guid) then
@@ -177,6 +191,7 @@ function ns:updateCharacterData(trace)
     end 
 
     -- Track for exporting
+    recordMetadataUpdate(trace)
     ns:recordCharacterDataUpdate(trace)
 end
 
@@ -679,7 +694,7 @@ end)
 
 function ns:respondToRosterUpdate(trace)
     updateTrackedSlots()
-    ns:updateCharacterData(trace)
+    updateCharacterData(trace)
     ns:updateTrackerUI()         -- Update UI elements
     ns:updateGroupSolutionUI()
 end
