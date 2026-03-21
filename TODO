@@ -1,16 +1,12 @@
 BUGS
 ===========================================================================
-- required buff is only binary, so abilities with multiple required buffs
-  (e.g., wake of ashes: HoW talent and shield talent each give a different buff)
-  don't look for the extra buffs.
-    - requires :consume()
 
 - metadata is not tracked as an update list, so when exported it doesn't
   match the infers/events
 
+- maybe disable ret DP since it is hard to distinguish from freedom
+
 - tons of ret paladin mis-IDs
-    - maybe disable ret DP? seems like it is impossible to distinguish from freedom
-      unless we want to positive ID it based on shield.
     - after looking into these, the IDs actually seem correct. what is weird is that
       the ret paladin had the wings animation at ~2345=52:26 in vod. since no log, can't
       figure out what happened.
@@ -23,7 +19,8 @@ BUGS
         - 277: 2439.400                  2447.416    [DP: nil bug, fail attempt=1, abs/buff same tick]
         - 307: 2477.284
 
-- the nil ability in topTwo bug is back. means that there is a nil in possibleSolutions
+- [FIXED] the nil ability in topTwo bug is back. means that there is a nil in possibleSolutions
+    - caused by non-strict comparators (<= instead of <)
 
 - internal memory usage is WAY more than export:
     - AddOn panel: 159MB
@@ -192,6 +189,11 @@ NOTES ON COMPLEX CASES
 
 V1.1 RELEASE FEATURES
 ===========================================================================
+- required buff is only binary, so abilities with multiple required buffs
+  (e.g., wake of ashes: HoW talent and shield talent each give a different buff)
+  don't look for the extra buffs.
+    - requires :consume()
+
 - 260s cooldown on GoAK? what?
     - the double cast bug is back: both charges used together -> the second
       charge puts its timeout on the cooldown swipe
