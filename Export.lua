@@ -5,7 +5,7 @@ local exportFrame
 
 local function prepareExportData()
     ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Getting metadata")
-    local metadata = ns:getMetadata()
+    local metadataUpdates = ns:getMetadataUpdatesData()
 
     ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Getting character data")
     local characterUpdates = ns:getCharacterUpdatesData()
@@ -22,7 +22,7 @@ local function prepareExportData()
     end
     ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Found "..#inference.." inference records")
 
-    local data = { metadata=metadata, characterUpdates=characterUpdates, playback=playback, inference=inference }
+    local data = { metadataUpdates=metadataUpdates, characterUpdates=characterUpdates, playback=playback, inference=inference }
     ns:setExportData(data)
     exportFrame:Show()
 end
