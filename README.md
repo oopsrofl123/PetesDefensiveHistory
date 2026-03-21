@@ -1,6 +1,8 @@
 # PetesDefensiveHistory
 
-**WHILE MOSTLY FUNCTIONAL, THIS ADDON IS STILL UNDER ACTIVE DEVELOPMENT. EXPECT SOME BUGS AND INCONVENIENCES.**
+**WHILE MOSTLY FUNCTIONAL, THIS ADDON IS STILL UNDER ACTIVE DEVELOPMENT. EXPECT SOME BUGS AND INCONVENIENCES AND /reloads.**
+
+![](images/PDH1.gif)
 
 Tracks cooldowns for Blizzard-approved `IMPORTANT`, `BIG_DEFENSIVE` and `EXTERNAL` buffs.
 When identified, active cooldowns are glowed and cooldown timers are shown. Text-To-Speech (TTS) announcements are also supported. Buffs that cannot be identified are instead displayed on a second row similar to a GCD history tracker. These buffs display a "count-up" timer that indicates how much time has passed since that (unidentified) buff was applied.
@@ -12,8 +14,7 @@ PetesDefensiveHistory uses a flexible inference engine to identify abilities thr
 * Text-to-Speech (TTS) ability announcer.
 * Supports DandersFrames and Blizzard default frames.
 * Data exporter and log analyzer to measure inference accuracy using combat logs as a truth source.
-* Designed for Mythic+ but can work for allies in arena and in raids. Support may come in a future update.
-* 
+* Designed for Mythic+ but future update will add support for raids and allies in arena.
 
 Layout options are currently limited, mimicking OmniCD layouts with cooldowns to the left of party frames. **Would love to integrate the inference engine with a UI-focused addon. Please contact me if interested!**
 
