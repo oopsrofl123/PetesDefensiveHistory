@@ -7,9 +7,12 @@ import base64
 import zlib
 import cbor2
 import numpy
-import shlex   # not exactly what WoW uses. just want to preserve quoted spaces
 from time import mktime, strptime
 import pathlib
+
+
+def d(x):
+    return x.decode() if type(x) is bytes else x
 
 
 # Map absolute timestamps to offset timestamps (i.e., first entry in the log is time=0).
@@ -19,7 +22,9 @@ def read_combatlog(filename):
     last_time = 0
     with open(filename, "r") as f:
         for line in f:
-            date, time_with_hyphen, data = shlex.split(line)
+            s = line.split(' ')
+            date, time_with_hyphen = s[0:2]
+            data = ' '.join(s[3:])  # skip a field - wow puts 2 spaces after the time
             # example line: 3/17/2026 03:09:23.744-4
             # not sure what this "-4" bit is, just throwing it away
             time, msecs = time_with_hyphen.split('.')
@@ -43,59 +48,51 @@ def read_addon_export(filename):
 
     with open(filename, "r") as f:
         data = decode_export_blob(f.read())
-        metadata = data[b'metadata']
-        metadata = { k.decode(): (v.decode() if type(v) is bytes else v) for k, v in metadata.items() }
-        player_guid = metadata['myGUID']
+        metadata_updates = data[b'metadataUpdates']
+        player_guid = metadata_updates[0][b'myGUID'].decode()
         print('Exporter:', player_guid)
 
-        # not used for now
-        characters = None
-        #characters = data[b'characters']
-        #print('CHARACTERS ------------------------------------------------------------')
-        #print('Found', len(characters), 'characters')
-        #for char in characters:
-            #char = { k.decode(): (v.decode() if type(v) is bytes else v) for k, v in char.items() }
-            #print('   ', char['playerName'], char['GUID'], char['raceName'],
-                #char['specName'], char['classFile'])
+        character_updates = data[b'characterUpdates']
+        print('CHARACTERS ------------------------------------------------------------')
+        print('Found', len(character_updates), 'character updates')
 
-        def normalize(record, start, is_inference=False):
-            result = [ record[0] - start ] + \
-                [ x.decode() if type(x) is bytes else x for x in record[1:] ]
-            if is_inference:
-                result[3] = result[3] - start
+        def normalize(record, start):
+            result = [ record[0], record[1] - start ] + \
+                [ d(x) for x in record[2:] ]
+            result[2][3 if record[0] == 'inf' else 0] -= start
             return result
-            
-        playback = data[b'playback']
-        print('Found', len(playback), 'playback events')
-        start_time = playback[0][0]  # applies to both events and inferences
-        playback = [ normalize(rec, start_time) for rec in playback ]
 
+        playback = [ ('event', e[0], [ d(x) for x in e ]) for e in data[b'playback'] ]
+        print('PLAYBACK ------------------------------------------------------------------------')
+        print('got', len(playback), 'events')
+        start_time = playback[0][1]  # applies to both events and inferences
+        playback = [ normalize(rec, start_time) for rec in playback ]
+        print(playback[:2])
+
+        print('INFERENCE -----------------------------------------------------------------------')
         inferences = data[b'inference']
         # Remove simulation inferences from zero knowledge solves
-        #inferences = [ inf for inf in inferences if not inf[4].decode().startswith("SIMULATE(") ]
-        inferences = [ normalize(rec, start_time, True) for rec in inferences
-            if not rec[4].decode().startswith("SIMULATE(") ]
+        inferences = [ ('inf', inf[0], [ d(x) for x in inf ]) for inf in inferences if not inf[4].decode().startswith("SIMULATE(") ]
+        inferences = [ normalize(rec, start_time) for rec in inferences ]
         print('Found', len(inferences), 'inference records')
+        print(inferences[:2])
 
-    return metadata['myGUID'], metadata, characters, playback, inferences
+    return player_guid, metadata_updates, character_updates, playback, inferences
 
 
 # Map each inference record back to a spellcast playback event and create a merged
 # record. Since inferences have inferred casters as well, only consider spellcast
 # events from the appropriate character.
-def get_inferences_to_assess(metadata, playback, inferences):
-    slot_to_guid = { k.decode(): v.decode() for k, v in metadata['slotToGUID'].items() }
-
+def get_inferences_to_assess(playback, inferences):
     cast_events = {}
     cast_times = {}
     for e in ( e for e in playback if e[1] == 'UNIT_SPELLCAST_SUCCEEDED' ):
         # playback event records are not all the same structure
         e = [ x.decode() if type(x) is bytes else x for x in e ]
         time, event, actor = e[0:3]
-        actor_guid = slot_to_guid[actor]
         if event == "UNIT_SPELLCAST_SUCCEEDED":
-            cast_events.setdefault(actor_guid, []).append(e)
-            cast_times.setdefault(actor_guid, []).append(time)
+            cast_events.setdefault(actor, []).append(e)
+            cast_times.setdefault(actor, []).append(time)
 
     # there should be many more spellcast events than inferences, so optimize this one
     for k, v in cast_times.items():
@@ -187,7 +184,7 @@ def align_timelines(a, b):
     #
     # Calculate the overlapping regions corresponding to a shift of index=k
     # XXX: TODO: below is likely wrong. didn't check it very thoroughly
-    astart = max(0, k-len(a))
+    astart = max(0, k-len(b))
     aend = min(k, len(a))
     print("alignment: a:", astart, aend, a[astart:aend,:].shape)
     bstart = max(0, len(b)-(k+1))
@@ -214,22 +211,20 @@ combatlog_out = pathlib.Path(combatlog_in).with_suffix('.aligned.txt')
 print(combatlog_out)
 
 
-addon_user_guid, metadata, characters, playback, inferences = read_addon_export(addon_export_in)
-guid_to_slot = { k.decode(): v.decode() for k, v in metadata['GUIDToSlot'].items() }
+addon_user_guid, metadata_updates, character_updates, playback, inferences = \
+    read_addon_export(addon_export_in)
 
-player_name_to_slot = { k.decode(): v.decode() for k, v in metadata['playerNameToSlot'].items() }
-slot_to_player_name = { v: k for k, v in player_name_to_slot.items() }
-
-inferences_to_assess = get_inferences_to_assess(metadata, playback, inferences)
-print("Inferences to assess (by caster):")
-for caster, inflist in inferences_to_assess.items():
-    slot = guid_to_slot[caster]
-    player = slot_to_player_name[slot]
-    print("    %s(%s)=%s: %d" % (player, slot, caster, len(inflist)))
+#guid_to_slot = { k.decode(): v.decode() for k, v in metadata['GUIDToSlot'].items() }
+#
+#player_name_to_slot = { k.decode(): v.decode() for k, v in metadata['playerNameToSlot'].items() }
+#slot_to_player_name = { v: k for k, v in player_name_to_slot.items() }
 
 full_playback = playback
 
+print(addon_user_guid)
+
 full_combatlog = read_combatlog(combatlog_in)
+
 
 # For alignment: choose an event type that isn't too frequent and is one recorded and exported
 # by the addon. If an event is chosen that's too frequent, the diffs between events could become
@@ -238,7 +233,7 @@ full_combatlog = read_combatlog(combatlog_in)
 #
 # XXX: TODO: The addon exporter can be different from the combat logger here, but I don't know
 # if the event timestamps will align as well. Needs testing.
-subset_playback = get_diffs_on_subset(full_playback, 1, "UNIT_SPELLCAST_SUCCEEDED", 2, "player")
+subset_playback = get_diffs_on_subset([ rec for _, _, rec in full_playback ], 1, "UNIT_SPELLCAST_SUCCEEDED", 2, "player")
 subset_combatlog = get_diffs_on_subset(full_combatlog, 1, "SPELL_CAST_SUCCESS", 2, addon_user_guid)
 
 # only returns the overlapping interval. absolute times are used, so this interval
@@ -259,6 +254,15 @@ write_adjusted(combatlog_out, full_combatlog, combatlog_time_adj)
 #result[:,2] -= playback_time_adj
 #print(result[:8,:])
 
+#inferences_to_assess = get_inferences_to_assess(playback, inferences)
+
+print("Inferences to assess (by caster):")
+for caster, inflist in inferences_to_assess.items():
+    #slot = guid_to_slot[caster]
+    #player = slot_to_player_name[slot]
+    print("    %s(%s)=%s: %d" % (caster, len(inflist)))
+
+
 def get_near_events(inf, combatlog_events, combatlog_times, tolerance=1):
     inferred_caster = inf[16]
     inferred_ability = inf[14]
@@ -274,15 +278,28 @@ def get_near_events(inf, combatlog_events, combatlog_times, tolerance=1):
     return events_within_tolerance
 
 
-# Merge combatlog cast events with playback cast events associated with an inference
-# IMPORTANT: do not filter the combatlog to just casts from the inferred caster. if the
-# inference was wrong, need to know the correct caster.
-#combatlog_casts = [ [ rec[0] - combatlog_time_adj ] + rec[1:] for rec in full_combatlog
-    #if rec[1] == "SPELL_CAST_SUCCESS" and rec[2] == caster ]
-#combatlog_cast_times = numpy.array([ rec[0] for rec in combatlog_casts ], dtype=float)
 combatlog_auras = [ [ rec[0] - combatlog_time_adj ] + rec[1:] for rec in full_combatlog
     if rec[1] == "SPELL_CAST_SUCCESS" or rec[1] == "SPELL_AURA_APPLIED" or rec[1] == "SPELL_AURA_REFRESH" ]
 combatlog_aura_times = numpy.array([ rec[0] for rec in combatlog_auras ], dtype=float)
+
+for rectype, time, record in sorted(playback + inferences, key=lambda x: x[1]):
+    if rectype == 'event':
+        if event == "METADATA_DATA_UPDATE":
+            print("updating metadata")
+            update_index = record[2]
+            metadata = get_metadata(update_index)
+        elif event == "CHARACTER_DATA_UPDATE":
+            print("updating character data")
+            update_index = record[2]
+            characters = get_characters(update_index)
+            for char in characters:
+                print(character_string(char))
+
+            print('updating abilities..')
+            character_abilities = get_character_abilities(characters)
+    elif rectype == 'inf':
+        ""
+
 for caster, inflist in inferences_to_assess.items():
     print(caster)
     for inf in inflist:
