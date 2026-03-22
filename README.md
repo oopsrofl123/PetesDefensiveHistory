@@ -4,6 +4,8 @@
 
 Join the discord to report bugs (and export strings/combat logs to debug them!): https://discord.gg/gVCtQrvpxt
 
+<iframe src="https://discord.com/widget?id=1485252635920433286&theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
+
 ![](images/PDH1.gif)
 
 Tracks cooldowns for Blizzard-approved `IMPORTANT`, `BIG_DEFENSIVE` and `EXTERNAL` buffs.
