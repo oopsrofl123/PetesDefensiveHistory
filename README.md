@@ -4,7 +4,7 @@
 
 Join the discord to report bugs (and export strings/combat logs to debug them!): https://discord.gg/gVCtQrvpxt
 
-<iframe src="https://discord.com/widget?id=1485252635920433286&theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
+[![Discord](https://upload.wikimedia.org/wikipedia/commons/9/98/Discord_logo.svg)](https://discord.gg/YOUR_INVITE)
 
 ![](images/PDH1.gif)
 
