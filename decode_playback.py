@@ -18,6 +18,17 @@ ascii_reset = "\033[0m"
 def d(x):
     return x.decode() if type(x) is bytes else x
 
+def event_type_match(combatlog, playback):
+    match playback:
+        case "AURA(add)":
+            return combatlog == "SPELL_AURA_APPLIED" or combatlog == "SPELL_AURA_APPLIED_DOSE"
+        case "AURA(update)":
+            return combatlog == "SPELL_AURA_REFRESH" or combatlog == "SPELL_AURA_REMOVED_DOSE"
+        case "FLAGS(combatDrop)":
+            return combatlog == "SPELL_CAST_SUCCESS"
+        case _:
+            return False
+
 
 def passcolor(passes):
     return ascii_green if passes else ascii_red
