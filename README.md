@@ -4,7 +4,7 @@
 
 Join the discord to report bugs (and export strings/combat logs to debug them!): https://discord.gg/gVCtQrvpxt
 
-[![Discord](https://upload.wikimedia.org/wikipedia/commons/9/98/Discord_logo.svg)](https://discord.gg/YOUR_INVITE)
+[![Join Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/gVCtQrvpxt)
 
 ![](images/PDH1.gif)
 
