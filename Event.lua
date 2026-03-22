@@ -373,16 +373,6 @@ function ns:manageEvents(updateTrace, guid)
                         ev:getId(), ev:getBatchId(), index, ability.id))
             end
 
-            -- Catch orphaned aura events: expirations aren't set on auras when created -
-            -- instead they expire on UNIT_AURA(remove). In some rare cases, that event can
-            -- be lost (for example, if the aura expires during a loading screen), creating
-            -- an orphan event that will never expire. Catch these cases by ensuring that
-            -- the aura with this event's auraInstanceId is still present.
-            if aura then
-                if not C_UnitAuras.GetAuraDataByAuraInstanceID(ev:getSlot(), aura.auraInstanceId) then
-                    ev:setExpiration(GetTime())
-                end
-            end
 
             if not ev:isExpiring() then
                 -- special handling to reduce spam: for abilities with only one possible provider,
@@ -418,6 +408,26 @@ function ns:manageEvents(updateTrace, guid)
         for _, ev in pairs(evBatch) do
             if ev:isExpiring() then
                 ev:expire()
+            end
+
+            -- Catch orphaned aura events: expirations aren't set on auras when created -
+            -- instead they expire on UNIT_AURA(remove). In some rare cases, that event can
+            -- be lost (for example, if the aura expires during a loading screen), creating
+            -- an orphan event that will never expire. Catch these cases by ensuring that
+            -- the aura with this event's auraInstanceId is still present.
+            --
+            -- THIS MUST BE DONE LAST! C_UnitAuras.GetAuraDataByAuraInstanceID sometimes
+            -- returns false when multiple events happen in the same frame. For example, if an
+            -- AMS expires with a shield, there will be an ABSORB event and a UNIT_AURA event
+            -- in the same frame to remove the shield and the aura. If the shield fires first,
+            -- it can expire the event here as an orphan.
+            if aura then
+                if not C_UnitAuras.GetAuraDataByAuraInstanceID(ev:getSlot(), aura.auraInstanceId) then
+                    ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+                        'EXPIRING (maybe) ORPHANED AURA: event=[%s/%d]',
+                        ev:getId(), ev:getBatchId()))
+                    ev:setExpiration(GetTime())
+                end
             end
         end
     end
