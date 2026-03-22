@@ -7,6 +7,7 @@ import base64
 import zlib
 import cbor2
 import numpy as np
+import gzip
 
 ascii_cyan = "\033[36m"
 ascii_purple = "\033[35m"
@@ -17,6 +18,18 @@ ascii_reset = "\033[0m"
 
 def d(x):
     return x.decode() if type(x) is bytes else x
+
+def read_spell_names(filename):
+    spells = {}
+    openf = gzip.open if filename.endswith('.gz') else open
+
+    with openf(filename, 'rt') as f:
+        for line in f:
+            if not line.startswith('ID'):
+                s = line.split(',')
+                spells[int(s[0])] = ','.join(s[1:]).strip().strip('"')
+    return spells
+
 
 def event_type_match(combatlog, playback):
     match playback:
@@ -82,7 +95,7 @@ def reqs_string(reqs):
     return string
 
 
-def decision_string(inf):
+def decision_string(inf, spell_names):
     inference_time, inference_trace, inference_attempt, \
         event_time, event_trace, event_id, event_source, event_slot, batch_id, \
         ability_id, certain, ability_caster, \
@@ -90,9 +103,9 @@ def decision_string(inf):
     if ability_id is None:
         return "coudln't infer ability"
     else:
-        return "%s%0.3f %s: event=[%s/%d], attempt=[%d], caster=[%s], time=[%0.3f]%s" % \
+        return "%s%0.3f %s: ability=[%s], event=[%s/%d], attempt=[%d], caster=[%s], time=[%0.3f]%s" % \
             (ascii_cyan, inference_time, "FINALIZED" if certain else "UNCERTAIN",
-            event_id, batch_id, inference_attempt, ability_caster, event_time, ascii_reset)
+            spell_names[ability_id], event_id, batch_id, inference_attempt, ability_caster, event_time, ascii_reset)
 
 
 def infer_string(inf):
@@ -193,6 +206,8 @@ if __name__ == "__main__":
     with open(sys.argv[1], "r") as f:
         metadata_updates, character_updates, playback, inferences = read_export_data(f)
 
+    spells = read_spell_names(sys.argv[2])
+
     for rectype, time, record in sorted(playback + inferences, key=lambda x: x[1]):
         if rectype == "event":
             time, event = record[0:2]
@@ -213,20 +228,14 @@ if __name__ == "__main__":
                 character_abilities = get_character_abilities(characters)
             else:
                 actor = ""
-                #if len(record) > 2:
-                    #actor = record[2]
-                #if True or actor == "player":
-                    #print(record)
         elif rectype == "inf":
             inference_time, inference_trace, inference_attempt, \
                 event_time, event_trace, event_id, event_source, event_slot, batch_id, \
                 ability_id, certain, ability_caster, \
                 logic, conf, reqs = record
-            #best = np.argmin(np.absolute(cast_times - inference_time))
-            #print(inference_time, best, ability_id, cast_events[best])
             if True or event_source == "Player-3721-0C5111C6":
                 print(infer_string(record))
                 print("PASS:", logic_string(logic, event_source, True))
                 print("FAIL:", logic_string(logic, event_source, False))
                 print("CONF:", confidence_string(conf) + " " + reqs_string(reqs))
-                print(decision_string(record))
+                print(decision_string(record, spells))
