@@ -114,13 +114,13 @@ def character_string(char):
 
 
 # Get the metadata at this time
-def get_metadata(metadata_index):
+def get_metadata(metadata_updates, metadata_index):
     meta = metadata_updates[metadata_index]
     meta = { k.decode(): d(v) for k, v in meta.items() }
     return meta
     
 
-def get_characters(update_index):
+def get_characters(character_updates, update_index):
     update = character_updates[update_index]
     time, trace, characters = update
     return [ { d(k): d(v) for k, v in char.items() } for char in characters ]
@@ -135,7 +135,7 @@ def get_character_abilities(characters):
     return character_abilities
 
 
-with open(sys.argv[1], "r") as f:
+def read_export_data(f):
     data = decode_export_blob(f.read())
     metadata_updates = data[b'metadataUpdates']
     print('METADATA ------------------------------------------------------------------------')
@@ -175,6 +175,13 @@ with open(sys.argv[1], "r") as f:
     inferences = [ ('inf', inf[0], [ d(x) for x in inf ]) for inf in inferences if not inf[4].decode().startswith("SIMULATE(") ]
     print('found', len(inferences), 'inference records')
 
+    return metadata_updates, character_updates, playback, inferences
+
+
+if __name__ == "__main__":
+    with open(sys.argv[1], "r") as f:
+        metadata_updates, character_updates, playback, inferences = read_export_data(f)
+
     for rectype, time, record in sorted(playback + inferences, key=lambda x: x[1]):
         if rectype == "event":
             time, event = record[0:2]
@@ -183,11 +190,11 @@ with open(sys.argv[1], "r") as f:
             if event == "METADATA_DATA_UPDATE":
                 print("updating metadata")
                 update_index = record[2]
-                metadata = get_metadata(update_index)
+                metadata = get_metadata(metadata_updates, update_index)
             elif event == "CHARACTER_DATA_UPDATE":
                 print("updating character data")
                 update_index = record[2]
-                characters = get_characters(update_index)
+                characters = get_characters(character_updates, update_index)
                 for char in characters:
                     print(character_string(char))
 
