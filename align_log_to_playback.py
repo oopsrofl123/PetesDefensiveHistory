@@ -11,8 +11,10 @@ from time import mktime, strptime
 import pathlib
 import matplotlib.pyplot as plt
 from dtw import dtw
+from collections import defaultdict
 
-from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities
+
+from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities, event_type_match
 
 
 # Map absolute timestamps to offset timestamps (i.e., first entry in the log is time=0).
@@ -323,7 +325,7 @@ def write_adjusted(filename, events, adj):
             f.write('\t'.join([ '%0.3f' % (e[0] - adj) ] + [ str(x).strip() for x in e[1:] ]) + '\n')
 
 
-def match_inference_to_combatlog(inf, combatlog_event_times, combatlog_events, tolerance=0.125):
+def match_inference_to_combatlog(inf, combatlog_event_times, combatlog_events, tolerance=0.010):
     inference_time, inference_trace, inference_attempt, \
         event_time, event_trace, event_id, event_source_guid, event_slot, batch_id, \
         inferred_ability_id, certain, inferred_caster_guid, \
@@ -343,7 +345,7 @@ def match_inference_to_combatlog(inf, combatlog_event_times, combatlog_events, t
 
     events = get_near_events(event_time, combatlog_event_times)
 
-    found = [ { 'diff': abs(event_time - e[0]), 'time': e[0], 'caster_guid': e[2], 'target_guid': e[6], 'ability_id': int(e[10]) }
+    found = [ { 'diff': abs(event_time - e[0]), 'time': e[0], 'event': e[1], 'caster_guid': e[2], 'target_guid': e[6], 'ability_id': int(e[10]) }
         for e in events if event_source_guid == e[6] ]
     found = sorted(found, key=lambda e: e['diff'])
     return found
@@ -359,6 +361,14 @@ print(addon_export_out)
 combatlog_in = sys.argv[2]      #"WoWCombatLog-031826_055026.txt"
 combatlog_out = pathlib.Path(combatlog_in).with_suffix('.aligned.txt')
 print(combatlog_out)
+
+spell_table = sys.argv[3]
+spells = {}
+with open(spell_table, 'r') as f:
+    for line in f:
+        if not line.startswith('ID'):
+            s = line.split(',')
+            spells[int(s[0])] = ','.join(s[1:]).strip().strip('"')
 
 
 addon_user_guid, metadata_updates, character_updates, playback, inferences = \
@@ -390,10 +400,63 @@ combatlog_event_times = numpy.array([ rec[0] for rec in combatlog_events ], dtyp
 cast_times, cast_events = get_cast_events(playback)
 unique_inferences = collapse_inferences(inferences)
 
+
+class InferenceScore:
+    def __init__(self):
+        self.no_log = defaultdict(int)
+        self.no_inference = defaultdict(lambda: defaultdict(int))
+        self.inference = defaultdict(list)
+        self.data = {}
+
+    # Did this player respond to LibSpec?
+    def set_character_data(self, char):
+        self.data = char
+
+    def player_label(self):
+        return "%s: %s %s %s" % \
+            (self.data['playerName'],
+             self.data['raceName'],
+             self.data['specName'] if 'specName' in self.data else 'unknown',
+             self.data['classFile'])
+
+    def talents_known(self):
+        return 'talentExportString' in self.data
+
+    def add_not_logged(self, trace):
+        self.no_log[trace] = self.no_log[trace] + 1
+
+    def add_no_inference(self, trace, log_records):
+        for rec in log_records:
+            self.no_inference[rec['ability_id']][trace] = \
+                self.no_inference[rec['ability_id']][trace] + 1
+
+    def add_inference(self, ability_id, matches):
+        self.inference[ability_id].append(len(matches))
+
+    def nolog_str(self):
+        return '    No log: ' + ', '.join([ '%s: %d' % (k, v) for k, v in self.no_log.items() ])
+
+    def noinfer_str(self):
+        string = '    No infer:'
+        for ability_id, traces in self.no_inference.items():
+            string = string + '\n        ' + spells[ability_id] + ": " + ', '.join([ '%s: %d' % (k, v) for k, v in traces.items() ])
+        return string
+    
+    def infer_str(self):
+        return '\n'.join([ ('    %s: %d+ %d-: ' + str(results)) % \
+            (spells[ability_id], len(results) - results.count(0), results.count(0)) for ability_id, results in self.inference.items() ])
+
+    def __str__(self):
+        return '\n'.join([ self.nolog_str(), self.noinfer_str(), self.infer_str() ])
+
+    def __repr__(self):
+        return self.__str__()
+
 guid_to_slot = {}
-infers = {}
-noinfer = {}
-nolog = {}
+
+scores = defaultdict(InferenceScore)
+
+quiet = True
 for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: x[1]):
     if rectype == 'event':
         _, event = record[0:2]
@@ -401,49 +464,63 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
         # These fake metadata "events" allow us to update slot <-> guid mappings and the
         # abilities of present characters.
         if event == "METADATA_DATA_UPDATE":
-            print("updating metadata")
+            if not quiet: print("updating metadata")
             update_index = record[2]
             metadata = get_metadata(metadata_updates, update_index)
-            print(metadata)
+            if not quiet: print(metadata)    # way too spammy
             if metadata['GUIDToSlot']:
                 guid_to_slot = { k.decode(): v.decode() for k, v in metadata['GUIDToSlot'].items() }
         elif event == "CHARACTER_DATA_UPDATE":
-            print("updating character data", end='')
+            if not quiet: print("updating character data", end=' ')
             update_index = record[2]
             characters = get_characters(character_updates, update_index)
             for char in characters:
-                #print(character_string(char))
-                print("", char['playerName'], end="")
-            print('')
+                guid = char['GUID']
+                scores[guid].set_character_data(char)
+                #print(character_string(char))    # just for finding field names
+                if not quiet: print(char['playerName'] + ("*" if scores[guid].talents_known() else ""), end=" ")
+            if not quiet: print('')
 
-            print('updating abilities..')
+            if not quiet: print('updating abilities..')
             character_abilities = get_character_abilities(characters)
     elif rectype == 'inf':
         inference_time, inference_trace, inference_attempt, \
             event_time, event_trace, event_id, event_source_guid, event_slot, batch_id, \
             inferred_ability_id, certain, inferred_caster_guid, \
             logic, conf, reqs = record
+
+        # until proven otherwise, score this under the event source actor 
+        actor = event_source_guid
+
+        # all combat log records in a small time interval around the event that triggered inference
         log_records = match_inference_to_combatlog(record, combatlog_event_times, combatlog_events)
         if not log_records:
-            nolog[event_trace] = nolog.setdefault(event_trace, 0) + 1
+            scores[actor].add_not_logged(event_trace)
         else:
             # did we infer this ability?
             if inferred_ability_id:
-                # Was this ability cast in the small interval around the event time?
+                # if we made an inference, assign the score to our guessed caster
+                # XXX: TODO: would be ideal to get an exact combat log match from which
+                # the true caster and spell ID could be derived.
+                actor = inferred_caster_guid
+
+                # Does the combat log indicate that this ability was cast near the event time?
                 matches = [ rec for rec in log_records
                     if rec['ability_id'] == inferred_ability_id and
-                        rec['caster_guid'] == inferred_caster_guid ]
-                last_score = infers.setdefault(inferred_ability_id, (0,0))
-                if matches:
-                    infers[inferred_ability_id] = (last_score[0] + 1, last_score[1])
-                else:
-                    infers[inferred_ability_id] = (last_score[0], last_score[1] + 1)
-            else:
-                noinfer[event_trace] = noinfer.setdefault(event_trace, 0) + 1
+                        rec['caster_guid'] == inferred_caster_guid and
+                        event_type_match(rec['event'], event_trace)]
 
-print('NO INFERENCE -------------------------')
-print(noinfer)
-print('NO COMBAT LOG EVENTS -----------------')
-print(nolog)
-print('INFERENCES ---------------------------')
-print(infers)
+                scores[actor].add_inference(inferred_ability_id, matches)
+            else:
+                # did we know the abilities of the player that initiated the event?
+                # we can infer externals on such a player, but not that player's own abilities
+                scores[actor].add_no_inference(event_trace, log_records)
+                #print('no infer:', actor, len(log_records))
+                #for rec in log_records:
+                    #print("    %0.3f %s %s %s" % \
+                        #(rec['diff'], rec['event'], rec['target_guid'], spells[rec['ability_id']]))
+
+
+for guid, score in scores.items():
+    print(score.player_label(), '-------------------------------------------------------------')
+    print(score)
