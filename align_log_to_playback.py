@@ -14,7 +14,7 @@ from dtw import dtw
 from collections import defaultdict
 
 
-from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities, event_type_match
+from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities, event_type_match, read_spell_names
 
 
 # Map absolute timestamps to offset timestamps (i.e., first entry in the log is time=0).
@@ -106,7 +106,7 @@ def get_cast_events(playback):
 
 # when multiple inferences derive from the same event, collapse to the final record
 def collapse_inferences(inferences):
-    unique_inferences = []
+    unique_inferences = {}
     for rectype, time, inf in inferences:
         event_id = inf[5]
         batch_id = inf[8]
@@ -114,8 +114,8 @@ def collapse_inferences(inferences):
         attempt = inf[2]
         if eventkey in unique_inferences:
             print('overwriting previous inf for event ID', eventkey, 'attempt', attempt)
-        unique_inferences.append((rectype, time, inf))
-    return unique_inferences
+        unique_inferences[eventkey] = (rectype, time, inf)
+    return list(unique_inferences.values())
 
 
 # Map each inference record back to a spellcast playback event and create a merged
@@ -354,21 +354,15 @@ def match_inference_to_combatlog(inf, combatlog_event_times, combatlog_events, t
 # Suppress scientific notation
 numpy.set_printoptions(suppress=True)
 
-addon_export_in = sys.argv[1]  #"inference_and_playback_data.txt"
+addon_export_in = sys.argv[1]
 addon_export_out = pathlib.Path(addon_export_in).with_suffix('.aligned.txt')
 print(addon_export_out)
 
-combatlog_in = sys.argv[2]      #"WoWCombatLog-031826_055026.txt"
+combatlog_in = sys.argv[2]
 combatlog_out = pathlib.Path(combatlog_in).with_suffix('.aligned.txt')
 print(combatlog_out)
 
-spell_table = sys.argv[3]
-spells = {}
-with open(spell_table, 'r') as f:
-    for line in f:
-        if not line.startswith('ID'):
-            s = line.split(',')
-            spells[int(s[0])] = ','.join(s[1:]).strip().strip('"')
+spells = read_spell_names(sys.argv[3])
 
 
 addon_user_guid, metadata_updates, character_updates, playback, inferences = \
@@ -385,12 +379,9 @@ subset_playback = \
 subset_combatlog = \
     get_diffs_on_subset(full_combatlog, 1, "SPELL_CAST_SUCCESS", 2, addon_user_guid)
 
-numpy.savetxt('a.txt', subset_playback)
-numpy.savetxt('b.txt', subset_combatlog)
-
 warp = align_timelines(subset_combatlog, subset_playback)
 print('writing adjusted combatlog to', combatlog_out)
-write_adjusted(combatlog_out, full_combatlog, warp) # combatlog_time_adj)  # =0 debugging
+write_adjusted(combatlog_out, full_combatlog, warp)
 
 
 combatlog_events = [ [ rec[0] - warp ] + rec[1:] for rec in full_combatlog
@@ -407,6 +398,7 @@ class InferenceScore:
         self.no_inference = defaultdict(lambda: defaultdict(int))
         self.inference = defaultdict(list)
         self.data = {}
+        self.false_positives = defaultdict(list)
 
     # Did this player respond to LibSpec?
     def set_character_data(self, char):
@@ -430,8 +422,16 @@ class InferenceScore:
             self.no_inference[rec['ability_id']][trace] = \
                 self.no_inference[rec['ability_id']][trace] + 1
 
-    def add_inference(self, ability_id, matches):
+    def add_inference(self, ability_id, matches, all_records):
         self.inference[ability_id].append(len(matches))
+        if not matches:
+            self.false_positives[ability_id].append([
+                (spells[rec['ability_id']], rec['event']) for rec in all_records ])
+
+    def print_false_positives(self):
+        for ability, records in self.false_positives.items():
+            print(ability)
+            print(records)
 
     def nolog_str(self):
         return '    No log: ' + ', '.join([ '%s: %d' % (k, v) for k, v in self.no_log.items() ])
@@ -443,7 +443,7 @@ class InferenceScore:
         return string
     
     def infer_str(self):
-        return '\n'.join([ ('    %s: %d+ %d-: ' + str(results)) % \
+        return '\n'.join([ ('    %s: %d+ %d-') % \
             (spells[ability_id], len(results) - results.count(0), results.count(0)) for ability_id, results in self.inference.items() ])
 
     def __str__(self):
@@ -506,21 +506,18 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
 
                 # Does the combat log indicate that this ability was cast near the event time?
                 matches = [ rec for rec in log_records
-                    if rec['ability_id'] == inferred_ability_id and
+                    if spells[rec['ability_id']] == spells[inferred_ability_id] and
                         rec['caster_guid'] == inferred_caster_guid and
                         event_type_match(rec['event'], event_trace)]
 
-                scores[actor].add_inference(inferred_ability_id, matches)
+                scores[actor].add_inference(inferred_ability_id, matches, log_records)
             else:
                 # did we know the abilities of the player that initiated the event?
                 # we can infer externals on such a player, but not that player's own abilities
                 scores[actor].add_no_inference(event_trace, log_records)
-                #print('no infer:', actor, len(log_records))
-                #for rec in log_records:
-                    #print("    %0.3f %s %s %s" % \
-                        #(rec['diff'], rec['event'], rec['target_guid'], spells[rec['ability_id']]))
 
 
 for guid, score in scores.items():
     print(score.player_label(), '-------------------------------------------------------------')
     print(score)
+    print(score.print_false_positives())
