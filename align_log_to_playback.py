@@ -9,6 +9,8 @@ import cbor2
 import numpy
 from time import mktime, strptime
 import pathlib
+import matplotlib.pyplot as plt
+from dtw import dtw
 
 from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities
 
@@ -228,33 +230,44 @@ def align_one_tile(a, b, mask=4):
 #   these differences are rare enough that by breaking the timeline into several tiles, it is
 #   near guaranteed that some tiles will not contain any such event disagreements and align
 #   correctly.
-def align_timelines(a, b, tile_size=100):
-    tile_paths = {}
-    atiles = numpy.array_split(a, int(len(a)/tile_size))
-    last_bend = -1
-    tile_path_len = 0
-    tile_path_id = 1
-    for atile in atiles:
-        astart, aend, bstart, bend = align_one_tile(atile, b)
-        a_aligned = atile[astart:aend]
-        b_aligned = b[bstart:bend]
-        times = numpy.column_stack([ a_aligned, b_aligned ])
-        # is this tile continuous with the previous tile?
-        if bstart == last_bend:
-            tile_path_len = tile_path_len + 1
-        else:
-            print('bstart != last_bend', bstart, last_bend)
-            tile_path_len = 0
-            tile_path_id = tile_path_id + 1
-        last_bend = bend
-        tile_paths.setdefault(tile_path_id, []).append([ times, tile_path_len ])
+def align_timelines_old(a, b, tile_sizes=[ 100, 150, 200 ]):
+    for tile_size in tile_sizes:
+        print('ALIGNMENT(tile_size=%d) --------------------------------------' % tile_size)
+        tile_paths = {}
+        atiles = numpy.array_split(a, int(len(a)/tile_size))
+        last_bend = -1
+        tile_path_len = 0
+        tile_path_id = 1
+        for atile in atiles:
+            astart, aend, bstart, bend = align_one_tile(atile, b)
+            a_aligned = atile[astart:aend]
+            b_aligned = b[bstart:bend]
+            times = numpy.column_stack([ a_aligned, b_aligned ])
+            # is this tile continuous with the previous tile?
+            # XXX: testing: allow for a little wiggle room at tile path boundaries
+            if abs(bstart - last_bend) < 5:
+                tile_path_len = tile_path_len + 1
+            else:
+                print('bstart != last_bend', bstart, last_bend)
+                tile_path_len = 0
+                tile_path_id = tile_path_id + 1
+            last_bend = bend
+            tile_paths.setdefault(tile_path_id, []).append([ times, tile_path_len ])
 
-    # given all of the per-tile alignments, find the longest tiling path
-    path_lens = [ len(tiles) for path_id, tiles in tile_paths.items() ]
-    longest_index = path_lens.index(max(path_lens))
-    print(path_lens, longest_index)
+        # given all of the per-tile alignments, find the longest tiling path
+        path_lens = [ len(tiles) for path_id, tiles in tile_paths.items() ]
+        longest_index = path_lens.index(max(path_lens))
+        print(tile_size, path_lens, longest_index)
+        # stop when we find a reasonable tile path. >= 2 is probably too lax, could
+        # happen randomly.
+        if path_lens[longest_index] > 1:
+            break
+        
+    if path_lens[longest_index] < 2:
+        raise RuntimeError('log-to-export alignment failed: could not find a tiling path of size >= 2')
+
     path = tile_paths[longest_index]
-    rows = numpy.row_stack([ tile[0] for tile in path ])
+    rows = numpy.vstack([ tile[0] for tile in path ])
     diffs = rows[:,0] - rows[:,2]  # time  differences for each event
     rows = numpy.column_stack([ rows, diffs ])
     # XXX: TODO: do a simple outlier removal like Tukey's or use the mode. median should
@@ -265,6 +278,44 @@ def align_timelines(a, b, tile_size=100):
     return warp
     
 
+# Get the longest diagonal walk in the path matrix. Could also return a list of all
+# diagonal walks greater than some minimal length. These should all give the same
+# constant warp, so only serves as a sanity check.
+def extract_longest_exact(a, b, apath, bpath, tol=0.1):
+    best_len, best_start_k = 0, 0
+    curr_len, curr_start_k = 0, 0
+    for k in range(1, len(apath)):  # k=0 is invalid
+        if apath[k] == apath[k-1] + 1 and bpath[k] == bpath[k-1] + 1 and \
+            abs(a[apath[k]] - b[bpath[k]]) <= tol:
+            if curr_len == 0:
+                curr_start_k = k
+            curr_len += 1
+        else:
+            curr_len = 0
+        if curr_len > best_len:
+            best_len = curr_len
+            best_start_k = curr_start_k
+
+    start = best_start_k
+    end = start + best_len - 1
+
+    return apath[start], apath[end], bpath[start], bpath[end]
+
+
+def align_timelines(a, b):
+    alignment = dtw(a[:,1], b[:,1], keep_internals=True)
+    print(alignment)
+    plot = alignment.plot(type='threeway')
+    print(plot)
+    plt.savefig("dtw_alignment.png", dpi=300, bbox_inches="tight")
+    plt.close() 
+    astart, aend, bstart, bend = \
+        extract_longest_exact(a[:,1], b[:,1], alignment.index1, alignment.index2)
+    warp = a[astart,0] - b[bstart,0]
+    print(numpy.column_stack([ a[astart:aend,:], b[bstart:bend,:] ]))
+    print('longest exact match:', 'warp:', warp, aend-astart+1, astart, bend, bstart, bend)
+    return warp
+
 
 def write_adjusted(filename, events, adj):
     with open(filename, 'w') as f:
@@ -272,67 +323,30 @@ def write_adjusted(filename, events, adj):
             f.write('\t'.join([ '%0.3f' % (e[0] - adj) ] + [ str(x).strip() for x in e[1:] ]) + '\n')
 
 
-def match_inference_to_combatlog(inf, combatlog_aura_times, combatlog_auras):
+def match_inference_to_combatlog(inf, combatlog_event_times, combatlog_events, tolerance=0.125):
     inference_time, inference_trace, inference_attempt, \
         event_time, event_trace, event_id, event_source_guid, event_slot, batch_id, \
         inferred_ability_id, certain, inferred_caster_guid, \
         logic, conf, reqs = inf
-    #inference_time -= time_adj  # need to save for printing later. this doesn't do that.
-    #event_time -= time_adj
-    #print(event_time)
-    #print(combatlog_aura_times[:-6])
-    #print(inf)
     
-    # use the time the event occurred, not the inference.
+    # use the time the event occurred, not the inference time, which is not particularly
     # return the slice boundaries to get combatlog events within 'tolerance' seconds of
     # the inference event
-    def get_near_events(event_time, combatlog_times, tolerance=1):
+    def get_near_events(event_time, combatlog_times):
         combatlog_indexes = numpy.arange(len(combatlog_times))
         time_diffs = numpy.absolute(combatlog_times - event_time)
-        #print(time_diffs[time_diffs < tolerance])
         indexes_within_tolerance = combatlog_indexes[time_diffs < tolerance]
-        return min(indexes_within_tolerance), max(indexes_within_tolerance) + 1
-
-    start, stop = get_near_events(event_time, combatlog_aura_times)
-    #print(start,stop)
-    auras = combatlog_auras[start:stop]
-
-    # look for all possible matches
-    found = []
-    for a in auras:
-        combatlog_time = a[0]
-        combatlog_caster_guid = a[2]
-        combatlog_target_guid = a[6]
-        combatlog_ability_id = int(a[10])
-        #print(event_time, event_source_guid, combatlog_time, combatlog_caster_guid, combatlog_target_guid, combatlog_ability_id)
-        time_diff = abs(event_time - combatlog_time)
-        # if inferred_caster_guid == combatlog_caster_guid and inferred_ability_id == combatlog_ability_id:
-        if event_source_guid == combatlog_target_guid: # and inferred_ability_id == combatlog_ability_id:
-            found.append(a)
-
-    # get the best match (nearest time)
-    found = sorted(found, key=lambda a: abs(event_time - a[0]))
-    if len(found) > 0:
-        a = found[0]
-        combatlog_time = a[0]
-        combatlog_caster_guid = a[2]
-        combatlog_ability_id = int(a[10])
-        time_diff = abs(event_time - combatlog_time)
-        if time_diff < 0.125:
-            print('match', '%0.3f'%time_diff)
-            #print('MATCH: diff=%0.3f, time=[E=%0.3f, L=%0.3f], spellID=[E=%d, L=%d], caster=[E=%s, L=%s]' % \
-                #(time_diff, inf[8], a[0], inferred_ability, combatlog_ability, inferred_caster, combatlog_caster))
+        if len(indexes_within_tolerance) == 0:
+            return []
         else:
-            print('NO MATCH (0 log matches found) --------------------------------------------------')
-    else:
-        print('NO MATCH ------------------------------------------------------------------------')
-        #print('found=', found, len(auras), inferred_caster_guid, inferred_ability_id, combatlog_caster_guid, combatlog_ability_id)
-        for a in []: #auras:
-            combatlog_caster = a[2]
-            combatlog_ability = int(a[10])
-            time_diff = abs(inf[8] - a[0])
-            print(inferred_caster_guid == combatlog_caster_guid, inferred_ability_id == combatlog_ability_id, time_diff, a)
-        #print("INF EVENT", inf[0:17])
+            return combatlog_events[min(indexes_within_tolerance):(max(indexes_within_tolerance) + 1)]
+
+    events = get_near_events(event_time, combatlog_event_times)
+
+    found = [ { 'diff': abs(event_time - e[0]), 'time': e[0], 'caster_guid': e[2], 'target_guid': e[6], 'ability_id': int(e[10]) }
+        for e in events if event_source_guid == e[6] ]
+    found = sorted(found, key=lambda e: e['diff'])
+    return found
 
 
 # Suppress scientific notation
@@ -361,19 +375,25 @@ subset_playback = \
 subset_combatlog = \
     get_diffs_on_subset(full_combatlog, 1, "SPELL_CAST_SUCCESS", 2, addon_user_guid)
 
+numpy.savetxt('a.txt', subset_playback)
+numpy.savetxt('b.txt', subset_combatlog)
+
 warp = align_timelines(subset_combatlog, subset_playback)
 print('writing adjusted combatlog to', combatlog_out)
 write_adjusted(combatlog_out, full_combatlog, warp) # combatlog_time_adj)  # =0 debugging
 
 
-combatlog_auras = [ [ rec[0] - warp ] + rec[1:] for rec in full_combatlog
+combatlog_events = [ [ rec[0] - warp ] + rec[1:] for rec in full_combatlog
     if rec[1] == "SPELL_CAST_SUCCESS" or rec[1] == "SPELL_AURA_APPLIED" or rec[1] == "SPELL_AURA_REFRESH" ]
-combatlog_aura_times = numpy.array([ rec[0] for rec in combatlog_auras ], dtype=float)
+combatlog_event_times = numpy.array([ rec[0] for rec in combatlog_events ], dtype=float)
 
 cast_times, cast_events = get_cast_events(playback)
 unique_inferences = collapse_inferences(inferences)
 
 guid_to_slot = {}
+infers = {}
+noinfer = {}
+nolog = {}
 for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: x[1]):
     if rectype == 'event':
         _, event = record[0:2]
@@ -384,7 +404,9 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
             print("updating metadata")
             update_index = record[2]
             metadata = get_metadata(metadata_updates, update_index)
-            guid_to_slot = { k.decode(): v.decode() for k, v in metadata['GUIDToSlot'].items() }
+            print(metadata)
+            if metadata['GUIDToSlot']:
+                guid_to_slot = { k.decode(): v.decode() for k, v in metadata['GUIDToSlot'].items() }
         elif event == "CHARACTER_DATA_UPDATE":
             print("updating character data", end='')
             update_index = record[2]
@@ -397,4 +419,31 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
             print('updating abilities..')
             character_abilities = get_character_abilities(characters)
     elif rectype == 'inf':
-        match_inference_to_combatlog(record, combatlog_aura_times, combatlog_auras)
+        inference_time, inference_trace, inference_attempt, \
+            event_time, event_trace, event_id, event_source_guid, event_slot, batch_id, \
+            inferred_ability_id, certain, inferred_caster_guid, \
+            logic, conf, reqs = record
+        log_records = match_inference_to_combatlog(record, combatlog_event_times, combatlog_events)
+        if not log_records:
+            nolog[event_trace] = nolog.setdefault(event_trace, 0) + 1
+        else:
+            # did we infer this ability?
+            if inferred_ability_id:
+                # Was this ability cast in the small interval around the event time?
+                matches = [ rec for rec in log_records
+                    if rec['ability_id'] == inferred_ability_id and
+                        rec['caster_guid'] == inferred_caster_guid ]
+                last_score = infers.setdefault(inferred_ability_id, (0,0))
+                if matches:
+                    infers[inferred_ability_id] = (last_score[0] + 1, last_score[1])
+                else:
+                    infers[inferred_ability_id] = (last_score[0], last_score[1] + 1)
+            else:
+                noinfer[event_trace] = noinfer.setdefault(event_trace, 0) + 1
+
+print('NO INFERENCE -------------------------')
+print(noinfer)
+print('NO COMBAT LOG EVENTS -----------------')
+print(nolog)
+print('INFERENCES ---------------------------')
+print(infers)
