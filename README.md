@@ -2,6 +2,8 @@
 
 **WHILE MOSTLY FUNCTIONAL, THIS ADDON IS STILL UNDER ACTIVE DEVELOPMENT. EXPECT SOME BUGS AND INCONVENIENCES AND /reloads.**
 
+Join the discord to report bugs (and export strings/combat logs to debug them!): https://discord.gg/gVCtQrvpxt
+
 ![](images/PDH1.gif)
 
 Tracks cooldowns for Blizzard-approved `IMPORTANT`, `BIG_DEFENSIVE` and `EXTERNAL` buffs.
