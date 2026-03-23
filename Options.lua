@@ -76,6 +76,7 @@ local function makeSetting(category, optName, settingType, label)
         function() return ns:GetOption(optName) end,
         function(value)
             PetesDefensiveHistoryOptionsDb[optName] = value
+            ns:handleAddonActiveStateChange()
             ns:updateTrackerUI()
         end
     )
