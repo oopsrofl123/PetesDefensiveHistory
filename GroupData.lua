@@ -51,6 +51,7 @@ local characterUpdatesData = {}
 
 
 function ns:recordCharacterDataUpdate(trace)
+    if not ns:GetOption('enableReplays') then return end
     local characters = {}
     for _, char in pairs(ns:getTrackedCharacters()) do
         table.insert(characters, char:export())

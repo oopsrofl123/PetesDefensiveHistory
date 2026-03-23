@@ -821,8 +821,9 @@ function ns:inferAbility(inferenceTrace, ev, cdTracker, quiet)
         ev:setCertain(certain)
     end
 
-    -- XXX: TODO: add some option to disable (default:true)
-    table.insert(inferenceRecordList, record)
+    if ns:GetOption('enableReplays') then
+        table.insert(inferenceRecordList, record)
+    end
 
     return ev:getAbility()
 end

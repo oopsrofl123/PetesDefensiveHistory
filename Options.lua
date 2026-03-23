@@ -22,6 +22,8 @@ local optionsDefaults = {
 
     hideHistoryItemsAtMaxCd = false,
     showTooltips = true,
+
+    enableReplays = false,
 	debugVisuals = false,
 	debugLogging = false,
     debugLoggingLevelVerbose = false,
@@ -62,6 +64,7 @@ local function makeSetting(category, optName, settingType, label)
         function() return ns:GetOption(optName) end,
         function(value)
             PetesDefensiveHistoryOptionsDb[optName] = value
+            ns:handleReplayStateChange()
             ns:handleAddonActiveStateChange()
             ns:updateTrackerUI()
         end
@@ -155,6 +158,11 @@ local function buildDeveloperOptions(topCategory)
     local category, layout =
         Settings.RegisterVerticalLayoutSubcategory(topCategory, "Developer options")
 
+    makeSectionHeader(layout, 'Logic tracing and replays')
+    makeCheckbox(category, 'enableReplays', 'Enable logic replays',
+        'Did an ability get mis-identified? Logic traces and event replays are the way to debug the complex scenarios this addon must handle. Enabling this option will record all relevant events and metadata to export a replay that can be aligned against a WoW combat log to check for errors. To export a replay, click the addon compartment button (top right of the screen in the default Blizzard UI) and copy the string in the pop-up window. Share your exports and combat logs on our Discord at |cFF00FFFFdiscord.gg/gVCtQrvpxt|r! |cFFFF0000Enabling this option will consume a large amount of memory, possibly ~100 Mb per 30 minute dungeon. Use /reload to clear it.|r')
+
+    makeSectionHeader(layout, 'Debugging')
     makeCheckbox(category, 'debugVisuals', 'Visual debugging', 
         "Add debugging widgets to the tracker icons.")
 

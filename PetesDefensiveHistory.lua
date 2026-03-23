@@ -94,7 +94,7 @@ local function updateTrackedSlots()
     slotToPlayerName = {}
     GUIDToSlot = {}
     -- getSlotSet returns ['player', 'party1', ...] or ['raid1', 'raid2', ... ] for the
-    -- current set of group members.
+    -- current set of group members. Accounts for addonIsActive() state.
     for _, slot in pairs(ns:getSlotSet()) do
         if UnitExists(slot) then
             -- Unchanging player global ID
@@ -141,6 +141,8 @@ function ns:getMetadataUpdatesData()
 end
 
 local function recordMetadataUpdate(trace)
+    if not ns:GetOption('enableReplays') then return end
+
     local slotToFrameName = {}
     for slot, frame in pairs(slotToFrame) do
         slotToFrameName[slot] = frame:GetName()
@@ -390,10 +392,9 @@ end
 
 local eventPlaybackList = {}
 
--- Record the WoW API events for export. This is very memory intensive and is only
--- meant for developers.
--- XXX: TODO: option to disable (for most users): reassign this function with a noop
+-- Record WoW API events for export. Very memory intensive, only meant for developers.
 function ns:playback(now, event, ...)
+    if not ns:GetOption('enableReplays') then return end
     local record = { now, event, ... }
     table.insert(eventPlaybackList, record)
 end
@@ -675,8 +676,6 @@ loader:SetScript("OnEvent", function(self, event, ...)
 
     ns:handleAddonActiveStateChange()
 
-    -- XXX: TODO: it probably shouldn't, but
-    -- respondToRosterUpdate builds and shows a UI regardless of addonIsActive()
     if ns:addonIsActive() then
         -- Get the player that triggered the event
         if event == "PLAYER_SPECIALIZATION_CHANGED" then
@@ -706,13 +705,28 @@ end
 -- is active (e.g., party) into content where it is inactive (e.g., raid).
 --
 -- Call this function any time the active state *may* have changed. It will determine
--- whether it did and execute accordingly
+-- whether it did and execute accordingly. MUST BE A NO-OP IF NOTHING CHANGED.
 function ns:handleAddonActiveStateChange()
     if not lastActiveState and ns:addonIsActive() then
         ns:enableAddon()
     elseif lastActiveState and not ns:addonIsActive() then
         ns:disableAddon()
     end
+end
+
+
+
+-- When a user enables replays, must fire character and metadata collection updates manually
+-- since there is no game event triggered.
+function ns:handleReplayStateChange()
+    local state = ns:GetOption('enableReplays')
+    if not lastReplayState and state then
+        recordMetadataUpdate('enableReplays -> true')
+        ns:recordCharacterDataUpdate('enableReplays -> true')
+    elseif lastReplayState and not state then
+        -- nothing for now
+    end
+    lastReplayState = state
 end
 
 
