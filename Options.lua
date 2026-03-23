@@ -55,20 +55,6 @@ local function makeSectionHeader(layout, text)
 end
 
 
--- Options that change whether the addon is currently active need to handle data
--- cleanup and UI hiding. Inactive could mean the addon is totally disabled or it
--- is only inactive in this content (e.g., a raid).
---
--- Return a valid setter function.
-local function makeActiveSetter(varName)
-    local function setter(value)
-        PetesDefensiveHistoryOptionsDb[varName] = value
-        ns:handleAddonActiveStateChange()
-    end
-    return setter
-end
-
-
 local function makeSetting(category, optName, settingType, label)
     return Settings.RegisterProxySetting(
         category, optName, settingType, label,
