@@ -161,12 +161,12 @@ def get_character_abilities(characters):
 
 def read_export_data(f):
     data = decode_export_blob(f.read())
-    metadata_updates = data[b'metadataUpdates']
+    metadata_updates = data[b'metadataUpdates'] or {}
     print('METADATA ------------------------------------------------------------------------')
     print('got', len(metadata_updates), 'metadata updates')
 
 
-    character_updates = data[b'characterUpdates']
+    character_updates = data[b'characterUpdates'] or {}
     character_abilities = {}
     print('CHARACTERS ----------------------------------------------------------------------')
     print('got', len(character_updates), 'character updates')
@@ -178,19 +178,6 @@ def read_export_data(f):
     playback = [ ('event', e[0], [ d(x) for x in e ]) for e in data[b'playback'] ]
     print('PLAYBACK ------------------------------------------------------------------------')
     print('got', len(playback), 'events')
-
-
-    # XXX: TODO: old code for matching cast events with inference events
-    #cast_events = []
-    #cast_times = []
-    #for _, e in playback.items():
-        # playback event records are not all the same structure
-        #time, event, actor = e[0:3]
-        #if event == "UNIT_SPELLCAST_SUCCEEDED":
-            #cast_events.append(e)
-            #cast_times.append(time)
-    # there should be many more spellcast events than inferences, so optimize this one
-    #cast_times = np.array(cast_times)
 
 
     print('INFERENCE -----------------------------------------------------------------------')
