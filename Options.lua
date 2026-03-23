@@ -35,7 +35,6 @@ local optionsDefaults = {
     runGC = false,
 }
 
-
 PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or optionsDefaults
 
 
@@ -50,12 +49,11 @@ function ns:GetOption(opt)
 end
 
 
+local function makeSectionHeader(layout, text)
+    layout:AddInitializer(
+        Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name=text }))
+end
 
-ns.optionsCategory, layout = Settings.RegisterVerticalLayoutCategory(addonName)
-
-layout:AddInitializer(
-    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Active inference content' })
-)
 
 -- Options that change whether the addon is currently active need to handle data
 -- cleanup and UI hiding. Inactive could mean the addon is totally disabled or it
@@ -70,434 +68,143 @@ local function makeActiveSetter(varName)
     return setter
 end
 
--- Disable the addon entirely
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "enable",
-    Settings.VarType.Boolean,
-    "Enable",
-    optionsDefaults['enable'],
-    function() return ns:GetOption('enable') end,
-    makeActiveSetter('enable')
-)
-toplevel =Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Enable the addon. Disabling the addon prevents all event processing and deletes all collected data, including player info, including talents, tracked cooldowns and event histories.")
+
+local function makeSetting(category, optName, settingType, label)
+    return Settings.RegisterProxySetting(
+        category, optName, settingType, label,
+        optionsDefaults[optName],
+        function() return ns:GetOption(optName) end,
+        function(value)
+            PetesDefensiveHistoryOptionsDb[optName] = value
+            ns:updateTrackerUI()
+        end
+    )
+end
 
 
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "enableSolo",
-    Settings.VarType.Boolean,
-    "Solo",
-    optionsDefaults['enableSolo'],
-    function() return ns:GetOption('enableSolo') end,
-    makeActiveSetter('enableSolo')
-)
-child = Settings.CreateCheckbox(ns.optionsCategory, setting, "Enable while solo.")
-child:SetParentInitializer(toplevel)
-
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "enableParty",
-    Settings.VarType.Boolean,
-    "Party",
-    optionsDefaults['enableParty'],
-    function() return ns:GetOption('enableParty') end,
-    makeActiveSetter('enableParty')
-)
-child = Settings.CreateCheckbox(ns.optionsCategory, setting, "Enable in non-raid, non-arena group content.")
-child:SetParentInitializer(toplevel)
-
--- XXX: TODO: Arena and raids. not supported yet (needs different frame names)
---local setting = Settings.RegisterProxySetting(
-    --ns.optionsCategory,
-    --"enableArena",
-    --Settings.VarType.Boolean,
-    --"Arena",
-    --optionsDefaults['enableArena'],
-    --function() return ns:GetOption('enableArena') end,
-    --makeActiveSetter('enableArena'),
-    --function() return false end
---)
---child = Settings.CreateCheckbox(ns.optionsCategory, setting, "Enable in arenas.")
---child:SetParentInitializer(toplevel)
---
---local setting = Settings.RegisterProxySetting(
-    --ns.optionsCategory,
-    --"enableRaid",
-    --Settings.VarType.Boolean,
-    --"Raid",
-    --optionsDefaults['enableRaid'],
-    --function() return ns:GetOption('enableRaid') end,
-    --makeActiveSetter('enableRaid')
---)
---child = Settings.CreateCheckbox(ns.optionsCategory, setting, "Enable in raids.")
---child:SetParentInitializer(toplevel)
-
-
-
-layout:AddInitializer(
-    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Appearance and behavior' })
-)
-
--- Set tracker icon size
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "iconSize",
-    Settings.VarType.Number,
-    "Icon size",
-    optionsDefaults['iconSize'],
-    function() return ns:GetOption('iconSize') end,
-    function(value)
-        PetesDefensiveHistoryOptionsDb.iconSize = value
-        ns:updateTrackerUI()
+local function makeCheckbox(category, optName, label, tooltip, parentSetting)
+    setting = makeSetting(category, optName, Settings.VarType.Boolean, label)
+    thisbox = Settings.CreateCheckbox(category, setting, tooltip)
+    if parentSetting then
+        thisbox:SetParentInitializer(parentSetting)
     end
-)
-local options = Settings.CreateSliderOptions(8, 64, 1)
-options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right) --, FormatPercentage)
-Settings.CreateSlider(ns.optionsCategory, setting, options, "Size of tracker icons")
+    return thisbox, setting
+end
+
+
+local function buildMainOptions()
+    local category, layout = Settings.RegisterVerticalLayoutCategory(addonName)
+
+    makeSectionHeader(layout, 'Active inference content')
+
+    parent = makeCheckbox(category, "enable", "Enable",   -- Disable the addon entirely
+        "Enable the addon. Disabling the addon prevents all event processing and deletes all collected data, including player info, including talents, tracked cooldowns and event histories.")
+    makeCheckbox(category, "enableSolo", "Solo",
+        "Enable while solo.", parent)
+    makeCheckbox(category, "enableParty", "Party",
+        "Enable in non-raid, non-arena group content.", parent)
+    makeCheckbox(category, "enableArena", "Arena",
+        "Enable while in arenas. COMPLETELY UNTESTED.", parent)
+    --makeCheckbox(category, "enableRaid", "Raid", "Enable in raids.", parent)
+
+
+    makeSectionHeader(layout, 'Appearance and behavior')
+
+    -- Set tracker icon size
+    setting = makeSetting(category, 'iconSize', Settings.VarType.Number, 'Icon size')
+    local options = Settings.CreateSliderOptions(8, 64, 1)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right) --, FormatPercentage)
+    Settings.CreateSlider(category, setting, options, "Size of tracker icons")
+
+    -- Set cooldown timer text size
+    setting = makeSetting(category, "textSize", Settings.VarType.Number, "Timer text size")
+    local options = Settings.CreateSliderOptions(4, 32, 1)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+    Settings.CreateSlider(category, setting, options, "Text size for cooldown timers")
+
+    -- Set spacing between tracker items
+    setting = makeSetting(category, "iconSpacing", Settings.VarType.Number, "Icon spacing")
+    local options = Settings.CreateSliderOptions(0, 10, 1)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+    Settings.CreateSlider(category, setting, options, "Spacing between tracker icons")
+
+
+    -- Disable all inference. Put everything in the history tray
+    makeCheckbox(category, "disableInference", "Disable inference",
+        "Disable logic to infer abilities and the associated row of icons. All abilities will instead be sent to the history tray for the unit on which they were cast (which may not be the caster!). Items in the history tray receive a count-up timer that stops at the maximum cooldown length for all abilities that can target that unit and the player must know the associated cooldown length.")
+
+    makeCheckbox(category, "disableCDRTrackers", "Disable inaccurate timers",
+        "Dynamic cooldown reduction (e.g., each cast of Power Word: Shield reduces the cooldown of Pain Suppression) cannot be tracked. Normally, these abilities will count down to the MAXIMUM cooldown time. Enabling this option will instead send those abilities to the history tray, declining to show an inaccurate cooldown swipe. NOTE: cooldown timers are especially inaccurate for abilities with BOTH dynamic cooldown reduction and charges (e.g., Shield Wall, Guardian of Ancient Kings, Pain Suppresion, etc.).") 
+
+    makeCheckbox(category, "disableHistoryTray", "Disable history tray",
+        "Disable the history tray. Do not send abilities that cannot be guessed to the history tray. Instead, quietly ignore them and only show abilities when they are identified. Careful: some abilities can only |cffff0000sometimes|r be guessed! When they are not, they are normally sent to the history tray and appear as available in the cooldown tracker row. If the history tray is hidden, you will not see this and the ability will simply appear to be available.")
+
+    makeCheckbox(category, "hideHistoryItemsAtMaxCd", "Hide old history tray items",
+        "Hide unidentified abilities in the history tray after the maximum possible cooldown is reached.")
+
+    makeCheckbox(category, "showTooltips", "Show spell tooltips",
+        "Show spell tooltips for abilities that can be identified. This does not work for abilities in the history tray, since these abilities are not identified.")
+
+
+    -- Settings for text to speech --------------------------------------------------
+    makeSectionHeader(layout, 'Text to speech')
+
+    parent = makeCheckbox(category, "enableTTS", "Enable text to speech",
+        "Say the names of abilities when they are used. Only applies to abilities that can be instantly identified.") -- XXX: TODO: Uses the voice, speed and volume settings in Audio Assist > Combat Audio Alerts.")
+
+    makeCheckbox(category, "TTSnoUntracked", "Only tracked abilities",
+        "Do not announce abilities that are unselected in the Tracked Abilities list.", parent)
+
+    makeCheckbox(category, "TTSnoSelfCasts", "No self-casts",
+        "Do not announce abilities cast by you.", parent)
+
+    return category
+end
 
 
 
--- Set cooldown timer text size
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "textSize",
-    Settings.VarType.Number,
-    "Timer text size",
-    optionsDefaults['textSize'],
-    function() return ns:GetOption('textSize') end,
-    function(value)
-        PetesDefensiveHistoryOptionsDb.textSize = value
-        ns:updateTrackerUI()
-    end
-)
-local options = Settings.CreateSliderOptions(4, 32, 1)
-options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-Settings.CreateSlider(ns.optionsCategory, setting, options, "Text size for cooldown timers")
+-- Settings for development
+local function buildDeveloperOptions(topCategory)
+    local category, layout =
+        Settings.RegisterVerticalLayoutSubcategory(topCategory, "Developer options")
 
+    makeCheckbox(category, 'debugVisuals', 'Visual debugging', 
+        "Add debugging widgets to the tracker icons.")
 
+    local parent = makeCheckbox(category, 'debugLogging', "Debugging messages",
+        "Print debug log messages to the chat console. Prints A LOT of text.")
 
--- Set spacing between tracker items
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "iconSpacing",
-    Settings.VarType.Number,
-    "Icon spacing",
-    optionsDefaults['iconSpacing'],
-    function() return ns:GetOption('iconSpacing') end,
-    function(value)
-        PetesDefensiveHistoryOptionsDb.iconSpacing = value
-        ns:updateTrackerUI()
-    end
-)
-local options = Settings.CreateSliderOptions(0, 10, 1)
-options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-Settings.CreateSlider(ns.optionsCategory, setting, options, "Spacing between tracker icons")
+    makeCheckbox(category, "debugLoggingLevelVerbose", "Enable verbose logging",
+        "Print even more debugging messages.", parent)
 
+    makeCheckbox(category, "debugLoggingTypeTalents", "Talents",
+        "Print debugging messages about retrieving, decoding and modifying player talents.",
+        parent)
 
--- Disable all inference. Put everything in the history tray
-local disableInference = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "disableInference",
-    Settings.VarType.Boolean,
-    "Disable inference",
-    optionsDefaults['disableInference'],
-    function() return ns:GetOption('disableInference') end,
-    function(value)
-        PetesDefensiveHistoryOptionsDb.disableInference = value
-        ns:updateTrackerUI()
-    end
-)
-Settings.CreateCheckbox(ns.optionsCategory, disableInference,
-    "Disable logic to infer abilities and the associated row of icons. All abilities will instead be sent to the history tray for the unit on which they were cast (which may not be the caster!). Items in the history tray receive a count-up timer that stops at the maximum cooldown length for all abilities that can target that unit and the player must know the associated cooldown length.")
+    makeCheckbox(category, "debugLoggingTypeInference", "Inference",
+        "Print debugging messages tracing inference calls.", parent)
 
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "disableCDRTrackers",
-    Settings.VarType.Boolean,
-    "Disable inaccurate timers",
-    optionsDefaults['disableCDRTrackers'],
-    function() return ns:GetOption('disableCDRTrackers') end,
-    function(value)
-        PetesDefensiveHistoryOptionsDb.disableCDRTrackers = value
-        ns:updateTrackerUI()
-    end
-)
-Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Dynamic cooldown reduction (e.g., each cast of Power Word: Shield reduces the cooldown of Pain Suppression) cannot be tracked. Normally, these abilities will count down to the MAXIMUM cooldown time. Enabling this option will instead send those abilities to the history tray, declining to show an inaccurate cooldown swipe. NOTE: cooldown timers are especially inaccurate for abilities with BOTH dynamic cooldown reduction and charges (e.g., Shield Wall, Guardian of Ancient Kings, Pain Suppresion, etc.).") 
+    makeCheckbox(category, "debugLoggingTypeUI", "User interface",
+        "Print debugging messages about the user interface.", parent)
 
+    makeCheckbox(category, "debugLoggingTypeData", "Data collection",
+        "Print debugging messages about data collection and tracking.", parent)
 
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "disableHistoryTray",
-    Settings.VarType.Boolean,
-    "Disable history tray",
-    optionsDefaults['disableHistoryTray'],
-    function() return ns:GetOption('disableHistoryTray') end,
-    function(value)
-        PetesDefensiveHistoryOptionsDb.disableHistoryTray = value
-        ns:updateTrackerUI()
-    end
-)
-Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Disable the history tray. Do not send abilities that cannot be guessed to the history tray. Instead, quietly ignore them and only show abilities when they are identified. Careful: some abilities can only |cffff0000sometimes|r be guessed! When they are not, they are normally sent to the history tray and appear as available in the cooldown tracker row. If the history tray is hidden, you will not see this and the ability will simply appear to be available.")
+    makeCheckbox(category, "debugLoggingTypeDataMining", "Data mining",
+        "Print aura data on the player that is not secret out of combat.", parent)
 
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "hideHistoryItemsAtMaxCd",
-    Settings.VarType.Boolean,
-    "Hide old history tray items",
-    optionsDefaults['hideHistoryItemsAtMaxCd'],
-    function() return ns:GetOption('hideHistoryItemsAtMaxCd') end,
-    function(value) PetesDefensiveHistoryOptionsDb.hideHistoryItemsAtMaxCd = value end
-)
-Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Hide unidentified abilities in the history tray after the maximum possible cooldown is reached.")
+    makeCheckbox(category, "debugLoggingTypeSimulation", "Simulations",
+        "Print inference traces during zero knowledge simulations.", parent)
 
-local setting = Settings.RegisterProxySetting(
-    optionsCategory,
-    "showTooltips",
-    Settings.VarType.Boolean,
-    "Show spell tooltips",
-    optionsDefaults['showTooltips'],
-    function() return ns:GetOption('showTooltips') end,
-    function(value) PetesDefensiveHistoryOptionsDb.showTooltips = value end
-)
-Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Show spell tooltips for abilities that can be identified. This does not work for abilities in the history tray, since these abilities are not identified.")
+    makeCheckbox(category, "debugLoggingTypeExport", "Export",
+        "Print inference traces when converting internal data to export strings.", parent)
 
+    -- Run garbage collection when enabling or disabling the addon
+    makeCheckbox(category, "runGC", "Run additional GCs",
+        "Run garbage collection when tearing down/setting up the UI. Helps to find memory leaks.")
 
-
-
-
--- Settings for text to speech --------------------------------------------------
-layout:AddInitializer(
-    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name='Text to speech' })
-)
-
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "enableTTS",
-    Settings.VarType.Boolean,
-    "Enable text to speech",
-    optionsDefaults['enableTTS'],
-    function() return ns:GetOption('enableTTS') end,
-    function(value) PetesDefensiveHistoryOptionsDb.enableTTS = value end
-)
-toplevel = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Say the names of abilities when they are used. Only applies to abilities that can be instantly identified.") -- XXX: TODO: Uses the voice, speed and volume settings in Audio Assist > Combat Audio Alerts.")
-
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "TTSnoUntracked",
-    Settings.VarType.Boolean,
-    "Only tracked abilities",
-    optionsDefaults['TTSnoUntracked'],
-    function() return ns:GetOption('TTSnoUntracked') end,
-    function(value) PetesDefensiveHistoryOptionsDb.TTSnoUntracked = value end
-)
-child = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Do not announce abilities that are unselected in the Tracked Abilities list.")
-child:SetParentInitializer(toplevel)
-
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "TTSnoSelfCasts",
-    Settings.VarType.Boolean,
-    "No self-casts",
-    optionsDefaults['TTSnoSelfCasts'],
-    function() return ns:GetOption('TTSnoSelfCasts') end,
-    function(value) PetesDefensiveHistoryOptionsDb.TTSnoSelfCasts = value end
-)
-child = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Do not announce abilities cast by you.")
-child:SetParentInitializer(toplevel)
-
-
-
-
--- Settings for development --------------------------------------------------
-layout:AddInitializer(
-    Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate",
-        { name='Developer options' })
-)
-
-
--- Debug visuals checkbox
-local debugVisuals = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "debugVisuals",
-    Settings.VarType.Boolean,
-    "Visual debugging",
-    optionsDefaults['debugVisuals'],
-    function() return ns:GetOption('debugVisuals') end,
-    function(value)
-        PetesDefensiveHistoryOptionsDb.debugVisuals = value
-        ns:updateTrackerUI()
-    end
-)
-
-Settings.CreateCheckbox(ns.optionsCategory, debugVisuals,
-    "Add debugging widgets to the tracker icons. This option requires a /reload to take effect.")
-
-
-
--- Debug logging checkbox
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "debugLogging",
-    Settings.VarType.Boolean,
-    "Debugging messages",
-    optionsDefaults['debugLogging'],
-    function() return ns:GetOption('debugLogging') end,
-    function(value) PetesDefensiveHistoryOptionsDb.debugLogging = value  end
-)
-
-toplevel = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Print debug log messages to the chat console. Prints A LOT of text.")
-
--- Enable verbose logging
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "debugLoggingLevelVerbose",
-    Settings.VarType.Boolean,
-    "Enable verbose logging",
-    optionsDefaults['debugLoggingLevelVerbose'],
-    function() return ns:GetOption('debugLoggingLevelVerbose') end,
-    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingLevelVerbose = value  end
-)
-
-child = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Print even more debugging messages.")
-child:SetParentInitializer(toplevel)
-
-
--- Talent debugging
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "debugLoggingTypeTalents",
-    Settings.VarType.Boolean,
-    "Talents",
-    optionsDefaults['debugLoggingTypeTalents'],
-    function() return ns:GetOption('debugLoggingTypeTalents') end,
-    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeTalents = value  end
-)
-
-child = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Print debugging messages about retrieving, decoding and modifying player talents.")
-child:SetParentInitializer(toplevel)
-
--- Inference debugging
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "debugLoggingTypeInference",
-    Settings.VarType.Boolean,
-    "Inference",
-    optionsDefaults['debugLoggingTypeInference'],
-    function() return ns:GetOption('debugLoggingTypeInference') end,
-    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeInference = value  end
-)
-
-child = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Print debugging messages tracing inference calls.")
-child:SetParentInitializer(toplevel)
-
--- UI debugging
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "debugLoggingTypeUI",
-    Settings.VarType.Boolean,
-    "User interface",
-    optionsDefaults['debugLoggingTypeUI'],
-    function() return ns:GetOption('debugLoggingTypeUI') end,
-    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeUI = value  end
-)
-
-child = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Print debugging messages about the user interface.")
-child:SetParentInitializer(toplevel)
-
--- Data collection debugging
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "debugLoggingTypeData",
-    Settings.VarType.Boolean,
-    "Data collection",
-    optionsDefaults['debugLoggingTypeData'],
-    function() return ns:GetOption('debugLoggingTypeData') end,
-    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeData = value  end
-)
-
-child = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Print debugging messages about data collection and tracking.")
-child:SetParentInitializer(toplevel)
-
--- Data mining mode
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "debugLoggingTypeDataMining",
-    Settings.VarType.Boolean,
-    "Data mining",
-    optionsDefaults['debugLoggingTypeDataMining'],
-    function() return ns:GetOption('debugLoggingTypeDataMining') end,
-    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeDataMining = value  end
-)
-
-child = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Print aura data on the player that is not secret out of combat. Intended for developers.")
-child:SetParentInitializer(toplevel)
-
--- Simulation logging
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "debugLoggingTypeSimulation",
-    Settings.VarType.Boolean,
-    "Simulations",
-    optionsDefaults['debugLoggingTypeSimulation'],
-    function() return ns:GetOption('debugLoggingTypeSimulation') end,
-    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeSimulation = value  end
-)
-
-child = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Print inference traces during zero knowledge simulations.")
-child:SetParentInitializer(toplevel)
-
-
--- Export logging
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "debugLoggingTypeExport",
-    Settings.VarType.Boolean,
-    "Export",
-    optionsDefaults['debugLoggingTypeExport'],
-    function() return ns:GetOption('debugLoggingTypeExport') end,
-    function(value) PetesDefensiveHistoryOptionsDb.debugLoggingTypeExport = value  end
-)
-
-child = Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Print inference traces when converting internal data to export strings.")
-child:SetParentInitializer(toplevel)
-
-
-
--- Don't log extremely spammy messages like talent ranks and ability inference
--- during the zero knowledge solve.
-local setting = Settings.RegisterProxySetting(
-    ns.optionsCategory,
-    "runGC",
-    Settings.VarType.Boolean,
-    "Run additional GCs",
-    optionsDefaults['runGC'],
-    function() return ns:GetOption('runGC') end,
-    function(value) PetesDefensiveHistoryOptionsDb.runGC = value  end
-)
-
-Settings.CreateCheckbox(ns.optionsCategory, setting,
-    "Run garbage collection when tearing down/setting up the UI. Helps to find memory leaks.")
-
-Settings.RegisterAddOnCategory(ns.optionsCategory, "PetesDefensiveHistoryOptionsDb")
-
+    Settings.RegisterAddOnCategory(category)
+end
 
 
 
@@ -505,124 +212,74 @@ Settings.RegisterAddOnCategory(ns.optionsCategory, "PetesDefensiveHistoryOptions
 -- Options subpanel for selecting which spells to track
 ----------------------------------------------------------------------------------
 
-local category, layout = Settings.RegisterVerticalLayoutSubcategory(ns.optionsCategory, "Tracked abilities")
+local function buildTrackedSpells(topCategory)
+    local category, layout =
+        Settings.RegisterVerticalLayoutSubcategory(topCategory, "Tracked abilities")
 
+    -- track setter checkboxes so we can iterate over them
+    local abilitySettings = {}
 
--- since abilities are replicated for each spec, track unique ones here to prevent
--- adding checkboxes multiple times for the same ability.
-local abilitySetters = {}
-
-local checkAll = CreateSettingsButtonInitializer(
-    "Track all abilities",
-    "Check all",
-    function()
-        for _, data in pairs(abilitySetters) do
-            if not data.disable then
-                data.setting:SetValue(true)
+    local function setAll(v)
+        local function f()
+            for _, data in pairs(abilitySettings) do
+                -- Don't set developerDisable spells
+                if not data.disable then data.setting:SetValue(v) end
             end
         end
-    end,
-    "Select all checkboxes",
-    true,
-    nil,
-    nil
-)
-
-layout:AddInitializer(checkAll)
-
-
-local uncheckAll = CreateSettingsButtonInitializer(
-    "Track no abilities",
-    "Uncheck all",
-    function()
-        for _, data in pairs(abilitySetters) do
-            data.setting:SetValue(false)
-        end
-    end,
-    "Unselect all checkboxes",
-    true,
-    nil,
-    nil
-)
-
-layout:AddInitializer(uncheckAll)
-
-
-
-local disabledWarning = "Disabled by addon developer. This ability will be enabled in future updates, but has interactions that need more testing. Enable at your own risk."
-
-local function addOptionForAbility(ability)
-    -- set default enabled values
-    optionsDefaults["show_" .. ability.id] = not ability.developerDisable
-
-    local setter = function(value)
-        PetesDefensiveHistoryOptionsDb["show_" .. ability.id] = value
-        ns:updateTrackerUI()
+        return f
     end
 
-    -- Color the text red if the ability is still buggy due to complex interactions
-    local tag = (not ability.developerDisable and "" or "|cFFFF0000") .. ability.name .. "|r"
+    layout:AddInitializer(CreateSettingsButtonInitializer(
+        "Track all abilities", "Check all", setAll(true),
+        "Select all checkboxes", true, nil, nil))
 
-    setting = Settings.RegisterProxySetting(
-        ns.optionsCategory,
-        "show_" .. ability.id,
-        Settings.VarType.Boolean,
-        tag,
-        not ability.developerDisable,
-        function() return ns:GetOption("show_"..ability.id) end,
-        setter)
+    layout:AddInitializer(CreateSettingsButtonInitializer(
+        "Track no abilities", "Uncheck all", setAll(false),
+        "Unselect all checkboxes", true, nil, nil))
 
-    Settings.CreateCheckbox(category, setting,
-        not ability.developerDisable and ability.name or disabledWarning)
+    local disabledWarning = "Disabled by addon developer. This ability will be enabled in future updates, but has interactions that need more testing. Enable at your own risk."
 
-    -- Save whether this is a developer-disabled ability so that it isn't included in check all
-    table.insert(abilitySetters, { setting=setting, disable=ability.developerDisable ~= nil })
-end
+    local function addOptionForAbility(ability)
+        -- set default enabled values
+        optionsDefaults["show_" .. ability.id] = not ability.developerDisable
+    
+        checkbox, setting = makeCheckbox(category,
+            "show_" .. ability.id,
+            (not ability.developerDisable and "" or "|cFFFF0000") .. ability.name .. "|r",
+            not ability.developerDisable and ability.name or disabledWarning)
 
--- Racials first
-for englishRaceName, raceName in pairs(ns.englishRaceNameToLocalized) do
-    local abilities = ns.AbilityDb[englishRaceName]
-    if abilities and #abilities > 0 then
-        layout:AddInitializer(
-            Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name=raceName })
-        )
+        table.insert(abilitySettings, { setting=setting, disable=ability.developerDisable ~= nil })
+    end
+
+    -- Racials first
+    for englishRaceName, raceName in pairs(ns.englishRaceNameToLocalized) do
+        local abilities = ns.AbilityDb[englishRaceName]
+        if abilities and #abilities > 0 then
+            makeSectionHeader(layout, raceName)
+            for _, ability in pairs(abilities) do
+                addOptionForAbility(ability)
+            end
+        end
+    end
+
+    -- Class/spec abilities
+    for _, classFile in pairs(ns.orderedClasses) do
+        local abilities = ns.AbilityDb[classFile]
+        makeSectionHeader(layout, LOCALIZED_CLASS_NAMES_MALE[classFile])
         for _, ability in pairs(abilities) do
             addOptionForAbility(ability)
         end
     end
-end
 
--- These are the locale-independent class names that key into several tables.
--- The display strings are different. The spec IDs are no longer used.
-local orderedClasses = {
-    "DEATHKNIGHT",   -- { 250, 251, 252 } },
-    "DEMONHUNTER",   -- { 577, 581, 1480 } },
-    "DRUID",         -- { 102, 103, 104, 105 } },
-    "EVOKER",        -- { 1467, 1468, 1473 } },
-    "HUNTER",        -- { 253, 254, 255 } },
-    "MAGE",          -- { 62, 63, 64 } },
-    "MONK",          -- { 268, 269, 270 } },
-    "PALADIN",       -- { 65, 66, 70 } },
-    "PRIEST",        -- { 256, 257, 258 } },
-    "ROGUE",         -- { 259, 260, 261 } },
-    "SHAMAN",        -- { 262, 263, 264 } },
-    "WARLOCK",       -- { 265, 266, 267 } },
-    "WARRIOR",       -- { 71, 72, 73 } }
-}
-
--- Class/spec abilities
-for _, classFile in pairs(orderedClasses) do
-    local abilities = ns.AbilityDb[classFile]
-    local class = LOCALIZED_CLASS_NAMES_MALE[classFile] -- maps "WARRIOR" -> "Warrior" or "Guerrier"
-
-    layout:AddInitializer(
-        Settings.CreateElementInitializer("SettingsListSectionHeaderTemplate", { name=class })
-    )
-
-    for _, ability in pairs(abilities) do
-        addOptionForAbility(ability)
-    end
+    Settings.RegisterAddOnCategory(category)
 end
 
 
-Settings.RegisterAddOnCategory(category)
+
+do
+    ns.optionsCategory = buildMainOptions()
+    buildTrackedSpells(ns.optionsCategory)
+    buildDeveloperOptions(ns.optionsCategory)
+
+    Settings.RegisterAddOnCategory(ns.optionsCategory, "PetesDefensiveHistoryOptionsDb")
+end
