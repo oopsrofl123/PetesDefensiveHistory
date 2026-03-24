@@ -15,13 +15,14 @@ local optionsDefaults = {
     disableInference = false,
     disableCDRTrackers = false,
     disableHistoryTray = false,
+    hideHistoryItemsAtMaxCd = false,
+    showTooltips = true,
+    hideWelcomeMessage = false,
 
     enableTTS = false,
     TTSnoUntracked = false,
     TTSnoSelfCasts = false,
 
-    hideHistoryItemsAtMaxCd = false,
-    showTooltips = true,
 
     enableReplays = false,
 	debugVisuals = false,
@@ -39,6 +40,7 @@ local optionsDefaults = {
 
 PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or optionsDefaults
 
+ns.hideWelcomeMessage = nil
 
 -- Universal getter. Use this to access settings, not direct keying
 -- into the settings table. No idea why I capitalized this.
@@ -64,8 +66,8 @@ local function makeSetting(category, optName, settingType, label)
         function() return ns:GetOption(optName) end,
         function(value)
             PetesDefensiveHistoryOptionsDb[optName] = value
-            ns:handleReplayStateChange()
             ns:handleAddonActiveStateChange()
+            ns:handleReplayStateChange()
             ns:updateTrackerUI()
         end
     )
@@ -134,6 +136,11 @@ local function buildMainOptions()
 
     makeCheckbox(category, "showTooltips", "Show spell tooltips",
         "Show spell tooltips for abilities that can be identified. This does not work for abilities in the history tray, since these abilities are not identified.")
+
+    -- Make this setting globally available so the dialog window can change it
+    _, ns.hideWelcomeMessage = makeCheckbox(
+        category, "hideWelcomeMessage", "Hide the welcome message",
+        "Don't show the welcome message for first-time users at login.")
 
 
     -- Settings for text to speech --------------------------------------------------

@@ -1,6 +1,8 @@
 -- get addon namespace
 local addonName, ns = ...
 
+local welcomeFrame
+
 -- time in seconds to expire a non-buff event since there is no UNIT_AURA(removed)
 -- event to naturally time it out
 expireNonAuraEventsAfter = 0.5
@@ -628,6 +630,7 @@ local function initAddon()
     -- Set to the opposite of the user setting to force a transition into the
     -- desired state.
     lastActiveState = not ns:addonIsActive()
+    lastReplayState = ns:GetOption('enableReplays')
 
     -- Add precomputed flag strings to the abilities in AbilityDb so they don't have to be
     -- recomputed on each inference.
@@ -684,6 +687,12 @@ loader:SetScript("OnEvent", function(self, event, ...)
             event = string.format("%s(%s,%s)", event, slot, guid)
         end
         ns:respondToRosterUpdate(event)
+    end
+
+    if not ns:GetOption('hideWelcomeMessage') then
+        welcomeFrame:Show()
+    else
+        welcomeFrame:Hide()
     end
 
     ns:playback(GetTime(), event, ...)
@@ -775,7 +784,87 @@ function ns:disableAddon()
 end
 
 
+
+local function allocWelcomeFrame()
+    local f = CreateFrame("Frame", "PetesDefensiveHistoryWelcome", UIParent, "BasicFrameTemplateWithInset")
+    f:SetSize(700, 350)
+    f:SetPoint("CENTER")
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving)
+    f:SetScript("OnDragStop", f.StopMovingOrSizing)
+    -- Bring to front when clicked
+    f:SetScript("OnMouseDown", function(self) self:Raise() end)
+
+    f.TitleText:SetText(addonName)
+
+    -- no need to use pools here, this is once only
+    local welcomeText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    welcomeText:SetPoint("TOPLEFT", f.InsetBg, "TOPLEFT", 10, -10)
+    welcomeText:SetPoint("TOPRIGHT", f.InsetBg, "TOPRIGHT", -10, -10)
+    welcomeText:SetJustifyH("CENTER")
+    welcomeText:SetSpacing(4)
+    welcomeText:SetText("Welcome to |cFF00FF00"..addonName.."|r, an addon for tracking group cooldowns!")
+
+    
+    local discordText = f:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    discordText:SetPoint("TOP", welcomeText, "BOTTOM", 0, -30)
+    discordText:SetPoint("LEFT", f.InsetBg, "LEFT", 10, 0)
+    discordText:SetPoint("RIGHT", f.InsetBg, "RIGHT", -10, 0)
+    discordText:SetJustifyH("LEFT")
+    discordText:SetSpacing(4)
+    discordText:SetText("Join the Discord and help improve " ..
+        "cooldown guessing accuracy by reporting bugs and inaccurate timers!")
+
+    local link = "|cFF00FFFFhttps://discord.gg/gVCtQrvpxt|r"
+    local urlBox = CreateFrame("EditBox", nil, f)
+    urlBox:SetPoint("TOP", discordText, "BOTTOM", 0, -10)
+    urlBox:SetSize(300, 20)
+    urlBox:SetText(link)
+    urlBox:SetFontObject("GameFontNormalLarge")
+    urlBox:SetJustifyH("CENTER")
+    urlBox:SetAutoFocus(true)
+    urlBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+    urlBox:SetScript("OnEditFocusLost", function(self) self:HighlightText(0, 0) end)
+    urlBox:SetScript("OnChar", function(self)
+ print('onchar')
+        self:SetText(link)
+        self:HighlightText()
+    end)
+
+    local tracerText = f:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    tracerText:SetPoint("TOP", urlBox, "BOTTOM", 0, -25)
+    tracerText:SetPoint("LEFT", f.InsetBg, "LEFT", 10, 0)
+    tracerText:SetPoint("RIGHT", f.InsetBg, "RIGHT", -10, 0)
+    tracerText:SetJustifyH("LEFT")
+    tracerText:SetSpacing(4)
+    tracerText:SetText("|cFFFFFFFFEnable logic tracing and replays|r " ..
+        "(AddOn Options > Developer options > Enable logic replays) for serious bug " ..
+        "tracking power. To share your replay, click the addon compartment button (top " ..
+        "right, near the minimap) and copy the export string.\n" ..
+        "|cFFFF0000WARNING: currently a memory hog, you will want to /reload " ..
+        "between keys!")
+
+    local checkbox = CreateFrame("CheckButton", "Checkbox", f, "UICheckButtonTemplate")
+    checkbox:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 12, 10)
+    checkbox.text:SetText("Don't show this message again")
+    checkbox.text:SetFontObject("GameFontNormal")
+    checkbox:SetChecked(ns:GetOption('hideWelcomeMessage'))
+    checkbox:SetScript("OnClick", function(self)
+        ns.hideWelcomeMessage:SetValue(self:GetChecked())
+    end)
+
+    f:Hide()
+
+    return f
+end
+
+
+
 do
+    welcomeFrame = allocWelcomeFrame()
+
     -- Open the solution UI
     SLASH_PDH1 = "/pdh"
     -- Open the config panel
