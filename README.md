@@ -28,20 +28,17 @@ Layout options are currently limited, mimicking OmniCD layouts with cooldowns to
   small number of Blizzard marked buffs and some additional logic about who those buffs
   can be cast by and applied to. This addon does not rely on exploits in which secret spell
   IDs are inadvertently leaked.
-
 * **Tracking only works for players with LibSpecialization.** LibSpecialization is
   included in this addon as well as many common addons such as BigWigs. For players
   without LibSpecialization, all buffs will be sent to the history tracker (i.e., treated
   as unidentified).
-
-**Dynamic cooldown reduction cannot be tracked.** While static
+* **Dynamic cooldown reduction cannot be tracked.** While static
   cooldown reduction from talents (e.g., cooldown reduced by 60s) is handled, dynamic
   cooldown reduction (CDR)--e.g., the cooldown of Shield Wall is reduced by 6s when you
   use Shield Slam--cannot generally be tracked.  Timers for abilities with both CDR and
   multiple charges are especially inaccurate since the second charge can only begin
   cooling down once the first charge completes. These ability trackers are displayed with
   a (!) badge and can be disabled if desired.
-
 * **Shadowmeld tracking does not work on target dummies** if the player is too close to
   the dummy. Dummies prevent you from dropping combat when too close.
 
