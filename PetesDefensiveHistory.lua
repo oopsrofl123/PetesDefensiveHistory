@@ -544,8 +544,14 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         table.insert(sanitizedAurasAdded, { auraInstanceID=v.auraInstanceID,
             icon=issecretvalue(v.icon) and 134400 or v.icon })
         if aura.HELPFUL and (aura.IMPORTANT or aura.BIG or aura.EXTERNAL) then
-            -- This aura is important, likely from a big cooldown
-            ns:trackAura("AURA(add)", aura)
+            -- Only infer external auras on players without talent data. Their abilities are
+            -- unknown and the inferences will cause many false positives.
+            -- XXX: TODO: this causes a FALSE NEGATIVE when a player with talent data casts
+            -- blessing of freedom on a player without talent data.
+            if char:hasTalentData() or aura.EXTERNAL then
+                -- This aura is important, likely from a big cooldown
+                ns:trackAura("AURA(add)", aura)
+            end
         else
             -- The aura isn't flagged, but it could be concurrent evidence
             char:trackAuraEvidence(unitTarget, v.auraInstanceID, now)
