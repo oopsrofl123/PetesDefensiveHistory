@@ -1,6 +1,24 @@
 -- get addon namespace
 local addonName, ns = ...
 
+ns.anchorPoints = {
+    "TOPLEFT", "TOP", "TOPRIGHT",
+    "LEFT", "CENTER", "RIGHT",
+    "BOTTOMLEFT", "BOTTOM", "BOTTOMRIGHT"
+}
+
+ns.growthDirections = {
+    "LEFT", "RIGHT", "UP", "DOWN"
+}
+
+-- opposite direction *AND* in anchor points, not directions
+ns.antiDirection = {
+    LEFT="RIGHT",
+    RIGHT="LEFT",
+    UP="BOTTOM",
+    DOWN="TOP"
+}
+
 local optionsDefaults = {
     enable = true,
     enableSolo = true,
@@ -12,6 +30,10 @@ local optionsDefaults = {
     iconSize = 32,
     iconSpacing = 3,
     textSize = 15,
+    anchorFrom = 3,         -- TOPRIGHT
+    anchorTo = 1,           -- TOPLEFT
+    growthDirection = 1,    -- LEFT
+
     disableInference = false,
     disableCDRTrackers = false,
     disableHistoryTray = false,
@@ -84,6 +106,25 @@ local function makeCheckbox(category, optName, label, tooltip, parentSetting)
 end
 
 
+local function anchorPointOptions()
+    local container = Settings.CreateControlTextContainer()
+    for i, name in pairs(ns.anchorPoints) do
+        container:Add(i, name)
+    end
+    return container:GetData()
+end
+
+
+local function growthDirectionOptions()
+    local container = Settings.CreateControlTextContainer()
+    for i, name in pairs(ns.growthDirections) do
+        container:Add(i, name)
+    end
+    return container:GetData()
+end
+
+
+
 local function buildMainOptions()
     local category, layout = Settings.RegisterVerticalLayoutCategory(addonName)
 
@@ -100,7 +141,7 @@ local function buildMainOptions()
     --makeCheckbox(category, "enableRaid", "Raid", "Enable in raids.", parent)
 
 
-    makeSectionHeader(layout, 'Appearance and behavior')
+    makeSectionHeader(layout, 'Appearance')
 
     -- Set tracker icon size
     setting = makeSetting(category, 'iconSize', Settings.VarType.Number, 'Icon size')
@@ -120,6 +161,18 @@ local function buildMainOptions()
     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
     Settings.CreateSlider(category, setting, options, "Spacing between tracker icons")
 
+    -- Anchors
+    setting = makeSetting(category, 'anchorFrom', Settings.VarType.Number, 'Anchor tracker by its')
+    Settings.CreateDropdown(category, setting, anchorPointOptions)
+
+    setting = makeSetting(category, 'anchorTo', Settings.VarType.Number, 'Anchor tracker to frame\'s')
+    Settings.CreateDropdown(category, setting, anchorPointOptions)
+
+    setting = makeSetting(category, 'growthDirection', Settings.VarType.Number, 'Grow icons to the')
+    Settings.CreateDropdown(category, setting, growthDirectionOptions)
+
+
+    makeSectionHeader(layout, 'Behavior')
 
     -- Disable all inference. Put everything in the history tray
     makeCheckbox(category, "disableInference", "Disable inference",

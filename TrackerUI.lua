@@ -43,6 +43,22 @@ local texturePool = CreateTexturePool(UIParent, 'ARTWORK', 0, nil,
     end)
 
 
+local function offsets(direction, amount)
+    local xoffset = 0
+    local yoffset = 0
+    if direction == "LEFT" then
+        xoffset = -amount
+    elseif direction == "RIGHT" then
+        xoffset = amount
+    elseif direction == "UP" then
+        yoffset = amount
+    else
+        yoffset = -amount
+    end
+    return xoffset, yoffset
+end
+
+
 
 -- Initialize a history item with blank values and hide it. Do not perform
 -- allocation or do potentially unsafe things like move or reanchor elements.
@@ -212,9 +228,6 @@ function ns:queueCooldown(ability, availableAt)
     cd.swipeTexture:SetDrawSwipe(cd.numQueued == ability.charges)
     cd.swipeTexture:Show()
 end
-
-
-
 
 
 
@@ -406,8 +419,18 @@ local function updateStaticRow(slot)
     local abilities = char and char:getAbilities() or {}
     local iconSize = ns:GetOption('iconSize')
     local iconSpacing = ns:GetOption('iconSpacing')
+    local dir = ns.growthDirections[ns:GetOption('growthDirection')]
+    local antidir = ns.antiDirection[dir]
 
-    row:SetPoint("TOPRIGHT", tracker, "TOPRIGHT", 0, 0)
+    row:ClearAllPoints()
+    local offset = (iconSize + iconSpacing)/2
+    local xoff, yoff = 0, 0
+    if antidir == "LEFT" or antidir == "RIGHT" then
+        yoff = offset
+    else
+        xoff = -offset
+    end
+    row:SetPoint(antidir, tracker, antidir, xoff, yoff)
 
     -- Add a new frame for each tracked cooldown
     for _, ability in pairs(abilities) do
@@ -471,11 +494,17 @@ local function updateStaticRow(slot)
     -- Adjust layout based on the icons surviving the previous purge
     local i = 0
     for name, item in pairs(row.items) do
-        item:SetPoint("RIGHT", row, "RIGHT", -(iconSize + iconSpacing)*i, 0)
+        local xoff, yoff = offsets(dir, i*(iconSize + iconSpacing))
+        item:ClearAllPoints()
+        item:SetPoint(antidir, row, antidir, xoff, yoff)
         if item:IsShown() then i = i + 1 end
     end
 
-    row:SetSize(i*(iconSize+iconSpacing) - iconSpacing, iconSize+2)
+    if dir == "LEFT" or dir == "RIGHT" then
+        row:SetSize(i*(iconSize+iconSpacing) - iconSpacing, iconSize+2)
+    else
+        row:SetSize(iconSize+2, i*(iconSize+iconSpacing) - iconSpacing)
+    end
 
     if ns:GetOption('disableInference') then
         ns:showDebugVisual(row)
@@ -485,7 +514,6 @@ local function updateStaticRow(slot)
 end
 
 
-
 -- Update a single row when visual options or party members change.
 local function updateHistoryTray(slot)
     local tracker = ns.trackerUI[slot]
@@ -493,17 +521,35 @@ local function updateHistoryTray(slot)
     local iconSize = ns:GetOption('iconSize')
     local textSize = ns:GetOption('textSize')
     local iconSpacing = ns:GetOption('iconSpacing')
+    local dir = ns.growthDirections[ns:GetOption('growthDirection')]
+    local antidir = ns.antiDirection[dir]
 
-    row:SetSize(MAX_HISTORY*(iconSize+iconSpacing) - iconSpacing, iconSize+2)
-    row:SetPoint("TOPRIGHT", tracker, "TOPRIGHT", 0, -(iconSize + iconSpacing))
+    row:ClearAllPoints()
+    local offset = -(iconSize + iconSpacing)/2
+    local xoff, yoff = 0, 0
+    if antidir == "LEFT" or antidir == "RIGHT" then
+        yoff = offset
+    else
+        xoff = -offset
+    end
+    row:SetPoint(antidir, tracker, antidir, xoff, yoff)
 
     for i=1, MAX_HISTORY do
         local item = row.items[i]
         sizeHistoryItem(item)
         -- items are statically positioned with index 1 being the oldest
-        item:SetPoint("LEFT", row, "LEFT", (i-1)*(iconSize + iconSpacing), 0)
+        local xoff, yoff = offsets(dir, (MAX_HISTORY - i)*(iconSize + iconSpacing))
+        --item:SetPoint("RIGHT", row, "RIGHT", xoff, yoff)
+        item:ClearAllPoints()
+        item:SetPoint(antidir, row, antidir, xoff, yoff)
         ns:showDebugVisual(item)
         ns:showDebugVisual(item.icon)
+    end
+
+    if dir == "LEFT" or dir == "RIGHT" then
+        row:SetSize(MAX_HISTORY*(iconSize+iconSpacing) - iconSpacing, iconSize+2)
+    else
+        row:SetSize(iconSize+2, MAX_HISTORY*(iconSize+iconSpacing) - iconSpacing)
     end
 
     if ns:GetOption('disableHistoryTray') then
@@ -558,11 +604,16 @@ function ns:updateTrackerUIBySlot(slot)
     local iconSize = ns:GetOption('iconSize')
     local iconSpacing = ns:GetOption('iconSpacing')
     local textSize = ns:GetOption('textSize')
+    local dir = ns.growthDirections[ns:GetOption('growthDirection')]
 
     -- Position UI next to frames
     local frame = ns:slotToFrame(slot)
     if frame then
-        tracker:SetPoint("TOPRIGHT", frame, "TOPLEFT", -SPACING_FROM_FRAMES, 0)
+        local xspacing, yspacing = offsets(dir, SPACING_FROM_FRAMES)
+        tracker:ClearAllPoints()
+        tracker:SetPoint(ns.anchorPoints[ns:GetOption('anchorFrom')],
+            frame, ns.anchorPoints[ns:GetOption('anchorTo')],
+            xspacing, yspacing)
     end
 
     tracker.bg:SetAllPoints(tracker)
@@ -585,8 +636,13 @@ function ns:updateTrackerUIBySlot(slot)
     updateStaticRow(slot)
     updateHistoryTray(slot)
 
-    tracker:SetWidth(math.max(tracker.staticRow:GetWidth(), tracker.historyTray:GetWidth()))
-    tracker:SetHeight(tracker.staticRow:GetHeight() + tracker.historyTray:GetHeight() + iconSpacing)
+    if dir == "LEFT" or dir == "RIGHT" then
+        tracker:SetWidth(math.max(tracker.staticRow:GetWidth(), tracker.historyTray:GetWidth()) + iconSpacing)
+        tracker:SetHeight(tracker.staticRow:GetHeight() + tracker.historyTray:GetHeight() + iconSpacing)
+    else
+        tracker:SetWidth(tracker.staticRow:GetWidth() + tracker.historyTray:GetWidth() + iconSpacing)
+        tracker:SetHeight(math.max(tracker.staticRow:GetHeight(), tracker.historyTray:GetHeight()) + iconSpacing)
+    end
 end
 
 
