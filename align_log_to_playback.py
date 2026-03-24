@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 from dtw import dtw
 from collections import defaultdict
 
-
 from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities, event_type_match, read_spell_names
 
 
@@ -112,8 +111,8 @@ def collapse_inferences(inferences):
         batch_id = inf[8]
         eventkey = event_id + "/" + str(batch_id)
         attempt = inf[2]
-        if eventkey in unique_inferences:
-            print('overwriting previous inf for event ID', eventkey, 'attempt', attempt)
+        #if eventkey in unique_inferences:
+            #print('overwriting previous inf for event ID', eventkey, 'attempt', attempt)
         unique_inferences[eventkey] = (rectype, time, inf)
     return list(unique_inferences.values())
 
@@ -160,126 +159,6 @@ def get_diffs_on_subset(full, event_index, event_value, actor_index, actor_value
         numpy.array(diffs, dtype=float) ]) #, recs
 
 
-# a and b are two-column matrices where the first column is offset timestamps
-# and the second column is the difference in time from the previous timestamp
-# Returned values for mode='full': array of len(log) + len(playback) - 1
-# index=0: 1 element overlap: playback's last element with log's first element.
-#                                        aaaaaaaaaaaaaaaaaaaaaa
-#    bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-#
-# index=k: k < len(log) is a k+1 element overlap, specifically
-# playback's rightmost k+1 elements with log's k+1 leftmost elements.
-#
-#                                        aaaaaaaaaaaaaaaaaaaaaa
-#                bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-#                                        ^^^^^^^^^^^^^ = index+1
-# index=k: k >= len(log), the playback is shifted far enough that its leftmost elements
-# overlap log's rightmost elements.
-#                                        aaaaaaaaaaaaaaaaaaaaaa
-#                                                    bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-#
-# N.B., python slices [a:b] are right-open: [a,b) and python indexes are 0-based.
-#
-# Useful to calculate: the amount of overlap as a function of k=index, len(a)=N, len(b)=M.
-# The overlap function is the sum of two linear functions with slope=1, one positive and
-# one negative.
-#
-# L = min(N, M) is the maximum overlap between the sequences.
-#
-# the positive function is:  f(k) = min(1 + k, L)  -- y-intercept=1
-#
-#   L  ______________________    the negative function has to remove all but 1 of the L
-#     /                      \   overlapping elements at the maximum k: i.e.,
-#    /                        \      g(N+M-1) = L-1, so the y-intercept is (L-1)-(N+M-1), so
-#   /                          \     g(k) = max(0, L-N-M+k)
-# k=0                       k=N+M-1
-#
-# mask - when computing cross-correlation, large entries can drive the signal and
-#        generate spurious correlations. to prevent this, set time differences > mask
-#        to 0, removing their weight from the correlation. 
-def align_one_tile(a, b, mask=4):
-    print("Masking gaps")
-    am = [ x if x < mask else 0 for x in a[:,1] ]
-    bm = [ x if x < mask else 0 for x in b[:,1] ]
-    print("Aligning a(%d) to b(%d).. " % (len(a), len(b)), end='')
-    ccf = numpy.correlate(am, bm, mode='full')
-    print('done.')
-    k = numpy.argmax(ccf)
-    N = len(a)
-    M = len(b)
-    L = min(N, M)
-    o = lambda k: min(1 + k, L) - max(0, L - N - M + k)
-    print('alignment index=', k, 'max cross-covariance=', ccf[k], '#lags evaluated=', len(ccf),
-        'overlap:', o(k))
-
-    # XXX: TODO: below is likely wrong. didn't check it very thoroughly
-    astart = max(0, k-len(b))
-    aend = min(k, len(a))
-    print("alignment: a:", astart, aend, a[astart:aend,:].shape)
-    bstart = max(0, len(b)-(k+1))
-    bend = min(len(b) + len(a)-1-k, len(b))  # ends align when k=N-1
-    print("alignment: b:", bstart, bend, b[bstart:bend,:].shape)
-    return astart, aend, bstart, bend
-
-
-# Return the time warp that must be subtracted from a's events to align with b's timeline.
-#
-# tile_size - break complete timeline into tiles and align each separately. this solves
-#   an issue where there can be different events in the playback and combat log. for example,
-#   in murder row when the fel gate is used on the last boss, there are two in-game 
-#   UNIT_SPELLCAST_SUCCEEDED events fired for each player, but only one of the two is present
-#   in the combat log.
-#   these differences are rare enough that by breaking the timeline into several tiles, it is
-#   near guaranteed that some tiles will not contain any such event disagreements and align
-#   correctly.
-def align_timelines_old(a, b, tile_sizes=[ 100, 150, 200 ]):
-    for tile_size in tile_sizes:
-        print('ALIGNMENT(tile_size=%d) --------------------------------------' % tile_size)
-        tile_paths = {}
-        atiles = numpy.array_split(a, int(len(a)/tile_size))
-        last_bend = -1
-        tile_path_len = 0
-        tile_path_id = 1
-        for atile in atiles:
-            astart, aend, bstart, bend = align_one_tile(atile, b)
-            a_aligned = atile[astart:aend]
-            b_aligned = b[bstart:bend]
-            times = numpy.column_stack([ a_aligned, b_aligned ])
-            # is this tile continuous with the previous tile?
-            # XXX: testing: allow for a little wiggle room at tile path boundaries
-            if abs(bstart - last_bend) < 5:
-                tile_path_len = tile_path_len + 1
-            else:
-                print('bstart != last_bend', bstart, last_bend)
-                tile_path_len = 0
-                tile_path_id = tile_path_id + 1
-            last_bend = bend
-            tile_paths.setdefault(tile_path_id, []).append([ times, tile_path_len ])
-
-        # given all of the per-tile alignments, find the longest tiling path
-        path_lens = [ len(tiles) for path_id, tiles in tile_paths.items() ]
-        longest_index = path_lens.index(max(path_lens))
-        print(tile_size, path_lens, longest_index)
-        # stop when we find a reasonable tile path. >= 2 is probably too lax, could
-        # happen randomly.
-        if path_lens[longest_index] > 1:
-            break
-        
-    if path_lens[longest_index] < 2:
-        raise RuntimeError('log-to-export alignment failed: could not find a tiling path of size >= 2')
-
-    path = tile_paths[longest_index]
-    rows = numpy.vstack([ tile[0] for tile in path ])
-    diffs = rows[:,0] - rows[:,2]  # time  differences for each event
-    rows = numpy.column_stack([ rows, diffs ])
-    # XXX: TODO: do a simple outlier removal like Tukey's or use the mode. median should
-    # be robust enough for most cases.
-    warp = numpy.median(diffs)
-    print(rows)
-    print(warp)
-    return warp
-    
-
 # Get the longest diagonal walk in the path matrix. Could also return a list of all
 # diagonal walks greater than some minimal length. These should all give the same
 # constant warp, so only serves as a sanity check.
@@ -325,7 +204,7 @@ def write_adjusted(filename, events, adj):
             f.write('\t'.join([ '%0.3f' % (e[0] - adj) ] + [ str(x).strip() for x in e[1:] ]) + '\n')
 
 
-def match_inference_to_combatlog(inf, combatlog_event_times, combatlog_events, tolerance=0.010):
+def match_inference_to_combatlog(inf, combatlog_event_times, combatlog_events, tolerance=0.100):
     inference_time, inference_trace, inference_attempt, \
         event_time, event_trace, event_id, event_source_guid, event_slot, batch_id, \
         inferred_ability_id, certain, inferred_caster_guid, \
@@ -396,6 +275,7 @@ class InferenceScore:
     def __init__(self):
         self.no_log = defaultdict(int)
         self.no_inference = defaultdict(lambda: defaultdict(int))
+        self.num_no_inference = 0
         self.inference = defaultdict(list)
         self.data = {}
         self.false_positives = defaultdict(list)
@@ -405,8 +285,9 @@ class InferenceScore:
         self.data = char
 
     def player_label(self):
-        return "%s: %s %s %s" % \
+        return "%s (%s): %s %s %s" % \
             (self.data['playerName'],
+             self.data['GUID'],
              self.data['raceName'],
              self.data['specName'] if 'specName' in self.data else 'unknown',
              self.data['classFile'])
@@ -418,6 +299,7 @@ class InferenceScore:
         self.no_log[trace] = self.no_log[trace] + 1
 
     def add_no_inference(self, trace, log_records):
+        self.num_no_inference = self.num_no_inference + 1
         for rec in log_records:
             self.no_inference[rec['ability_id']][trace] = \
                 self.no_inference[rec['ability_id']][trace] + 1
@@ -430,14 +312,15 @@ class InferenceScore:
 
     def print_false_positives(self):
         for ability, records in self.false_positives.items():
-            print(ability)
-            print(records)
+            print(spells[ability], ability)
+            for rec in records:
+                print('    ', rec)
 
     def nolog_str(self):
         return '    No log: ' + ', '.join([ '%s: %d' % (k, v) for k, v in self.no_log.items() ])
 
     def noinfer_str(self):
-        string = '    No infer:'
+        string = '    No infer: %d times' % self.num_no_inference
         for ability_id, traces in self.no_inference.items():
             string = string + '\n        ' + spells[ability_id] + ": " + ', '.join([ '%s: %d' % (k, v) for k, v in traces.items() ])
         return string
@@ -470,6 +353,8 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
             if not quiet: print(metadata)    # way too spammy
             if metadata['GUIDToSlot']:
                 guid_to_slot = { k.decode(): v.decode() for k, v in metadata['GUIDToSlot'].items() }
+            if metadata['slotToGUID']:
+                slot_to_guid = { k.decode(): v.decode() for k, v in metadata['slotToGUID'].items() }
         elif event == "CHARACTER_DATA_UPDATE":
             if not quiet: print("updating character data", end=' ')
             update_index = record[2]
@@ -496,6 +381,7 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
         log_records = match_inference_to_combatlog(record, combatlog_event_times, combatlog_events)
         if not log_records:
             scores[actor].add_not_logged(event_trace)
+            #print("NO LOG", spells[inferred_ability_id] if inferred_ability_id is not None else "none", slot_to_guid[event_slot])
         else:
             # did we infer this ability?
             if inferred_ability_id:
@@ -520,4 +406,4 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
 for guid, score in scores.items():
     print(score.player_label(), '-------------------------------------------------------------')
     print(score)
-    print(score.print_false_positives())
+    score.print_false_positives()
