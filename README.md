@@ -59,24 +59,18 @@ particular order:
   fixed by adding a default ability set for each spec. This will work better for specs
   where the base abilities are near-guaranteed (e.g., Pain Suppression on a disc priest)
   than specs with more optional talents (e.g., Blessing of Protection on a ret paladin).
-
 * Blessing of freedoms in history tray: the free second Blessing of Freedom talent Unbound
   Freedom creates two freedoms for one cast. Currently only one freedom will be assigned
   to the caster and the other will go to the history tray when it times out.
-
 * Avatar, Guardian of Ancient Kings, and VDH (tank) Metamorphosis inference is currently
   inaccurate, but is solvable.
-
 * Changes to party sort order aren't detected, so trackers will not follow the sorting.
   For example, if you change your party sort order in the default Blizzard frames through
   edit mode the attached trackers will not follow. A `/reload` will fix the issue.
-
 * Cooldown tracker states are lost on `/reload` or if a player leaves the group.
-
 * VDH meta is currently bugged in WoW: the cheat death proc also puts meta on cooldown if
   it is available. This bug will be added to the addon if it continues to exist for much
   longer.
-
 
 
 ### History tray fallback mode when cooldown is ambiguous
