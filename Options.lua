@@ -11,6 +11,10 @@ ns.growthDirections = {
     "LEFT", "RIGHT", "UP", "DOWN"
 }
 
+ns.textOutlines = {
+    "", "MONOCHROME", "OUTLINE", "THICKOUTLINE", "SLUG"
+}
+
 -- opposite direction *AND* in anchor points, not directions
 ns.antiDirection = {
     LEFT="RIGHT",
@@ -29,7 +33,9 @@ local optionsDefaults = {
 
     iconSize = 32,
     iconSpacing = 3,
+    maxHistoryTrayItems = 4,
     textSize = 15,
+    textOutline = 3,
     anchorFrom = 3,         -- TOPRIGHT
     anchorTo = 1,           -- TOPLEFT
     growthDirection = 1,    -- LEFT
@@ -124,6 +130,15 @@ local function growthDirectionOptions()
 end
 
 
+local function textOutlineOptions()
+    local container = Settings.CreateControlTextContainer()
+    for i, name in pairs(ns.textOutlines) do
+        container:Add(i, name)
+    end
+    return container:GetData()
+end
+
+
 
 local function buildMainOptions()
     local category, layout = Settings.RegisterVerticalLayoutCategory(addonName)
@@ -155,14 +170,25 @@ local function buildMainOptions()
     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
     Settings.CreateSlider(category, setting, options, "Text size for cooldown timers")
 
+    -- Timer text outline/shadow
+    setting = makeSetting(category, 'textOutline', Settings.VarType.Number,
+        'Outlines for cooldown timers')
+    Settings.CreateDropdown(category, setting, textOutlineOptions)
+
     -- Set spacing between tracker items
     setting = makeSetting(category, "iconSpacing", Settings.VarType.Number, "Icon spacing")
     local options = Settings.CreateSliderOptions(0, 10, 1)
     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
     Settings.CreateSlider(category, setting, options, "Spacing between tracker icons")
 
+    setting = makeSetting(category, "maxHistoryTrayItems", Settings.VarType.Number,
+        "Max. items in history tray")
+    local options = Settings.CreateSliderOptions(1, 10, 1)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+    Settings.CreateSlider(category, setting, options, "The history tray is like a GCD tracker for cooldowns that can't be identified. Show at most this many unidentified cooldowns in the history tray. To disable the history tray entirely, use Behavior > Disable history tray.")
+
     -- Anchors
-    setting = makeSetting(category, 'anchorFrom', Settings.VarType.Number, 'Anchor tracker by its')
+    setting = makeSetting(category, 'anchorFrom', Settings.VarType.Number, 'Anchor tracker from its')
     Settings.CreateDropdown(category, setting, anchorPointOptions)
 
     setting = makeSetting(category, 'anchorTo', Settings.VarType.Number, 'Anchor tracker to frame\'s')

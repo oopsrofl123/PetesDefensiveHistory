@@ -2,7 +2,6 @@
 local addonName, ns = ...
 local LibButtonGlow = LibStub("LibButtonGlowcustom")
 local GUIDToIndex = {}
-local MAX_HISTORY = 4
 local SPACING_FROM_FRAMES = 2
 local DEFAULT_ICON = 134400    -- Question mark
 
@@ -104,8 +103,9 @@ end
 -- IMPORTANT: the item at fromIndex is hidden since it is cleared. Callers
 -- must re-:Show() if they want the item to be seen after this shift.
 local function shiftHistoryTrayLeftFrom(items, fromIndex)
-    fromIndex = fromIndex or MAX_HISTORY
-    for i=1, MAX_HISTORY-1 do
+    local maxHistory = ns:GetOption("maxHistoryTrayItems")
+    fromIndex = fromIndex or maxHistory
+    for i=1, maxHistory-1 do
         shiftHistoryTrayItem(items[i+1], items[i])
     end
     clearHistoryItem(items[fromIndex])
@@ -131,7 +131,7 @@ function ns:addEventToHistoryTray(event)
     shiftHistoryTrayLeftFrom(tray.items)
     
     -- Now that space has been made, add this ability to the tracker
-    item = tray.items[MAX_HISTORY]
+    item = tray.items[ns:GetOption('maxHistoryTrayItems')]
     item.startTime = event:getTime()
     item.maxCD = event:getMaxCD()
     -- If an aura 
@@ -234,13 +234,14 @@ end
 local function sizeHistoryItem(item)
     local iconSize = ns:GetOption('iconSize')
     local textSize = ns:GetOption('textSize')
+    local textOutline = ns.textOutlines[ns:GetOption("textOutline")]
     item:SetSize(iconSize, iconSize)
 
     if item.countUp then
-        item.timer:SetFont(item.timer:GetFont(), textSize, "THICKOUTLINE")
+        item.timer:SetFont(item.timer:GetFont(), textSize, textOutline)
     else
-        item.swipeTexture.timer:SetFont(item.swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
-        item.swipeTexture.chargeLabel:SetFont(item.swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
+        item.swipeTexture.timer:SetFont(item.swipeTexture.timer:GetFont(), textSize, textOutline)
+        item.swipeTexture.chargeLabel:SetFont(item.swipeTexture.chargeLabel:GetFont(), textSize, textOutline)
         item.warningbg:SetSize(iconSize/2, iconSize/2)
         item.warning:SetSize(iconSize/2, iconSize/2)
     end
@@ -294,7 +295,7 @@ local function allocCountDownTimer(parent)
     
     swipeTexture.timer:SetTextColor(1,1,1)
     swipeTexture.timer:SetPoint("CENTER", parent, 0, 0)
-    swipeTexture.timer:SetFont(swipeTexture.timer:GetFont(), textSize, "THICKOUTLINE")
+    swipeTexture.timer:SetFont(swipeTexture.timer:GetFont(), textSize, textOutline)
 
     swipeTexture.chargeLabel = numberFontNormalSmallPool:Acquire()
     swipeTexture.chargeLabel:SetParent(swipeTexture)
@@ -302,7 +303,7 @@ local function allocCountDownTimer(parent)
     
     swipeTexture.chargeLabel:SetTextColor(1,1,1)
     swipeTexture.chargeLabel:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -1, 0)
-    swipeTexture.chargeLabel:SetFont(swipeTexture.chargeLabel:GetFont(), textSize, "THICKOUTLINE")
+    swipeTexture.chargeLabel:SetFont(swipeTexture.chargeLabel:GetFont(), textSize, textOutline)
 
     local warningbg = texturePool:Acquire()
     warningbg:SetParent(parent)
@@ -404,6 +405,8 @@ local function releaseHistoryItem(item)
         texturePool:Release(item.warning)
         cooldownFramePool:Release(item.swipeTexture)
     end
+    item:ClearAllPoints()
+    item:Hide()
     framePool:Release(item)
 end
 
@@ -482,10 +485,6 @@ local function updateStaticRow(slot)
     -- the player changed spec, group changed, new external interferes, etc.)
     for name, item in pairs(row.items) do
         if not abilities[name] then
-            -- XXX: TODO: WARNING! this leaks frames! need a frame pool
-            -- since frames cannot be deallocated.
-            item:ClearAllPoints()
-            item:Hide()
             releaseHistoryItem(item)
             row.items[name] = nil
         end
@@ -534,22 +533,31 @@ local function updateHistoryTray(slot)
     end
     row:SetPoint(antidir, tracker, antidir, xoff, yoff)
 
-    for i=1, MAX_HISTORY do
+    local maxHistory = ns:GetOption('maxHistoryTrayItems')
+    for i=1, math.max(maxHistory, #row.items) do
         local item = row.items[i]
-        sizeHistoryItem(item)
-        -- items are statically positioned with index 1 being the oldest
-        local xoff, yoff = offsets(dir, (MAX_HISTORY - i)*(iconSize + iconSpacing))
-        --item:SetPoint("RIGHT", row, "RIGHT", xoff, yoff)
-        item:ClearAllPoints()
-        item:SetPoint(antidir, row, antidir, xoff, yoff)
-        ns:showDebugVisual(item)
-        ns:showDebugVisual(item.icon)
+        if i > maxHistory then   -- maxHistory was reduced by user options
+            releaseHistoryItem(item)
+            row.items[i] = nil
+        else
+            if not item then     -- maxHistory was increased by the user (or is first call)
+                row.items[i] = allocHistoryItem(tracker.historyTray, true)
+                item = row.items[i]
+            end
+            sizeHistoryItem(item)
+            -- item at index 1 is the oldest
+            local xoff, yoff = offsets(dir, (maxHistory - i)*(iconSize + iconSpacing))
+            item:ClearAllPoints()
+            item:SetPoint(antidir, row, antidir, xoff, yoff)
+            ns:showDebugVisual(item)
+            ns:showDebugVisual(item.icon)
+        end
     end
 
     if dir == "LEFT" or dir == "RIGHT" then
-        row:SetSize(MAX_HISTORY*(iconSize+iconSpacing) - iconSpacing, iconSize+2)
+        row:SetSize(maxHistory*(iconSize+iconSpacing) - iconSpacing, iconSize+2)
     else
-        row:SetSize(iconSize+2, MAX_HISTORY*(iconSize+iconSpacing) - iconSpacing)
+        row:SetSize(iconSize+2, maxHistory*(iconSize+iconSpacing) - iconSpacing)
     end
 
     if ns:GetOption('disableHistoryTray') then
@@ -686,9 +694,6 @@ function ns:allocTrackerUIForSlot(slot)
     tracker.historyTray = framePool:Acquire()
     tracker.historyTray:SetParent(tracker)
     tracker.historyTray.items = {}
-    for i=1, MAX_HISTORY do
-        tracker.historyTray.items[i] = allocHistoryItem(tracker.historyTray, true)
-    end
 
     return tracker
 end
