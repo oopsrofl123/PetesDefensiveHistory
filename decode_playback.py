@@ -32,15 +32,15 @@ def read_spell_names(filename):
 
 
 def event_type_match(combatlog, playback):
-    match playback:
-        case "AURA(add)":
-            return combatlog == "SPELL_AURA_APPLIED" or combatlog == "SPELL_AURA_APPLIED_DOSE"
-        case "AURA(update)":
-            return combatlog == "SPELL_AURA_REFRESH" or combatlog == "SPELL_AURA_REMOVED_DOSE"
-        case "FLAGS(combatDrop)":
-            return combatlog == "SPELL_CAST_SUCCESS"
-        case _:
-            return False
+    #match playback:
+    if playback == "AURA(add)":
+        return combatlog == "SPELL_AURA_APPLIED" or combatlog == "SPELL_AURA_APPLIED_DOSE"
+    elif playback == "AURA(update)":
+        return combatlog == "SPELL_AURA_REFRESH" or combatlog == "SPELL_AURA_REMOVED_DOSE"
+    elif playback == "FLAGS(combatDrop)":
+        return combatlog == "SPELL_CAST_SUCCESS"
+    else:
+        return False
 
 
 def passcolor(passes):
