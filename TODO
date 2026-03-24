@@ -1,36 +1,43 @@
-BUGS
+V1.0 RELEASE GOALS
 ===========================================================================
+BUGS
+    - the no-libspec problem. inference still runs on people without libspec since to ID external
+      CD usage. but every IMP|BIG|EXT aura gained by that player generates an inference that will
+      attempt to resolve. if it happens to find a fit (blessing of freedom with its 10000 flag set
+      is the most common choice), it will fire a false positive.
+        - real fix: default abilities
+        - hack fix: only infer EXTERNAL=true for no-libspec players. it turns out this works in
+          every case except blessing of freedom.
+            * this will mean: when someone with libspec casts freedom on someone without libspec,
+              it will not be IDed. [TODO: is there a workaround?]
+    - dispersion
+        - looks like dispersion might be flagged now but wasn't in the (old) dumps. see normal_arena_2.txt
 
-- metadata is not tracked as an update list, so when exported it doesn't
-  match the infers/events
+REPLAYS
+    - blessing of freedom finalized multiple times (attempt=1,2,3,..) in normal_arena_2 where a
+      ret paladin didn't have libspec and caused tons of false positives.
 
-- maybe disable ret DP since it is hard to distinguish from freedom
+FEATURES
+- test mode
+    - people will be surprised by the history row since it doesn't normally show, test mode needs to
+      demo so that users know what to expect
+    - show activating/inactivating cooldown counters on top row
+    - show growing..disappearing icons in history row
+    - put text labels behind the history row and static row telling the user what they're looking at
 
-- tons of ret paladin mis-IDs
-    - after looking into these, the IDs actually seem correct. what is weird is that
-      the ret paladin had the wings animation at ~2345=52:26 in vod. since no log, can't
-      figure out what happened.
-    - wake of ashes as freedom
-        - might be related to cooldown
-        - 158: 2292.029     2300.080     2302.913    [wake: many buffs]
-52:04   - 187: 2323.667     2331.987     2334.662    [wake: many buffs, nil bug on attempt=1]
-        - 209: 2341.035     2345.873     2349.039    [DP: absorb/buff in same tick]
-        - 221: 2345.757     2345.873     2354.745    [freedom: 8s?]
-        - 277: 2439.400                  2447.416    [DP: nil bug, fail attempt=1, abs/buff same tick]
-        - 307: 2477.284
+- minimap button rather than compartment button
+    - does anyone even know where the compartment buttons are?
 
-- [FIXED] the nil ability in topTwo bug is back. means that there is a nil in possibleSolutions
-    - caused by non-strict comparators (<= instead of <)
+* add a button somewhere to reset the internal data trackers
+    - need this to allow resetting when entering a new instance, e.g.
+    - or could do it on ZONE_AREA_CHANGED?
+    - maybe add options to do it automatically (e.g. on ENCOUNTER_START would be good for key running)
 
-- internal memory usage is WAY more than export:
-    - AddOn panel: 159MB
-    - export serialized string: ~6MB
-    - compressed string: 600kB
-    - likely need a disable feature for playback/internal tracking
 
-- hides chubb's micromenu (bags, character sheet, group finder, etc. buttons)
-    - if it helps: it's from dominos, not the blizz default menu
-    - just ask him to retest
+TESTING
+- run a dungeon with tracing disabled to ensure memory usage for normal users is tolerable
+
+- disable ret DP since if it is too hard to distinguish from freedom
 
 SHADOWMELD ACCURACY
 - test group drop protection
@@ -39,51 +46,24 @@ SHADOWMELD ACCURACY
       server side from simple aura applications
 
 - use the new export functionality to export raw events from a few dungeon runs
-    - LOG
+    - WITH COMBAT LOG ON
 
 
 
-V1.0 RELEASE FEATURES
+
+V1.1 RELEASE FEATURES
 ===========================================================================
-
-- update github/curseforge readmes
-    - [done] mention restricted license for now with intended open license later
-    - [done] want to work with frontend UI designers
-    - add better pictures/GIF in action
-
-- full pass on ability testing, especially with updating. not easy to do since seemingly uninteresting
-  talents can cause updating.  see, e.g., the mage hero talent that causes ice cold/ice block to constantly
-  update as they allow you to move
-****** CHECK UPDATES
-****** CHECK CONCURRENTBUFF ABILITIES - SEE TalentDb - ONLY SHADOW DANCE HAS A non-talented CONCURRENT BUFF
-                 natural update?     update when press?      extend?
-    - dk
-    - dh
-blur             false               true                    false
-vdh meta
-    - druid
-celestial alignment
-incarn elune
-    - evoker
-obsidian scales                      true                    false
-    - hunter
-survival fittest
-time dilation
-    - mage
-ice cold (would snap allow a recast? or prevented by hypothermia?)
-    - monk
-    - paladin
-goak/golden valkyr
-    - priest
-pain supp
-    - rogue
-    - shaman
-    - warlock
-    - warrior
-avatar (proc>press)
+GOALS:
+    - data driven accuracy evaluation
+    - usability
+        - visual configurability
+        - controls for memory usage
+        - more disabled-by-default spells. most users will assume the addon doesn't work
+          at all when certain spells don't work as they expect.
+    - finish the few solvable complex cases (goak, vdh meta, avatar)
 
 
-NOTES ON COMPLEX CASES
+NOTES ON COMPLEX CASES -----------------------------------------------------------
     - [UPDATE] meta vs. apex is solved. now cheat death (should be easier)
     - AVATAR SHOULD BE HANDLED WITH UNCERTAIN=true
         - [UPDATE] just guessing that avatar on add is the real avatar is a decent approx. when proc>avatar
@@ -180,24 +160,20 @@ NOTES ON COMPLEX CASES
         - this is already handled but in a hamfisted way. prevented from AURA(update) by charges=1
           and naturallyUpdates=true. which is another way of saying updates aren't of interest.
         - just need to prevent this from filling up the history tray. not a complex ability
+    ----------------------------------------------------------------------------
 
+- why is internal memory usage WAY more than export?
+    - AddOn panel: 159MB
+    - export serialized string: ~6MB
+    - compressed string: 600kB
 
-
-
-
-
-
-V1.1 RELEASE FEATURES
-===========================================================================
 - required buff is only binary, so abilities with multiple required buffs
   (e.g., wake of ashes: HoW talent and shield talent each give a different buff)
   don't look for the extra buffs.
     - requires :consume()
 
 - 260s cooldown on GoAK? what?
-    - the double cast bug is back: both charges used together -> the second
-      charge puts its timeout on the cooldown swipe
-    - no, the bug is different. this happened because the first charge coincided
+    - the first charge coincided
       with a random debuff from a mob and thus could not exclude cheat death.
       the second charge IDed almost instantly (application+tolerance) because a
       debuff did not randomly coincide with it.
@@ -214,12 +190,6 @@ V1.1 RELEASE FEATURES
     - the correct fix is to change cdfifo to record start times and have it
       re-solve cooldowns when new abilities are added
         - this relates to the cooldown backpropagate idea
-
-- there is a scenario where the visual debugging 'partyX' label does not show up on a frame
-    - happened once in an LFG heroic and one more time in random testing, but I can't make it happen again
-    - this did not affect the actual tracker UI weirdly enough, even though the visual debugging label
-      is attached to it
-    - can't reproduce
 
 - arcane surge: try PLAYER_DAMAGE_DoNE_MODS
     - if it works, re-enable by default
@@ -255,34 +225,10 @@ TEST HARNESS
           several possible IDs. the IDs are necessary for the extraction step
 
 REPLAYS
-    * ALIGNER:
-        - appliesOtherAuraId should not work but appears to
-            - turns out the cheat death version of GoAK (393108) is in the log alongside normal GoAK
-              (86659). this might not apply to other overwrites (maybe even related to 12s cheat bug?)
-    * NEEDS TESTING: can the combat log come from someone other than the addon exporter? the decoder
-      script supports mapping to the correct slot (i.e., vis-a-vis the addon exporter) but the log and
-      export timestamps might be more discordant
-    * MUST DO: add option to compartment menu to reset the internal data trackers
-        - need this to allow resetting when entering a new instance, e.g.
-        - or could do it on ZONE_AREA_CHANGED?
+    * can the combat log come from someone other than the addon exporter? are the timestamp diffs still
+      correlated?
     * would be nice to log encounter IDs/zone IDs somehow. the current ones at the time of export aren't
       necessarily informative
-        - right now, collecting data over several m+ runs likely won't work. aligning it to the combat log
-          will probably fail. instead, export data needs to be organized by encounter/zone ID. this would
-          be pretty clean in raids/m+ but in open world/non-m+ dungeons there is no "start event"
-        - would need to key the inference/playback event lists by encounter/zone ID
-        - would also have to copy the chardata/metadata per encounter/zone ID
-    - finish work on InferenceRecord (logic, conf, reqs, metadata: timestamps, source/aura, ID, traces, etc)
-        * add evidence? maybe not necessary
-    - add handler triggers to data
-        - might require handler collapsing especially for crazy ones like absorb
-    - make record type to distinguish inference records from handler events
-    - for combat log parsing -> creating tracked characters, have to parse COMBATANT_INFO, which
-      fires when starting a key. not sure if anything fires for m0.
-        - https://warcraft.wiki.gg/wiki/COMBAT_LOG_EVENT#COMBATANT_INFO
-    * have to encode slot=player GUID in playback output for log alignment
-        - in real code would encode the whole trackedCharacters(), but myGUID isn't that much to add
-    * need to encode ability.caster in InferenceRecord output
     * could logs help tune the time tolerances?
         - motivated by how close log and playback spellcast times are. if aura applications were
           similar, then could get some distributions on tolerances
@@ -313,7 +259,6 @@ REPLAYS
     b. must not consume: AoE CCs. an AoE CC cast creates one spellcast event but may cause many CCs. the point
        is that consumption is not always correct
 
-
 - arena: GetArenaOpponentSpec() and GetNumArenaOpponentSpecs() to get specs. doubt we can get talents.
 
 - event handler output collapsing
@@ -325,13 +270,13 @@ REPLAYS
       flagset (10000), and will be put in the tray.
     - special handling around cooldown exclusion is necessary to solve
 
-- UNIT_FLAGS fires on dismount (and fires an AURA)
-
 - convert evidence trackers from timestamps -> (timestamp, count)
     - squash multiple events at same (or within tol ~1ms) into a single event to avoid
-      overflowing the ringbuffer.
+      flushing the ringbuffer.
     - UNIT_ABSORB is a particularly bad offender, e.g. on prot paladin throwing divine toll grants
       an absorb for every shield hit.
+    - [CONSOLIDATED] don't push duplicate time stamps for evidence (bubble taunt
+      generates 1 event per mob taunted (maybe)). allows reducing buffer size
 
 - make certain evidence queryable without going through infer
     - example: player pressed a button. important for making updates generate events
@@ -347,14 +292,10 @@ REPLAYS
             - would not work with evidence consumption
             - would possibly glow the spellward icon
 
-
 - general use of exclamation badges: rather than permanently attaching these to cooldowns suspected
   to be wrong, use them more dynamically.
 
 - ZKS simulation doesn't know how to create nonAuraEvents
-
-- don't push duplicate time stamps for evidence (some abilities like bubble taunt
-  generate 1 event per mob taunted (maybe)). allows reducing buffer size
 
 - generalize Event to allow non-tracked characters to be event sources
     - happens when CC is used: the source is the target (or multiple targets, for AoE)
@@ -375,22 +316,21 @@ REPLAYS
       register OnUpdate, so are constantly checking for changes, e.g., when a recharge
       completes
 
+- updateUI* functions delete the history tray
+
 - Detect ability resets. E.g., detect when cold snap is used to reset ice cold/ice block.
 
 - Minimap button
-    - re-anchor frames to deal with sort changes
+    - reset button to re-anchor frames to deal with sort changes
     - reset cooldown trackers
 
-- Options
-    - Font options for cooldown numbers
-        - outlines, size, font
-    - Support directional layouts other than horizontal+left of frame
-    - Max history tray size
-    - Show offensives on right
-    - maybe add tooltips for confusing abilities like the DH apex talent
-    - Options to augment the centerdefensivebuff icon:
-        - Blizzard opts not to show buffs some would like to see. E.g.,
-          bubble, evasion and meta.
+- "Better" centerdefensivebuff icon?
+    - Blizzard opts not to show buffs some would like to see. E.g., bubble, evasion and meta.
+
+- Option to change font family
+
+- Option to show offensives on right
+
 
     
 
@@ -443,6 +383,7 @@ IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
     - this could be a massive information source for IDing buffs that we'd like
       to track but didn't make it onto blizzard's IMPORTANT/BIG/EXTERNAL flag set.
     - need to test an ability that we wish could be tracked but isn't (like fort brew?)
+
 - detect abilities that reset other cooldowns like adrenaline rush and ice block
     - should not be hard. if the ability has a fixed cooldown (i.e. no CDR),
       then seeing that ability before it is available means the reset was used,
@@ -450,10 +391,13 @@ IDEAS TO IMPROVE DETECTION OR EXTEND TO OTHER ABILITIES -----------------
         * would not be able to track the reset ability if it was used to reset
           something else. e.g., if prep was used while adrenaline rush was available,
           the prep usage would not be noticed. but that's fine.
+
 - [maybe] add CCs/stops if the blizzard CC flags cause uniquely identifiable events
+
 - do cheat death events generally fire IMPORTANT events? rogue, evoker, DH, warrior, mage..
+
 - could hunter exhil be detected by the idea that they only have one
-- self-cast heal that requires a button press (i.e., isn't a proc) and also
+  self-cast heal that requires a button press (i.e., isn't a proc) and also
   applies a hot? how to distinguish from health pot?
     - buttonPress
     - UNIT_COMBAT heal where the caster=target=a hunter
@@ -517,37 +461,16 @@ ABILITY ARCHITECTURE (maybe)
 - Abilities may need a formal object. Not yet convinced about this. This could be
   the solution to another arch issue about moving cooldown information out of the
   UI elements (swipe trackers)
-- EVENTS map one-to-many to ABILITIES
 
 - fold eventTrackers, cdTrackers and buffsForInference into Character.
     - buffsForInference: consider generalization to kicks, stops
     - empty eventTrackers and cdTrackers need to be easily creatable for ZKS
-
 
 - [NOT SURE - is this really helpful?] better non-fixed duration support: generalize
   current FIXED, LTE, GTE system to a duration range (min, max) where the default
   FIXED idea is implemented as (duration-TOLERANCE, duration+TOLERANCE), LTE is min=0,
   GTE is max=Inf. some abilities surely have extensions that are short enough that this
   helps distinguish
-
-- explore the empty character idea for getTrackedCharacterByGUID:
-    when guid=nil or the guid isn't found (shouldn't happen), return a special
-    empty character. if the CD tracker, various states of cooldown swipes, and
-    even textures in the history tray get folded into Character(), then the empty
-    idea is way more elegant. need to check all 4 use cases of getTrackedCharByGUID
-    to make sure it would work:
-        1. UNIT_AURA
-        2. updateSlotToGUID
-        3. updateSlotToGUID
-        4. updateStaticRow
-        5. updateHistoryTray
-    the main problem is uniqueness of the empty GUID. things keyed by GUID would
-    not like it (unless we generate many empties?). e.g., TrackerUI:GUIDToIndex
-    ---- BIG PROBLEM ----
-    inferAbility expects an object that collects all CD trackers together for inference.
-    this can be changed such that abilities (who know their caster) can refer to the
-    appropriate cooldown tracker, but will take a little work to allow an empty
-    tracker to be substituted in that case.
 
 - [LOW PRIORITY] multi-charge abilities and the history tray: this bug only
   exists someone disables the hide inaccurate trackers option between two
@@ -585,16 +508,6 @@ OTHER FEATURES -----------------------------------------------------------------
       BIG|IMP|EXT. be sure to dump not_helpful_spells when building the db.
 
 - inferAbility() - save the conflicting spells/casters for UI elements
-
-
-FEATURES THAT NO LONGER MAKE SENSE ---------------------------------------
-[WHAT IS THIS FOR? Originally thought death would cause incorrect durations and therefore
-ruin inferences. But not many abilities require duration to ID and aura expirations work
-as expected.]
-- UNIT_DIED handler. the GUID is likely secret - probably fires for deaths
-  of NPCs as well as players. PLAYER_DEAD also fires, has no payload. would
-  be better than UNIT_DIED if that includes NPCs
-    - combine with UNIT_FLAGS-based combatDrops
 
 
 
@@ -689,6 +602,47 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- Options
+    - Font options for cooldown numbers
+        - outlines, size
+    - Support directional layouts other than horizontal+left of frame
+    - Max history tray size
+
+- visual configuration options: layout direction and anchor points mostly
+
+- refactor horrible addon options code
+
+- add option to disable internal tracing for replays since most players won't want to share data and it
+  uses a massive amount of memory
+
+- add first-login popup telling players about the tracing/replay option and pointing them to the discord
+  if they want to help
+
+- [REPORTED FIXED] hides chubb's micromenu (bags, character sheet, group finder, etc. buttons)
+    - if it helps: it's from dominos, not the blizz default menu
+    - just ask him to retest
+
+- update github/curseforge readmes
+    - [done] mention restricted license for now with intended open license later
+    - [done] want to work with frontend UI designers
+    - [done] add better pictures/GIF in action
+
+ALIGNER:
+    - finish work on InferenceRecord (logic, conf, reqs, metadata: timestamps, source/aura, ID, traces, etc)
+        * add evidence? maybe not necessary
+    - add handler triggers to data
+        - might require handler collapsing especially for crazy ones like absorb
+    - make record type to distinguish inference records from handler events
+    * have to encode slot=player GUID in playback output for log alignment
+        - in real code would encode the whole trackedCharacters(), but myGUID isn't that much to add
+    * need to encode ability.caster in InferenceRecord output
+
+- [FIXED] the nil ability in topTwo bug is back. means that there is a nil in possibleSolutions
+    - caused by non-strict comparators (<= instead of <)
+
+- metadata is not tracked as an update list, so when exported it doesn't
+  match the infers/events
+
 - [OLD BUG: check this now with replays] better handling of spec querying
 	- libspecialization updates during m+ runs. need to figure out why
     - replays show LibSpec firing ~5s after zoning into LFG instance
