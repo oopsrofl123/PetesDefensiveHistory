@@ -1,6 +1,13 @@
 V1.0 RELEASE GOALS
 ===========================================================================
 BUGS
+    - O.Scales: in replay, first scales button press is 0.689s from aura application and marked
+      as pass. either the replay is wrong or the logic is bugged.
+        - didn't have time to figure out the issue. pit of saron is somehow missing from combat log
+        - i think it was an orphan bug because the cooldown faded before it was re-applied. the weird
+          part is that the replay shows two distinct aura IDs 2s apart each with the correct flag set
+            - on second thought, maybe he really did double cast it by accident here. this doesn't
+              happen for every o.scales cast.
 
 
 TESTING
