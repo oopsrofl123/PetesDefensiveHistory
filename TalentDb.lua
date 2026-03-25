@@ -99,14 +99,23 @@ ns.ClassTalentModifiers = {
 
     -- Hunter class tree ----------------------------------------------------------------------
     ["HUNTER"] = {
-        [264735] = {
-            { { id=264735, modifies=hasAbility, amount=true } }
+        [264735] = {   -- all specs have this, can use to give any ability
+            { { id=264735, modifies=hasAbility, amount=true },      -- survival of the fittest
+              { id=186265, modifies=hasAbility, amount=true },      -- aspect of the turtle
+              { id=5384, modifies=hasAbility, amount=true } },      -- feign death
         },
         [459450] = {
             { { id=264735, modifies=charges, amount=1 } }
         },
         [388039] = {
             { { id=264735, modifies=duration, amount=2 } }
+        },
+        [1258485] = {  -- turtle cooldown reduction
+            { { id=186265, modifies=cooldown, amount=-30 } },
+        },
+        [266921] = {  -- turtle cooldown reduction
+            { { id=186265, modifies=cooldown, amount=-15 } },   -- rank 1
+            { { id=186265, modifies=cooldown, amount=-30 } },   -- rank 2
         },
     },
 
@@ -267,7 +276,8 @@ ns.SpecTalentModifiers = {
             { { id=55233, modifies=hasAbility, amount=true } }
         },
         [317133] = {
-            { { id=55233, modifies=duration, amount=2 } }
+            { { id=55233, modifies=duration, amount=2 } },   -- rank 1
+            { { id=55233, modifies=duration, amount=4 } },   -- rank 2
         },
         [205723] = {
             { { id=55233, modifies=cdr, amount=true } }
@@ -519,6 +529,22 @@ ns.SpecTalentModifiers = {
     },
     -- Survival hunter ----------------------------------------------------------------------
     [255] = {
+        [1250646] = {
+            { { id=1250646, modifies=hasAbility, amount=true } },
+        },
+        [1251790] = {
+            { { id=1250646, modifies=cooldown, amount=-15 } },  -- rank 1
+            { { id=1250646, modifies=cooldown, amount=-30 } },  -- rank 2
+        },
+        [1272139] = {
+            { { id=1250646, modifies=requireBuff, amount=true } },
+        },
+        [1264902] = {
+            { { id=1250646, modifies=requireBuff, amount=true } },
+        },
+        [1253830] = {
+            { { id=1250646, modifies=duration, amount=2 } },
+        },
     },
 
 
@@ -569,6 +595,12 @@ ns.SpecTalentModifiers = {
 
     -- Brewmaster monk ------------------------------------------------------------------------
     [268] = {
+        [132578] = {
+            { { id=132578, modifies=hasAbility, amount=true } },
+        },
+        [450989] = {
+            { { id=132578, modifies=cooldown, amount=-25 } },
+        },
     },
     -- Mistweaver monk ------------------------------------------------------------------------
     [270] = {
@@ -747,6 +779,9 @@ ns.SpecTalentModifiers = {
     },
     -- Shadow priest -----------------------------------------------------------------------
     [258] = {
+        [335467] = {  -- shadow priest root talent, give dispersion
+            { { id=47585, modifies=hasAbility, amount=true } },
+        },
         [228260] = {
             { { id=228260, modifies=hasAbility, amount=true } },
         },
@@ -755,7 +790,13 @@ ns.SpecTalentModifiers = {
         },
         [454001] = {  -- hero talent that extends duration
             { { id=228260, modifies=duration_variable, amount=ns.DURATION_GTE } },
-        }
+        },
+        [453729] = {  -- hero talent extends dispersion by 2s
+            { { id=47585, modifies=duration, amount=2 } },
+        },
+        [288733] = {  -- dipsersion cd -30s
+            { { id=47585, modifies=cooldown, amount=-30 } },
+        },
     },
 
 

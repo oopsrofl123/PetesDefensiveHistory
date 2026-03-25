@@ -417,11 +417,54 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
 		},
+		{
+			name="Aspect of the Turtle",
+			id=186265,
+            iconId=132199,
+			cooldown=180,
+			duration=8,
+			duration_variable=ns.DURATION_LTE,   -- often cancelled
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+            requireUnitFlags=true,
+		},
+		{
+			name="Feign Death",
+			id=5384,
+            iconId=132293,
+			cooldown=30,
+			duration=360,    -- yes, it's really 6 minutes
+			duration_variable=ns.DURATION_LTE,   -- almost always cancelled
+			charges=1,
+			cdr=false,
+            IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+            requireUnitFlags=true,
+            requireFeign=true,
+		},
+		{
+			name="Takedown",
+			id=1250646,
+            iconId=7439201,
+			cooldown=90,
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+        },
+        -- Although marked IMPORTANT, exhilaration isn't a buff. It causes a short
         -- Although marked IMPORTANT, exhilaration isn't a buff. It causes a short
         -- HoT buff if talented, but that HoT is not important. Not sure what event
         -- to listen to that would have an IMPORTANT or BIG aura flag..
 		-- {
-			-- name="Exhilaration"
+			-- name="Exhilaration",
 			-- id=109304,
             -- iconId=461117,
 			-- cooldown=60,   -- talent: 2pts -60s
@@ -560,6 +603,20 @@ ns.AbilityDb = {
 			charges=1,
 			cdr=false,
             IMPORTANT=false, BIG=false, EXTERNAL=true, RAID=true, RAIDINCOMBAT=true,
+			targets=ns.TARGET_ANY,
+            requireButtonPress=true,
+		},
+        {
+			name="Invoke Niuzao, the Black Ox",
+            alias='Niuzao',
+			id=132578,
+            iconId=608951,
+			cooldown=120,
+			duration=25,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=true, RAIDINCOMBAT=false,
 			targets=ns.TARGET_ANY,
             requireButtonPress=true,
 		},
