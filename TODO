@@ -1,52 +1,77 @@
 V1.0 RELEASE GOALS
 ===========================================================================
 BUGS
-    - the no-libspec problem. inference still runs on people without libspec since to ID external
-      CD usage. but every IMP|BIG|EXT aura gained by that player generates an inference that will
-      attempt to resolve. if it happens to find a fit (blessing of freedom with its 10000 flag set
-      is the most common choice), it will fire a false positive.
-        - real fix: default abilities
-        - hack fix: only infer EXTERNAL=true for no-libspec players. it turns out this works in
-          every case except blessing of freedom.
-            * this will mean: when someone with libspec casts freedom on someone without libspec,
-              it will not be IDed. [TODO: is there a workaround?]
-    - dispersion
-        - looks like dispersion might be flagged now but wasn't in the (old) dumps. see normal_arena_2.txt
-
-REPLAYS
-    - blessing of freedom finalized multiple times (attempt=1,2,3,..) in normal_arena_2 where a
-      ret paladin didn't have libspec and caused tons of false positives.
-
-FEATURES
-- test mode
-    - people will be surprised by the history row since it doesn't normally show, test mode needs to
-      demo so that users know what to expect
-    - show activating/inactivating cooldown counters on top row
-    - show growing..disappearing icons in history row
-    - put text labels behind the history row and static row telling the user what they're looking at
-
-- minimap button rather than compartment button
-    - does anyone even know where the compartment buttons are?
-
-* add a button somewhere to reset the internal data trackers
-    - need this to allow resetting when entering a new instance, e.g.
-    - or could do it on ZONE_AREA_CHANGED?
-    - maybe add options to do it automatically (e.g. on ENCOUNTER_START would be good for key running)
 
 
 TESTING
-- run a dungeon with tracing disabled to ensure memory usage for normal users is tolerable
+    - [FIXED: events orphaned from last aura bug] ice cold is almost always mis-IDed as alter time
+    - run a dungeon with tracing disabled to ensure memory usage for normal users is tolerable
+    - use the new export functionality to export raw events from a few dungeon runs
+        - WITH COMBAT LOG ON
 
-- disable ret DP since if it is too hard to distinguish from freedom
 
-SHADOWMELD ACCURACY
-- test group drop protection
-- missed a meld on an outdoors mob because the flags event happened 0.1s from the aura
-    - might need a more lax tolerance for meld. leaving combat could be handled differently on the
-      server side from simple aura applications
+ABILITY SUPPORT
+    - Roar of Sacrifice 53480
+        - couldn't test due to pet req
 
-- use the new export functionality to export raw events from a few dungeon runs
-    - WITH COMBAT LOG ON
+    - Invoke Yu'lon, the Jade Serpent 322118
+        - flagged 00001, maybe inferable
+
+    - feign death:
+        - calculate correct cooldown (it starts counting from aura expiration)
+        - check logs to see if it also combat drops
+
+    - re-dump TODO:
+        - Summon Darkglare 205180
+        - Nether Ward 212295
+        - Summon Demonic Tyrant 265187
+
+        - Midnight 361175
+
+        - Time Stop 378441 PVP
+        - Nullifying Shroud 378464 PVP
+        - Well of Flame 443069
+
+        - Precognition 377362
+
+
+BUGS
+    - [MAYBE BUG] Dark Prayer 462508, the aura applied by in m+ by void emissary, is flagged IMPORTANT
+    - dump on other computer: pdh_bug5: nil availableAt
+    - [EXPLORE] very frequent sentinel false negatives.
+        - since sentinel has such a unique update signature this should be fixable
+    - [EXPLORE] frequent obsidian scales false negatives.
+        - does the final aug talent (-10% CD on all spells) properly replace the preceeding talent
+          (time skip), which is modeled as dynamic CDR?
+            * this doesn't explain the FNs
+    - disable ret DP since if it is too hard to distinguish from freedom?
+
+
+REPLAYS
+    - unclear that FNs are really assessed. need to loop through all combatlog events from tracked
+      abilities for this, but currently we only loop through the addon inference events, assuming
+      that they are a superset of the true events.
+
+
+FEATURES
+    - test mode
+        - people will be surprised by the history row since it doesn't normally show, test mode needs to
+        demo so that users know what to expect
+        - show activating/inactivating cooldown counters on top row
+        - show growing..disappearing icons in history row
+        - put text labels behind the history row and static row telling the user what they're looking at
+
+    - minimap button rather than compartment button
+        - does anyone even know where the compartment buttons are?
+
+    * add a button somewhere to reset the internal data trackers
+        - need this to allow resetting when entering a new instance, e.g.
+        - or could do it on ZONE_AREA_CHANGED?
+        - maybe add options to do it automatically (e.g. on ENCOUNTER_START would be good for key running)
+
+
+
+
 
 
 
@@ -161,6 +186,27 @@ NOTES ON COMPLEX CASES ---------------------------------------------------------
           and naturallyUpdates=true. which is another way of saying updates aren't of interest.
         - just need to prevent this from filling up the history tray. not a complex ability
     ----------------------------------------------------------------------------
+
+- search for more abilities that generate generic UNIT_FLAGS events (doesn't matter why)
+    - dispersion was first example, there are probably more
+
+- should shadowmeld have a more lax concurrent events tolerance?
+    - recall the open-world FN (not on a dummy) where the combatdrop was just really far away from
+      the cast/aura. this could reflect different server-side processing of leaving combat.
+
+- the no-libspec problem
+    - current hack is to only infer EXTERNAL auras on players with no talent data. this will cause
+      all blessings of freedom on that player to be ignored (freedom is not EXTERNAL).
+    TWO GOALS:
+        1. improve the hack. is there any way to rescue BoF? it isn't that bad of a trade-off
+            1a. could the hack be two "sponge" abilities with duration=8 (=BoF) where one is LTE
+                and the other is GTE? this would allow BoF to be IDed when an 8s 10000 aura occurs
+                on the no-libspec player but sponge everything else.
+                - would cause false positives if the player has their own 10000-flagged 8s buffs.
+                  could that be determined on a per-spec basis? there are probably many specs with
+                  no 8s buffs and those would be fully addressed.
+        2. default abilities. use just specId to give players a default set of abilities with
+            inaccurate info just to act as a sponge.
 
 - why is internal memory usage WAY more than export?
     - AddOn panel: 159MB
@@ -602,6 +648,52 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+REPLAYS
+    - shadowmeld found but not matched
+    - discard combatdrop events if no vanish/shadowmeld found
+
+2026/25/03: re-scan of important helpful dump: confirmed these abilities either: are PVP, do not
+affect players/auras, or are old abilities no longer available.
+    - Dark Ascension 391109 DNE (dark archangel 1218211 exists, not IMPORTANT)
+    - Phase Shift 408558 PVP
+    - Dancing Rune Weapon 49028 NOT CORRECT - in game is not IMPORTANT, even with DRW pvp talent
+    - Coordinated Assault 266779  DNE
+    - Coordinated Assault 377572  DNE
+    - Master Handler 389654  DNE
+    - Revival 115310
+    - Revival 297850
+    - Restoral 388615
+    - Storm, Earth, and Fire 137639  DNE
+    - Berserker's Rage 237947  this is a mob ability Jarl Velbrand
+    - Recklessness 389722  is not the recklessness in-game for players, id=1719
+        - can't test if the apex talent does anything, not high enough level
+
+- added new abilities
+    - Aspect of the Turtle
+    - Feign Death
+    - Takedown
+    - Invoke Niuzao, the Black Ox
+
+- blood DK talent bug (rank 2 of vamp blood wasn't in DB)
+
+- do another dump
+    - is dispersion now flagged? others?
+
+- add s.priest dispersion and talents
+
+- test generic flag evidence
+    - add generic flag evidence to meld/vanish
+
+SHADOWMELD ACCURACY
+    - test group drop protection
+    - missed a meld on an outdoors mob because the flags event happened 0.1s from the aura
+        - might need a more lax tolerance for meld. leaving combat could be handled differently on the
+        server side from simple aura applications
+
+- [HACK FIX: this is the no-libspec problem] blessing of freedom finalized multiple times
+  (attempt=1,2,3,..) in normal_arena_2 where a ret paladin didn't have libspec and caused tons
+  of false positives.
+
 - Options
     - Font options for cooldown numbers
         - outlines, size
