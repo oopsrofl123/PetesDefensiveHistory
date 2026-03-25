@@ -19,6 +19,17 @@ ascii_reset = "\033[0m"
 def d(x):
     return x.decode() if type(x) is bytes else x
 
+
+# Handle the few different formats of combat log events we care about. Also apply
+# a time warp if desired.
+#
+# Return tuple format:
+#   (time, event name, caster (GUID), target (GUID), ability ID)
+def normalize_combatlog_event(e, warp=0):
+    return (e[0] - warp, e[1], e[2],
+        e[2] if e[1] == "SPELL_CAST_SUCCESS" else e[6], int(e[10]))
+
+
 def read_spell_names(filename):
     spells = {}
     openf = gzip.open if filename.endswith('.gz') else open
@@ -32,7 +43,6 @@ def read_spell_names(filename):
 
 
 def event_type_match(combatlog, playback):
-    #match playback:
     if playback == "AURA(add)":
         return combatlog == "SPELL_AURA_APPLIED" or combatlog == "SPELL_AURA_APPLIED_DOSE"
     elif playback == "AURA(update)":

@@ -12,31 +12,39 @@ import pathlib
 import matplotlib.pyplot as plt
 from dtw import dtw
 from collections import defaultdict
+import argparse
 
-from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities, event_type_match, read_spell_names
+from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities, event_type_match, read_spell_names, normalize_combatlog_event
 
 
 # Map absolute timestamps to offset timestamps (i.e., first entry in the log is time=0).
-def read_combatlog(filename):
+def read_combatlog(filename, aligned):
     decoded_events = []
     start_time = None
     last_time = 0
     with open(filename, "r") as f:
         for line in f:
-            s = line.split(' ')
-            date, time_with_hyphen = s[0:2]
-            data = ' '.join(s[3:])  # skip a field - wow puts 2 spaces after the time
-            # example line: 3/17/2026 03:09:23.744-4
-            # not sure what this "-4" bit is, just throwing it away
-            time, msecs = time_with_hyphen.split('.')
-            msecs = int(msecs.split('-')[0])
-            # convert time to a single numeric value
-            time = mktime(strptime(date + " " + time, "%m/%d/%Y %H:%M:%S"))
-            if start_time is None:
-                start_time = time
-            time_offset = time - start_time + msecs/1000
-            time_diff = time_offset - last_time
-            decoded_events.append([ time_offset ] + data.split(','))
+            if aligned:
+                s = line.split('\t')   # the split character is also different..
+                # Aligned logs are in offset seconds format already
+                # N.B.: the time is already warped, so it may not start at 0
+                time_offset = float(s[0])
+                data = s[1:]           # ..so there is no need to re-join
+            else:
+                s = line.split(' ')
+                date, time_with_hyphen = s[0:2]
+                data = ' '.join(s[3:]).split(',')  # skip a field - wow puts 2 spaces after the time
+                # example line: 3/17/2026 03:09:23.744-4
+                # not sure what this "-4" bit is, just throwing it away
+                time, msecs = time_with_hyphen.split('.')
+                msecs = int(msecs.split('-')[0])
+                # convert time to a single numeric value
+                time = mktime(strptime(date + " " + time, "%m/%d/%Y %H:%M:%S"))
+
+                if start_time is None:
+                    start_time = time
+                time_offset = time - start_time + msecs/1000
+            decoded_events.append([ time_offset ] + data)
     return decoded_events
 
     
@@ -209,7 +217,11 @@ def match_inference_to_combatlog(inf, combatlog_event_times, combatlog_events, t
         event_time, event_trace, event_id, event_source_guid, event_slot, batch_id, \
         inferred_ability_id, certain, inferred_caster_guid, \
         logic, conf, reqs = inf
-    
+
+    handling_combat_drop = event_trace == 'FLAGS(combatDrop)'
+    if handling_combat_drop:
+        tolerance *= 10
+
     # use the time the event occurred, not the inference time, which is not particularly
     # return the slice boundaries to get combatlog events within 'tolerance' seconds of
     # the inference event
@@ -224,51 +236,25 @@ def match_inference_to_combatlog(inf, combatlog_event_times, combatlog_events, t
 
     events = get_near_events(event_time, combatlog_event_times)
 
-    found = [ { 'diff': abs(event_time - e[0]), 'time': e[0], 'event': e[1], 'caster_guid': e[2], 'target_guid': e[6], 'ability_id': int(e[10]) }
-        for e in events if event_source_guid == e[6] ]
+    found = [ { 'diff': abs(event_time - e[0]),
+                'time': e[0],
+                'event': e[1],
+                'caster_guid': e[2],
+                'target_guid': e[3],
+                'ability_id': e[4] }
+        for e in events if event_source_guid == e[3] ]
     found = sorted(found, key=lambda e: e['diff'])
-    return found
 
+    # XXX: TODO: this is a hack because we don't properly detect false negatives.
+    # have to go through all combat log events for each tracked ability to build
+    # the full list of possible FNs.
+    num_drop_abilities = 0
+    if handling_combat_drop:
+        num_drop_abilities = len([ e for e in found if e['ability_id'] == 58984 or e['ability_id'] == 1856 ])
 
-# Suppress scientific notation
-numpy.set_printoptions(suppress=True)
+    ignore_combat_drop = handling_combat_drop and num_drop_abilities == 0
 
-addon_export_in = sys.argv[1]
-addon_export_out = pathlib.Path(addon_export_in).with_suffix('.aligned.txt')
-print(addon_export_out)
-
-combatlog_in = sys.argv[2]
-combatlog_out = pathlib.Path(combatlog_in).with_suffix('.aligned.txt')
-print(combatlog_out)
-
-spells = read_spell_names(sys.argv[3])
-
-
-addon_user_guid, metadata_updates, character_updates, playback, inferences = \
-    read_addon_export(addon_export_in)
-
-full_combatlog = read_combatlog(combatlog_in)
-
-# For alignment: choose an event type that isn't too frequent and is recorded and exported
-# by the addon. If event is too frequent, the diffs between events could become
-# so small that they approach the noise threshold. Using spell casts by the addon-exporting
-# player is pretty successful.
-subset_playback = \
-    get_diffs_on_subset([ rec for _, _, rec in playback ], 1, "UNIT_SPELLCAST_SUCCEEDED", 2, "player", True)
-subset_combatlog = \
-    get_diffs_on_subset(full_combatlog, 1, "SPELL_CAST_SUCCESS", 2, addon_user_guid)
-
-warp = align_timelines(subset_combatlog, subset_playback)
-print('writing adjusted combatlog to', combatlog_out)
-write_adjusted(combatlog_out, full_combatlog, warp)
-
-
-combatlog_events = [ [ rec[0] - warp ] + rec[1:] for rec in full_combatlog
-    if rec[1] == "SPELL_CAST_SUCCESS" or rec[1] == "SPELL_AURA_APPLIED" or rec[1] == "SPELL_AURA_REFRESH" ]
-combatlog_event_times = numpy.array([ rec[0] for rec in combatlog_events ], dtype=float)
-
-cast_times, cast_events = get_cast_events(playback)
-unique_inferences = collapse_inferences(inferences)
+    return found, ignore_combat_drop
 
 
 class InferenceScore:
@@ -279,6 +265,7 @@ class InferenceScore:
         self.inference = defaultdict(list)
         self.data = {}
         self.false_positives = defaultdict(list)
+        self.events = 0
 
     # Did this player respond to LibSpec?
     def set_character_data(self, char):
@@ -296,19 +283,23 @@ class InferenceScore:
         return 'talentExportString' in self.data
 
     def add_not_logged(self, trace):
+        self.events += 1
         self.no_log[trace] = self.no_log[trace] + 1
 
     def add_no_inference(self, trace, log_records):
+        self.events += 1
         self.num_no_inference = self.num_no_inference + 1
         for rec in log_records:
             self.no_inference[rec['ability_id']][trace] = \
                 self.no_inference[rec['ability_id']][trace] + 1
 
     def add_inference(self, ability_id, matches, all_records):
+        self.events += 1
         self.inference[ability_id].append(len(matches))
         if not matches:
             self.false_positives[ability_id].append([
-                (spells[rec['ability_id']], rec['event']) for rec in all_records ])
+                (spells[rec['ability_id']], rec['event'], rec['caster_guid'])
+                    for rec in all_records ])
 
     def print_false_positives(self):
         for ability, records in self.false_positives.items():
@@ -327,7 +318,11 @@ class InferenceScore:
     
     def infer_str(self):
         return '\n'.join([ ('    %s: %d+ %d-') % \
-            (spells[ability_id], len(results) - results.count(0), results.count(0)) for ability_id, results in self.inference.items() ])
+            (spells[ability_id], len(results) - results.count(0), results.count(0))
+                for ability_id, results in self.inference.items() ])
+
+    def isempty(self):
+        return self.events == 0
 
     def __str__(self):
         return '\n'.join([ self.nolog_str(), self.noinfer_str(), self.infer_str() ])
@@ -335,6 +330,60 @@ class InferenceScore:
     def __repr__(self):
         return self.__str__()
 
+
+
+# Suppress scientific notation
+numpy.set_printoptions(suppress=True)
+
+parser = argparse.ArgumentParser()
+parser.add_argument('addon_export', metavar='FILE')
+parser.add_argument('combat_log', metavar='FILE')
+parser.add_argument('spell_name_database', metavar='FILE')
+parser.add_argument('-a', '--aligned', action='store_true', default=False,
+    help='The combat log provided is already aligned (i.e., this program has already written out [COMBATLOG].aligned.txt), so do not rerun alignment. This can save a few minutes of reprocessing time as alignment can take a few minutes for large logs.')
+args = parser.parse_args()
+
+addon_export_in = args.addon_export
+addon_export_out = pathlib.Path(addon_export_in).with_suffix('.aligned.txt')
+print(addon_export_out)
+
+combatlog_in = args.combat_log
+combatlog_out = pathlib.Path(combatlog_in).with_suffix('.aligned.txt')
+print(combatlog_out)
+
+spells = read_spell_names(args.spell_name_database)
+
+
+addon_user_guid, metadata_updates, character_updates, playback, inferences = \
+    read_addon_export(addon_export_in)
+
+full_combatlog = read_combatlog(combatlog_in, args.aligned)
+
+if args.aligned:
+    warp = 0   # don't modify aligned combat logs
+else:
+    print("Aligning combat log to exported events, this can take a while for large logs..")
+    # For alignment: choose an event type that isn't too frequent and is recorded and exported
+    # by the addon. If event is too frequent, the diffs between events could become
+    # so small that they approach the noise threshold. Using spell casts by the addon-exporting
+    # player is pretty successful.
+    subset_playback = \
+        get_diffs_on_subset([ rec for _, _, rec in playback ], 1,
+            "UNIT_SPELLCAST_SUCCEEDED", 2, "player", True)
+    subset_combatlog = \
+        get_diffs_on_subset(full_combatlog, 1, "SPELL_CAST_SUCCESS", 2, addon_user_guid)
+
+    warp = align_timelines(subset_combatlog, subset_playback)
+    print('writing adjusted combatlog to', combatlog_out)
+    write_adjusted(combatlog_out, full_combatlog, warp)
+
+
+combatlog_events = [ normalize_combatlog_event(rec) for rec in full_combatlog
+    if rec[1] == "SPELL_CAST_SUCCESS" or rec[1] == "SPELL_AURA_APPLIED" or rec[1] == "SPELL_AURA_REFRESH" ]
+combatlog_event_times = numpy.array([ rec[0] for rec in combatlog_events ], dtype=float)
+
+cast_times, cast_events = get_cast_events(playback)
+unique_inferences = collapse_inferences(inferences)
 guid_to_slot = {}
 
 scores = defaultdict(InferenceScore)
@@ -359,9 +408,10 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
             if not quiet: print("updating character data", end=' ')
             update_index = record[2]
             characters = get_characters(character_updates, update_index)
+            specmap = { char['GUID']: char.get('specName', None) for char in characters }
             for char in characters:
                 guid = char['GUID']
-                scores[guid].set_character_data(char)
+                scores[(guid, specmap[guid])].set_character_data(char)
                 #print(character_string(char))    # just for finding field names
                 if not quiet: print(char['playerName'] + ("*" if scores[guid].talents_known() else ""), end=" ")
             if not quiet: print('')
@@ -377,13 +427,19 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
         # until proven otherwise, score this under the event source actor 
         actor = event_source_guid
 
-        # all combat log records in a small time interval around the event that triggered inference
-        log_records = match_inference_to_combatlog(record, combatlog_event_times, combatlog_events)
+        # all combat log records in a small time interval around the event that triggered
+        # inference. some inferences like combatDrops are regularly fired when nothing
+        # special happens. if ignore=True and the addon didn't infer any ability, then both
+        # sources agree nothing happened.
+        log_records, ignore = \
+            match_inference_to_combatlog(record, combatlog_event_times, combatlog_events)
+        if ignore and not inferred_ability_id:
+            continue
+
         if not log_records:
-            scores[actor].add_not_logged(event_trace)
-            #print("NO LOG", spells[inferred_ability_id] if inferred_ability_id is not None else "none", slot_to_guid[event_slot])
+            scores[(actor, specmap[actor])].add_not_logged(event_trace)
         else:
-            # did we infer this ability?
+            # did the addon infer this ability?
             if inferred_ability_id:
                 # if we made an inference, assign the score to our guessed caster
                 # XXX: TODO: would be ideal to get an exact combat log match from which
@@ -396,14 +452,15 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
                         rec['caster_guid'] == inferred_caster_guid and
                         event_type_match(rec['event'], event_trace)]
 
-                scores[actor].add_inference(inferred_ability_id, matches, log_records)
+                scores[(actor, specmap[actor])].add_inference(inferred_ability_id, matches, log_records)
             else:
                 # did we know the abilities of the player that initiated the event?
                 # we can infer externals on such a player, but not that player's own abilities
-                scores[actor].add_no_inference(event_trace, log_records)
+                scores[(actor, specmap[actor])].add_no_inference(event_trace, log_records)
 
 
-for guid, score in scores.items():
-    print(score.player_label(), '-------------------------------------------------------------')
-    print(score)
-    score.print_false_positives()
+for char_tup, score in scores.items():
+    if not score.isempty():
+        print(score.player_label(), '----------------------------------------------')
+        print(score)
+        score.print_false_positives()
