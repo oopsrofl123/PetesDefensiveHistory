@@ -29,7 +29,8 @@ function ns:makeEvidenceTracker()
         -- Booleans of the last observed combat status (no time associated)
         combatStatus=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         -- Times when combatStatus changed from true->false
-        combatDrop=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE)
+        combatDrop=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        unitFlags=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE)
     }
 end        
 

@@ -1,9 +1,9 @@
--- get addon namespace
-local addonName, ns = ...
+        -- get addon namespace
+        local addonName, ns = ...
 
-local welcomeFrame
+        local welcomeFrame
 
--- time in seconds to expire a non-buff event since there is no UNIT_AURA(removed)
+        -- time in seconds to expire a non-buff event since there is no UNIT_AURA(removed)
 -- event to naturally time it out
 expireNonAuraEventsAfter = 0.5
 
@@ -466,6 +466,10 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
 
     ns:playback(now, "UNIT_FLAGS", target, inCombat)
 
+    -- flag change for any reason. always better if we know exactly what flag to check,
+    -- but can't figure out why some abilities UNIT_FLAGS.
+    char:trackEvidence('unitFlags', now)
+
     traceHandler("FLAGS", target, "inCombat=[%s]", tostring(inCombat))
 
     -- Check previously witnessed inCombat state. Did target leave combat?
@@ -652,6 +656,12 @@ local function initAddon()
     ns:allocTrackerUI()
     ns.groupSolutionUI = ns:allocGroupSolutionUI()
     ns.groupSolutionUI:Hide()
+
+    if not ns:GetOption('hideWelcomeMessage') then
+        welcomeFrame:Show()
+    else
+        welcomeFrame:Hide()
+    end
 end
 
 
@@ -693,12 +703,6 @@ loader:SetScript("OnEvent", function(self, event, ...)
             event = string.format("%s(%s,%s)", event, slot, guid)
         end
         ns:respondToRosterUpdate(event)
-    end
-
-    if not ns:GetOption('hideWelcomeMessage') then
-        welcomeFrame:Show()
-    else
-        welcomeFrame:Hide()
     end
 
     ns:playback(GetTime(), event, ...)
@@ -830,7 +834,7 @@ local function allocWelcomeFrame()
     urlBox:SetText(link)
     urlBox:SetFontObject("GameFontNormalLarge")
     urlBox:SetJustifyH("CENTER")
-    urlBox:SetAutoFocus(true)
+    urlBox:SetAutoFocus(false)
     urlBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
     urlBox:SetScript("OnEditFocusLost", function(self) self:HighlightText(0, 0) end)
     urlBox:SetScript("OnChar", function(self)

@@ -202,6 +202,7 @@ function ns:Event(newTrace, newSource)
         prepareClosestEvents(evidenceTrackers, 'cast')
         prepareClosestEvents(evidenceTrackers, 'shield')
         prepareClosestEvents(evidenceTrackers, 'combatDrop')
+        prepareClosestEvents(evidenceTrackers, 'unitFlags')
     end
 
 

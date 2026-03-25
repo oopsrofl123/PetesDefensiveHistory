@@ -437,7 +437,8 @@ ns.logicLayerAliases = {
     cooldown='d',            -- d for cool_d_own
     duration='U',            -- U for d_U_ration
     debuff='D',
-    flags='F',
+    flags='F',               -- aura flags, i.e. IMPORTANT/HELPFUL/HARMFUL
+    unitFlags='L',           -- unit flags
     shield='S',
     appliesInferredAura='A',
     updateAllowed='u'        -- u for _u_pdate
@@ -494,6 +495,9 @@ local function getPossibleSolutions(event, cdTracker)
         if ability.requireCombatDrop then
             logic['combatDrop'] = evidenceWitnessed(event, ability, "combatDrop", "target", true)
             logic['notGroupCombatDrop'] = logicLayerNotGroupCombatDrop(event, ability, "target", true)
+        end
+        if ability.requireUnitFlags then
+            logic['unitFlags'] = evidenceWitnessed(event, ability, "unitFlags", "target", true)
         end
         if ability.requireButtonPress then
             logic['cast'] = evidenceWitnessed(event, ability, "cast", "caster", true)
@@ -744,6 +748,10 @@ local function abilityMeetsRequirements(ev, ab)
         reqsMet = reqsMet and reqs['combatDrop'].pass
         reqs['notGroupCombatDrop'] = makeReq(logicLayerNotGroupCombatDrop(ev, ab, "target", false))
         reqsMet = reqsMet and reqs['notGroupCombatDrop'].pass
+    end
+    if ab.requireUnitFlags then
+        reqs['unitFlags'] = makeReq(evidenceWitnessed(ev, ab, "unitFlags", "target", false))
+        reqsMet = reqsMet and reqs['unitFlags'].pass
     end
     if ab.requireButtonPress then
         reqs['cast'] = makeReq(evidenceWitnessed(ev, ab, "cast", "caster", false))

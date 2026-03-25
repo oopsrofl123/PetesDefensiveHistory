@@ -50,6 +50,7 @@ ns.AbilityDb = {
             requireButtonPress=true,
             requireBuff=true,  -- adds the shadowmeld buff
             requireCombatDrop=true,
+            requireUnitFlags=true,
 		},
     },
 
@@ -765,6 +766,21 @@ ns.AbilityDb = {
 	----------------------------------------------------------------------------------------
     ["PRIEST"] = {
 		{
+			name="Dispersion",
+            alias='Dispersion',
+			id=47585,
+            iconId=237563,
+			cooldown=120,
+			duration=6,
+			duration_variable=ns.DURATION_LTE,   -- is often cancelled
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+            requireUnitFlags=true,
+        },
+		{
 			name="Desperate Prayer",
             alias='D.Prayer',
 			id=19236,
@@ -855,6 +871,7 @@ ns.AbilityDb = {
             requireButtonPress=true,
             requireBuff=true,         -- the vanish aura is on top of stealth
             requireCombatDrop=true,
+            requireUnitFlags=true,
 		},
 		{
 			name="Cloak of Shadows",
