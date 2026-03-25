@@ -463,6 +463,7 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
     local now = GetTime()
 
     local inCombat = UnitAffectingCombat(target)
+    local isFeign = UnitIsFeignDeath(target)
 
     ns:playback(now, "UNIT_FLAGS", target, inCombat)
 
@@ -470,29 +471,40 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
     -- but can't figure out why some abilities UNIT_FLAGS.
     char:trackEvidence('unitFlags', now)
 
-    traceHandler("FLAGS", target, "inCombat=[%s]", tostring(inCombat))
+    traceHandler("FLAGS", target, "inCombat=[%s], isFeign=[%s]", tostring(inCombat), tostring(isFeign))
 
     -- Check previously witnessed inCombat state. Did target leave combat?
     local lastInCombat = char:getEvidence('combatStatus'):head()
-    -- Push the current status whether dropped or not
     char:trackEvidence('combatStatus', inCombat)
 
-    -- FLAGS fires for reasons other than combat - e.g., mounting and dismounting
-    local combatChange = tostring(lastInCombat)..">"..tostring(inCombat)
     if lastInCombat == true and inCombat == false then
         char:trackEvidence('combatDrop', now)
 
         local ev = ns:Event("FLAGS(combatDrop)", guid)
-        -- Since this event is not tied to an aura, how long to keep it around?
-        ev:setExpiration(now + expireNonAuraEventsAfter)
+        ev:setExpiration(now + expireNonAuraEventsAfter)  -- Non-aura events need explicit expiration
         ev:track()
-        -- XXX: TODO: would be better to fold into Event(), but need some way to show
-        -- special data like combat state or aura info in a generic event.
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
             "+++ track(FLAGS(combatDrop)): source=[%s], flagChange=[%s], eventId=[%s/%d]",
             ev:getTime(), ns:cosmeticOnlyMapGUIDToSlot(ev:getSource()),
-            combatChange, ev:getId(), ev:getBatchId()))
+            tostring(lastInCombat)..">"..tostring(inCombat),
+            ev:getId(), ev:getBatchId()))
     end
+
+    local lastIsFeign = char:getEvidence('feignStatus'):head() or false
+    char:trackEvidence('feignStatus', isFeign)
+    if lastIsFeign == false and isFeign == true then
+        char:trackEvidence('feign', now)
+        local ev = ns:Event("FLAGS(feign)", guid)
+        ev:setExpiration(now + expireNonAuraEventsAfter)  -- Non-aura events need explicit expiration
+        ev:track()
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+            "+++ track(FLAGS(feign)): source=[%s], flagChange=[%s], eventId=[%s/%d]",
+            ev:getTime(), ns:cosmeticOnlyMapGUIDToSlot(ev:getSource()),
+            tostring(lastIsFeign)..">"..tostring(isFeign),
+            ev:getId(), ev:getBatchId()))
+    end
+
+
     ns:manageEvents("FLAGS", guid)
 end)
 
