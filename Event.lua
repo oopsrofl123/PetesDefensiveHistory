@@ -153,7 +153,9 @@ function ns:Event(newTrace, newSource)
 
     function e:setMaxCD(newMaxCD) maxCD = newMaxCD end
         
-    function e:isExpiring() return expiration and GetTime() >= expiration or false end
+    function e:isExpiring()
+        return expiration and GetTime() >= expiration or false
+    end
 
     function e:setExpiration(when) expiration = when end
 
@@ -404,7 +406,7 @@ function ns:manageEvents(updateTrace, guid)
             index = index + 1
         end
 
-        -- Separate expire loop to ensure no events go missing during batch processing
+        -- Separate the expire loop so that events don't go missing during batch processing
         for _, ev in pairs(evBatch) do
             if ev:isExpiring() then
                 ev:expire()
@@ -421,12 +423,18 @@ function ns:manageEvents(updateTrace, guid)
             -- AMS expires with a shield, there will be an ABSORB event and a UNIT_AURA event
             -- in the same frame to remove the shield and the aura. If the shield fires first,
             -- it can expire the event here as an orphan.
-            if aura then
+            local aura = ev:getAura()
+            if aura and not ev:isExpiring() then
                 if not C_UnitAuras.GetAuraDataByAuraInstanceID(ev:getSlot(), aura.auraInstanceId) then
+                    local now = GetTime()
+                    ns:playback(now, 'EXPIRE_ORPHANED_AURA',
+                        updateTrace, ev:getSlot(), ev:getId(), ev:getBatchId())
                     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-                        'EXPIRING (maybe) ORPHANED AURA: event=[%s/%d]',
-                        ev:getId(), ev:getBatchId()))
-                    ev:setExpiration(GetTime())
+                        'EXPIRING (maybe) ORPHANED AURA: trace=[%s], slot=[%s] event=[%s/%d]',
+                        updateTrace, ev:getSlot(), ev:getId(), ev:getBatchId()))
+                    ev:setExpiration(now)
+                    C_Timer.After(1.1*ns.CONCURRENT_EVENT_TOLERANCE,
+                        function() ns:manageEvents("E:orphan", ev:getSource()) end)
                 end
             end
         end
