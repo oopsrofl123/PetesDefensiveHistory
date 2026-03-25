@@ -438,7 +438,8 @@ ns.logicLayerAliases = {
     duration='U',            -- U for d_U_ration
     debuff='D',
     flags='F',               -- aura flags, i.e. IMPORTANT/HELPFUL/HARMFUL
-    unitFlags='L',           -- unit flags
+    unitFlags='L',           -- unit f_L_ags
+    feign='f',               -- feign death
     shield='S',
     appliesInferredAura='A',
     updateAllowed='u'        -- u for _u_pdate
@@ -498,6 +499,9 @@ local function getPossibleSolutions(event, cdTracker)
         end
         if ability.requireUnitFlags then
             logic['unitFlags'] = evidenceWitnessed(event, ability, "unitFlags", "target", true)
+        end
+        if ability.requireFeign then
+            logic['feign'] = evidenceWitnessed(event, ability, "feign", "target", true)
         end
         if ability.requireButtonPress then
             logic['cast'] = evidenceWitnessed(event, ability, "cast", "caster", true)
@@ -752,6 +756,10 @@ local function abilityMeetsRequirements(ev, ab)
     if ab.requireUnitFlags then
         reqs['unitFlags'] = makeReq(evidenceWitnessed(ev, ab, "unitFlags", "target", false))
         reqsMet = reqsMet and reqs['unitFlags'].pass
+    end
+    if ab.requireFeign then
+        reqs['feign'] = makeReq(evidenceWitnessed(ev, ab, "feign", "target", false))
+        reqsMet = reqsMet and reqs['feign'].pass
     end
     if ab.requireButtonPress then
         reqs['cast'] = makeReq(evidenceWitnessed(ev, ab, "cast", "caster", false))
