@@ -30,7 +30,9 @@ function ns:makeEvidenceTracker()
         combatStatus=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         -- Times when combatStatus changed from true->false
         combatDrop=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
-        unitFlags=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE)
+        unitFlags=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        feignStatus=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        feign=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
     }
 end        
 
