@@ -378,7 +378,7 @@ else:
     write_adjusted(combatlog_out, full_combatlog, warp)
 
 
-combatlog_events = [ normalize_combatlog_event(rec) for rec in full_combatlog
+combatlog_events = [ normalize_combatlog_event(rec, warp) for rec in full_combatlog
     if rec[1] == "SPELL_CAST_SUCCESS" or rec[1] == "SPELL_AURA_APPLIED" or rec[1] == "SPELL_AURA_REFRESH" ]
 combatlog_event_times = numpy.array([ rec[0] for rec in combatlog_events ], dtype=float)
 
