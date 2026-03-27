@@ -172,7 +172,6 @@ def get_character_abilities(characters):
 def read_export_data(f):
     data = decode_export_blob(f.read())
 
-    print(data)
     addon_version = data.get(b'addonVersion', b'not encoded').decode()
     print('ADDON VERSION -------------------------------------------------------------------')
     print(addon_version)
