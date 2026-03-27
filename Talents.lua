@@ -2,11 +2,8 @@ local _, ns = ...
 
 
 -- 4 possible mods:
---     1. boolean setter. if the amount is a boolean, then the
---        value is simply set
---     2. non-boolean setter. there is only one special case of a
---        where a setter is not boolean: duration_variable. just
---        handle this.
+--     1. boolean setter. if the amount is a boolean, then the value is simply set
+--     2. non-boolean setter.
 --     3. numeric change
 --         3a. additive change
 --         3b. multiplicative change. mult changes apply to the
@@ -17,9 +14,9 @@ local function applyOneModifier(modifiedAbility, mod)
         modifiedAbility.id, mod.id, mod.modifies,
         tostring(mod.amount), tostring(mod['mult'] or false)))
 
-    if type(mod.amount) == "boolean" then
-        modifiedAbility[mod.modifies] = mod.amount
-    elseif mod.modifies == "duration_variable" then
+    if type(mod.amount) == "boolean" or
+       mod.modifies == "duration_variable" or
+       mod.modifies == "targets" then
         modifiedAbility[mod.modifies] = mod.amount
     else -- numeric case
         local change = mod.amount
