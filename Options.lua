@@ -51,7 +51,7 @@ local optionsDefaults = {
     TTSnoUntracked = false,
     TTSnoSelfCasts = false,
 
-
+    inferWithoutTalentData = false,
     enableReplays = false,
 	debugVisuals = false,
 	debugLogging = false,
@@ -243,6 +243,9 @@ end
 local function buildDeveloperOptions(topCategory)
     local category, layout =
         Settings.RegisterVerticalLayoutSubcategory(topCategory, "Developer options")
+
+    makeCheckbox(category, 'inferWithoutTalentData', 'Infer without talent data',
+        'Without talent data, it is difficult to know what abilities a player has and what their cooldowns are. When unchecked (the default), do not infer abilities on players without talent data unless it is an external cooldown cast by another player with talent data. By checking this box, the addon will infer all abilities on players without talent data, which can cause many strange false calls and interactions.')
 
     makeSectionHeader(layout, 'Logic tracing and replays')
     makeCheckbox(category, 'enableReplays', 'Enable logic replays',
