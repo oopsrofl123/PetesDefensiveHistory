@@ -33,6 +33,8 @@ function ns:makeEvidenceTracker()
         unitFlags=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         feignStatus=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         feign=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        maybeFreedom=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        freedom=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
     }
 end        
 
