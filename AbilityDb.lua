@@ -573,6 +573,22 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
 		},
+		{
+			name="Greater Invisibility",
+            alias='G.Invis',
+			id=110959,
+            iconId=575584,
+			cooldown=120,
+			duration=20,
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=false,
+            IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+            requireCombatDrop=true,
+            requireUnitFlags=true,
+		},
 	},
 
 
@@ -715,6 +731,35 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=true, RAIDINCOMBAT=false,
 			targets=ns.TARGET_ANY,
             requireButtonPress=true,
+		},
+        -- Unbound freedom is a very complex case. This is the only example of an ability
+        -- that puts an IMPORTANT flagged buff on two players in a single button press.
+        -- This is why it is so critical to monitor. Suppose another player in the group
+        -- has only one permissible 10000-flagged ability and unbound freedom goes on that
+        -- player. In absence of other accounting, the unbound freedom will be IDed as the
+        -- one available 10000-flagged ability - a FP error - unless that ability has some
+        --other unsatisfied concurrent evidence. Thus, modeling unbound freedom is more about
+        -- preventing FPs than helping to identify blessing of freedom.
+        --
+        -- However, if a 10000-flagged buff does show up on a player with no
+        -- other possible abilities, either there is a buff not included in the
+        -- addon's database or it must be related to a freedom cast. In those scenarios,
+        -- unbound freedom can act as conclusive evidence that freedom was cast.
+		{
+			name="Unbound Freedom",
+            alias='U.Freedom',
+			id=305394,
+            iconId=134400,   -- the talent has no unique icon
+			cooldown=25,
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=true, RAIDINCOMBAT=false,
+			targets=ns.TARGET_OTHERS,
+            -- When unbound is present, B.o.Freedom is considered a different ability for
+            -- the purpose of requiring a button press.
+            requireMaybeFreedom=true,
 		},
         -- Ret talent removes wings and attaches it to wake of ashes. The
         -- buff given is the avenging wrath buff, so copy its flags.
