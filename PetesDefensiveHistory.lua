@@ -633,19 +633,24 @@ end)
 
 --------------------------------------------------------------------------------------
 -- Detect when m+ keys and raid encounters start. Not sure what else triggers this.
--- Does nothing for now.
+-- Currently used for replay analysis, but should provide options for internal data
+-- cleaning.
 --------------------------------------------------------------------------------------
-
--- XXX: Not sure 
---local encounterHandler = CreateFrame("Frame", addonName .. "EncounterLoader")
---encounterHandler:RegisterEvent("ENCOUNTER_START")
---encounterHandler:SetScript("OnEvent", function(self, event, encounterID, encounterName, difficultyID, groupSize)
-    --print(event, encounterID, encounterName, difficultyID, groupSize)
---end)
-
 
 local encounterHandler = CreateFrame("Frame", addonName .. "EncounterHandler")
 encounterHandler:SetScript("OnEvent", function(self, event, ...)
+    ns:playback(GetTime(), event, ...)
+end)
+
+
+--------------------------------------------------------------------------------------
+-- Test some events I don't currently use.
+--------------------------------------------------------------------------------------
+
+local testHandler = CreateFrame("Frame", addonName .. "TestHandler")
+testHandler:RegisterEvent("UNIT_SPELL_HASTE")
+testHandler:RegisterEvent("UNIT_ATTACK_SPEED")
+testHandler:SetScript("OnEvent", function(self, ...)
     ns:playback(GetTime(), event, ...)
 end)
 
