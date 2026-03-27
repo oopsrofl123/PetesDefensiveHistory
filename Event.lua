@@ -77,10 +77,13 @@ function ns:Event(newTrace, newSource)
 
     -- numPossibleSolutions is nil before the first :infer()
     function e:hasPossibleSolutions()
-        return numPossibleSolutions == nil or numPossibleSolutions > 0
+        return possibleSolutions == nil or #possibleSolutions > 0
     end
 
-    function e:getNumPossibleSolutions() return numPossibleSolutions end
+    -- confusing: but this method is different from the InferenceEngine.lua function
+    function e:getPossibleSolutions() return possibleSolutions end
+
+    function e:getNumPossibleSolutions() return #possibleSolutions end
 
     function e:getTrace() return trace end
 
@@ -147,7 +150,9 @@ function ns:Event(newTrace, newSource)
 
     function e:setUpdate() isUpdate = true end
 
-    function e:setNumPossibleSolutions(n) numPossibleSolutions = n end
+    function e:setPossibleSolutions(s)
+        possibleSolutions = s
+    end
 
     function e:setAura(newAura) aura = newAura end
 
@@ -204,6 +209,8 @@ function ns:Event(newTrace, newSource)
         prepareClosestEvents(evidenceTrackers, 'combatDrop')
         prepareClosestEvents(evidenceTrackers, 'unitFlags')
         prepareClosestEvents(evidenceTrackers, 'feign')
+        prepareClosestEvents(evidenceTrackers, 'maybeFreedom')
+        prepareClosestEvents(evidenceTrackers, 'freedom')
     end
 
 
@@ -272,6 +279,16 @@ function ns:Event(newTrace, newSource)
             self:prepareForInference()
             local prevAbility, prevCertain = self:getAbility()
             local ability, certain = ns:inferAbility(inferenceTrace, self, ns.cdTracker)
+
+            -- Collect evidence for unbound freedom, the bonus freedom buff from a talent
+            for _, ability in pairs(self:getPossibleSolutions()) do
+                -- N.B. there may be multiple permissible paladin casters
+                if ability.id == 1044 and ability.reqsMet then
+                    local char = self:getCharacter()
+                    char:trackEvidence('maybeFreedom', self:getTime())
+                end
+            end
+
             if certain then
                 -- UI feedback and data
                 ns:finalizeInference(self, ability)
