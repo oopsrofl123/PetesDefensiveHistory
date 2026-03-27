@@ -1,9 +1,9 @@
-        -- get addon namespace
-        local addonName, ns = ...
+-- get addon namespace
+local addonName, ns = ...
 
-        local welcomeFrame
+local welcomeFrame
 
-        -- time in seconds to expire a non-buff event since there is no UNIT_AURA(removed)
+-- time in seconds to expire a non-buff event since there is no UNIT_AURA(removed)
 -- event to naturally time it out
 expireNonAuraEventsAfter = 0.5
 
@@ -319,8 +319,7 @@ end
 
 
 
--- Call this function when we are ready to fully accept whatever the best
--- inference was.
+-- Call this function when we are ready to fully accept the inference.
 function ns:finalizeInference(ev, ability)
     if not ev:isCertain() then
         print(string.format(
@@ -372,6 +371,15 @@ function ns:finalizeInference(ev, ability)
                 ns:queueCooldown(otherAbility)
             end
         end
+    end
+
+    -- Freedom and unbound freedom: when the talent is selected, freedom refers only
+    -- to the buff that is applied to the caster and a new dummy ability "unbound
+    -- freedom" is created to handle the (possible) buff on another player. in both
+    -- cases, the ability's caster refers to the same player.
+    if ability.id == 1044 or ability.id == 305394 then
+        local char = ns:getTrackedCharacterByGUID(ability.caster)
+        char:trackEvidence('freedom', ev:getTime())
     end
 end
 
@@ -564,7 +572,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- unknown and the inferences will cause many false positives.
             -- XXX: TODO: this causes a FALSE NEGATIVE when a player with talent data casts
             -- blessing of freedom on a player without talent data.
-            if char:hasTalentData() or aura.EXTERNAL then
+            if char:hasTalentData() or aura.EXTERNAL or ns:GetOption('inferWithoutTalentData') then
                 -- This aura is important, likely from a big cooldown
                 ns:trackAura("AURA(add)", aura)
             end
@@ -634,6 +642,12 @@ end)
 --encounterHandler:SetScript("OnEvent", function(self, event, encounterID, encounterName, difficultyID, groupSize)
     --print(event, encounterID, encounterName, difficultyID, groupSize)
 --end)
+
+
+local encounterHandler = CreateFrame("Frame", addonName .. "EncounterHandler")
+encounterHandler:SetScript("OnEvent", function(self, event, ...)
+    ns:playback(GetTime(), event, ...)
+end)
 
 
 --------------------------------------------------------------------------------------
@@ -769,6 +783,8 @@ function ns:enableAddon()
     castHandler:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
     absorbHandler:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
     flagsHandler:RegisterEvent("UNIT_FLAGS")
+    encounterHandler:RegisterEvent("ENCOUNTER_START")
+    encounterHandler:RegisterEvent("ENCOUNTER_END")
     --poller:Invoke()
 
     ns:respondToRosterUpdate('enableAddon')
@@ -793,6 +809,8 @@ function ns:disableAddon()
     castHandler:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
     absorbHandler:UnregisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
     flagsHandler:UnregisterEvent("UNIT_FLAGS")
+    encounterHandler:UnregisterEvent("ENCOUNTER_START")
+    encounterHandler:UnregisterEvent("ENCOUNTER_END")
     --poller:Cancel()
 
     ns:respondToRosterUpdate('disableAddon')
