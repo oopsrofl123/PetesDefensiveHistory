@@ -1,6 +1,26 @@
 V1.0 RELEASE GOALS
 ===========================================================================
+- dump on other computer: pdh_bug5: nil availableAt
+
+- look into sentinel FNs in day2 logs
+- FINALIZED message in decoder output is wrong, is firing on every attempt of multi-attempt
+  infers.
+    - see Divine Shield from day 2
+
+
+TODO TESTING
+    - TRY UNBOUND FREEDOM WITH NO TARGET
+        - confirm that there is no auto-targeting of another player
+    - DISABLE TRACING
+        - run dungeon without tracing, ensure reasonable memory usage for normal users
+    - RUN MORE KEYS WITH REPLAYS
+        - use new encounter_start/encounter_end replay events to better separate ability usage.
+          need to determine if the current log parser is really getting all of the relevant events
+          and thus accurately assessing FNs.
+        - version info
+
 BUGS
+    - [MAYBE BUG] Dark Prayer 462508, the aura applied by in m+ by void emissary, is flagged IMPORTANT
     - O.Scales: in replay, first scales button press is 0.689s from aura application and marked
       as pass. either the replay is wrong or the logic is bugged.
         - didn't have time to figure out the issue. pit of saron is somehow missing from combat log
@@ -9,58 +29,16 @@ BUGS
             - on second thought, maybe he really did double cast it by accident here. this doesn't
               happen for every o.scales cast.
 
-
-TESTING
-    - [FIXED: events orphaned from last aura bug] ice cold is almost always mis-IDed as alter time
-    - run a dungeon with tracing disabled to ensure memory usage for normal users is tolerable
-    - use the new export functionality to export raw events from a few dungeon runs
-        - WITH COMBAT LOG ON
-
-
-ABILITY SUPPORT
-    - Roar of Sacrifice 53480
-        - couldn't test due to pet req
-
-    - Invoke Yu'lon, the Jade Serpent 322118
-        - flagged 00001, maybe inferable
-
-    - feign death:
-        - calculate correct cooldown (it starts counting from aura expiration)
-        - check logs to see if it also combat drops
-
-    - re-dump TODO:
-        - Summon Darkglare 205180
-        - Nether Ward 212295
-        - Summon Demonic Tyrant 265187
-
-        - Midnight 361175
-
-        - Time Stop 378441 PVP
-        - Nullifying Shroud 378464 PVP
-        - Well of Flame 443069
-
-        - Precognition 377362
-
-
-BUGS
-    - [MAYBE BUG] Dark Prayer 462508, the aura applied by in m+ by void emissary, is flagged IMPORTANT
-    - dump on other computer: pdh_bug5: nil availableAt
-    - [EXPLORE] very frequent sentinel false negatives.
-        - since sentinel has such a unique update signature this should be fixable
-    - [EXPLORE] frequent obsidian scales false negatives.
-        - does the final aug talent (-10% CD on all spells) properly replace the preceeding talent
-          (time skip), which is modeled as dynamic CDR?
-            * this doesn't explain the FNs
-    - disable ret DP since if it is too hard to distinguish from freedom?
-
-
 REPLAYS
-    - unclear that FNs are really assessed. need to loop through all combatlog events from tracked
+    - are FNs really assessed? need to loop through all combatlog events from tracked
       abilities for this, but currently we only loop through the addon inference events, assuming
       that they are a superset of the true events.
 
-
 FEATURES
+    - disable ret DP since if it is too hard to distinguish from freedom?
+        - maybe not as hard now that unbound freedom is modeled? guess the ret has to actually cast the
+          freedom on someone else to get the bonus info.
+
     - test mode
         - people will be surprised by the history row since it doesn't normally show, test mode needs to
         demo so that users know what to expect
@@ -81,11 +59,17 @@ FEATURES
 
 
 
-
-
 V1.1 RELEASE FEATURES
 ===========================================================================
 GOALS:
+    - trivial comm channels:
+        - seems like player spellcast has the spellid..
+        - can say/party/instance be detected but just not read?
+        - is it true that the aura ID isn't secret for the caster? (check replays)
+        - if both of these are true, we can create a new kind of flag based on presence of
+          any say/party/etc by a player when they use an ability.
+            - these should be assigned to difficult-to-ID abilities that need an extra bit
+              of information.
     - data driven accuracy evaluation
     - usability
         - visual configurability
@@ -194,6 +178,42 @@ NOTES ON COMPLEX CASES ---------------------------------------------------------
         - just need to prevent this from filling up the history tray. not a complex ability
     ----------------------------------------------------------------------------
 
+- auras still get orphaned rather than removed by UNIT_AURA
+    - happens if another event (apart from UNIT_AURA(remove)) fires in the same frame first
+    - nothing wrong with this IF UNIT_AURA(remove) was about to happen anyway, but don't want
+      to resurrect the old bug where events were cross-orphaning and generating incorrect
+      durations.
+
+- requires :consume(): improve Divine Shield inference by requiring >=2 casts when bubble taunt is
+  talented. the final stand taunt shows up as a cast event.
+
+- how will some requireBuff abilities react to being macroed with item buffs like pots/trinkets?
+
+- could warlock summons (tyrant/glare) and shaman totems be detected with totem events?
+    - PLAYER_TOTEM_UPDATE probably isn't broadcast to others
+    - GetTotemInfo() is secret, totems are used for warlock summons
+    - maybe pet tracking would be more successful than totem events?
+
+ABILITY SUPPORT
+    - Roar of Sacrifice 53480
+        - couldn't test due to pet req
+    - Invoke Yu'lon, the Jade Serpent 322118
+        - flagged 00001, maybe inferable
+    - feign death:
+        - calculate correct cooldown (it starts counting from aura expiration)
+        - check logs to see if it also combat drops
+
+- [MAYBE] test reqs in the confidence layers rather than after
+    - it could be true that the first confidence layer returns an impermissible ability when a
+      later layer would return a permissible one. but the current logic cannot detect that.
+
+- can unbound freedom info be used more aggressively to infer other paladin abilities?
+    - the basic idea is to respond more aggressively to 2 10000-flagged buffs applied at the same
+      moment, but i think the current version may already maximally use information
+        - maybe: paladin has 2 possible 10000 auras and target has 2 possible 10000 auras. if the
+          time diff is very close, break both ties? the current confidenceLayerUnboundFreedom will
+          not break a tie until at least 1 of the 2 is a certain ID.
+
 - search for more abilities that generate generic UNIT_FLAGS events (doesn't matter why)
     - dispersion was first example, there are probably more
 
@@ -294,6 +314,7 @@ REPLAYS
 - :consume() - event > ability inferences should somtimes consume the evidence associated with them.
                this essentially assigns evidence to an event.
   there must be a no-side effects version of consume
+    - must revert requireButtonPress=true for unbound freedom
   PROBLEM: ringbuffer FIFO is a bad data structure for removing arbitrary elements
     - rather than remove, set the item to nil or whatever the initializer element was?
     - solution: ringbuffer becomes 2-tuples of (timestamp, #events), solving 2 problems:
@@ -655,25 +676,73 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- very frequent sentinel false negatives.
+    - since sentinel has such a unique update signature this should be fixable
+    - problem wasn't as large as i thought. counting all sentinels in log found 36/38 IDs
+
+- fix divine shield: BIG flag was changed to true
+
+- [FIXED] the final aug talent (-10% CD on all spells) did not replace the preceeding talent
+  (time skip), which is modeled as dynamic CDR
+
+- add handlers for UNIT_SPELL_HASTE and UNIT_ATTACK_SPEED to see if they're rare enough to be useful
+
+- add encounter_start handler just for playback
+
+- [FIXED: events orphaned from last aura bug] ice cold is almost always mis-IDed as alter time
+
+- test combatDrop - logicLayerNotGroupCombatDrop's permissive option got removed
+
+- add inferWithoutTalentData devel option
+
+- [FIXED] greater invis causes combat drop -> mis-IDed as meld
+    - added greater invis tracking
+
+- unbound freedom handling. appears to be the source of many paladin issues
+    - support groupsize=1
+    - move maybeFreedom logic out of inferAbility to prevent side effects
+    - save possible solutions to event to allow freedom searching
+    - rename the current freedom evidence -> maybeFreedom. "definitely" freedom will just
+      be freedom and is not a logicLayer
+    - remove permissive from logicLayerNotGroupCombatDrop
+    - check :strip()s to make sure adding diff into the logic structure doesn't affect anything
+    - continue work to remove if ability.id == 1044 freedom evidence from inferAbility to avoid side effects
+
 REPLAYS
     - shadowmeld found but not matched
     - discard combatdrop events if no vanish/shadowmeld found
+    - use the new export functionality to export raw events from a few dungeon runs
+        - WITH COMBAT LOG ON
 
 2026/25/03: re-scan of important helpful dump: confirmed these abilities either: are PVP, do not
 affect players/auras, or are old abilities no longer available.
-    - Dark Ascension 391109 DNE (dark archangel 1218211 exists, not IMPORTANT)
-    - Phase Shift 408558 PVP
-    - Dancing Rune Weapon 49028 NOT CORRECT - in game is not IMPORTANT, even with DRW pvp talent
-    - Coordinated Assault 266779  DNE
-    - Coordinated Assault 377572  DNE
-    - Master Handler 389654  DNE
-    - Revival 115310
-    - Revival 297850
-    - Restoral 388615
-    - Storm, Earth, and Fire 137639  DNE
-    - Berserker's Rage 237947  this is a mob ability Jarl Velbrand
-    - Recklessness 389722  is not the recklessness in-game for players, id=1719
+    - [DNE] Dark Ascension 391109 DNE (dark archangel 1218211 exists, not IMPORTANT)
+    - [PVP] Phase Shift 408558 PVP
+    - [DNE] Dancing Rune Weapon 49028 NOT CORRECT - in game is not IMPORTANT, even with DRW pvp talent
+    - [DNE] Coordinated Assault 266779  DNE
+    - [DNE] Coordinated Assault 377572  DNE
+    - [DNE] Master Handler 389654  DNE
+    - [NO BUFF] Revival 115310
+    - [NO BUFF] Revival 297850
+    - [NO BUFF] Restoral 388615
+    - [DNE] Storm, Earth, and Fire 137639  DNE
+    - [DNE] Berserker's Rage 237947  this is a mob ability Jarl Velbrand
+    - [DNE] Recklessness 389722  is not the recklessness in-game for players, id=1719
         - can't test if the apex talent does anything, not high enough level
+    - [NO BUFF] Summon Darkglare 205180
+        - also fires PLAYER_TOTEM_UPDATE, which has secret API queries via GetTotemInfo()
+        - no haste/speed like tyrant
+    - [PVP] Nether Ward 212295    PVP
+    - [NO BUFF] Summon Demonic Tyrant 265187
+        - fires UNIT_SPELL_HASTE and UNIT_ATTACK_SPEED. no idea if that's specific enough for detection
+        - also fires PLAYER_TOTEM_UPDATE, which has secret API queries via GetTotemInfo()
+    - [PVP] Time Stop 378441     PVP
+    - [PVP] Nullifying Shroud 378464     PVP
+    - [DNE] Well of Flame 443069   DNE
+    - [DNE] Midnight 361175  (would be sub: shadow tech. DNE as PVP or PVE)
+    - [DNE] Precognition 377362
+        - appears to be an old balance druid pvp talent, see tettles guide for 10.2
+          https://www.wowhead.com/guide/classes/druid/balance/pvp-overview)
 
 - added new abilities
     - Aspect of the Turtle
