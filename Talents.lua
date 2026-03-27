@@ -75,6 +75,7 @@ function ns:applyTalentModifiers(classFile, specId, baseAbility, talentRanks)
     local function toOrd(mod)
         local first = mod.mult and 1 or 0
         local second = mod.modifies == "hasAbility" and mod.amount == false and 100000 or 0
+        local third = mod.modifies == "cdr" and mod.amount == false and 100000 or 0
         return first + second
     end
     -- Sort additive effects before multiplicative effects and put talents
