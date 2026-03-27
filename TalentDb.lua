@@ -11,6 +11,8 @@ local requireBuff = "requireBuff"
 local requireShield = "requireShield"
 local naturallyUpdates = "naturallyUpdates"
 local reset = "canReset"
+local targets = "targets"
+
 
 -- Why have separate class and spec trees? Some talents with equal IDs do different
 -- things for different specs. Otherwise it would be sufficient to simply have the
@@ -151,7 +153,16 @@ ns.ClassTalentModifiers = {
         },
         [1255166] = {
             { { id=342245, modifies=cooldown, amount=-10 } },
-        }
+        },
+        [110959] = {   -- greater invis
+            { { id=110959, modifies=hasAbility, amount=true } },
+        },
+        [382293] = {   -- greater invis speed boost
+            { { id=110959, modifies=requireBuff, amount=true } },
+        },
+        [210476] = {   -- greater invis CD
+            { { id=110959, modifies=cooldown, amount=-60 } },
+        },
     },
 
 
@@ -197,6 +208,19 @@ ns.ClassTalentModifiers = {
               { id=31850, modifies=cooldown, amount=-30, mult=true },    -- ardent defender
               { id=403876, modifies=cooldown, amount=-30, mult=true } }
               -- { id=135928, modifies=cooldown, amount=-30, mult=true } }  -- what is this?
+        },
+        [305394] = {
+            -- unbound freedom. this talent causes an additional freedom buff for every
+            -- freedom cast. it is critical to account for this because the freedom buff
+            -- is flagged 10000, meaning it matches many other abilities.
+            --
+            -- account for it by re-assigning the real freedom to only be permissible on
+            -- the caster (in reality there's no distinction between the 2 freedom buffs).
+            -- this sets up the unbound freedom cooldown tracker as a sponge for unbound
+            -- freedom buffs so they aren't mis-IDed as something else.
+            { { id=305394, modifies=hasAbility, amount=true },
+            -- assign the real freedom to target only the caster
+              { id=1044, modifies=targets, amount=ns.TARGET_SELF }, },
         },
     },
 
