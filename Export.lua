@@ -22,7 +22,13 @@ local function prepareExportData()
     end
     ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Found "..#inference.." inference records")
 
-    local data = { metadataUpdates=metadataUpdates, characterUpdates=characterUpdates, playback=playback, inference=inference }
+    local data = {
+        addonVersion=ns.ADDON_VERSION,
+        metadataUpdates=metadataUpdates,
+        characterUpdates=characterUpdates,
+        playback=playback,
+        inference=inference
+    }
     ns:setExportData(data)
     exportFrame:Show()
 end
