@@ -680,7 +680,7 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
             requireDebuff=true,
