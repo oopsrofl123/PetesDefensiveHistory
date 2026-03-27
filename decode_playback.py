@@ -171,6 +171,11 @@ def get_character_abilities(characters):
 
 def read_export_data(f):
     data = decode_export_blob(f.read())
+
+    addon_version = data.get('addonVersion', b'not encoded').decode()
+    print('ADDON VERSION -------------------------------------------------------------------')
+    print(addon_version)
+
     metadata_updates = data[b'metadataUpdates'] or {}
     print('METADATA ------------------------------------------------------------------------')
     print('got', len(metadata_updates), 'metadata updates')
@@ -196,12 +201,85 @@ def read_export_data(f):
     inferences = [ ('inf', inf[0], [ d(x) for x in inf ]) for inf in inferences if not inf[4].decode().startswith("SIMULATE(") ]
     print('found', len(inferences), 'inference records')
 
-    return metadata_updates, character_updates, playback, inferences
+    return addon_version, metadata_updates, character_updates, playback, inferences
+
+
+# exported from AbilityDb.lua
+all_tracked_abilities = [
+    "Shadowmeld",
+    "Anti-Magic Shell",
+    "Icebound Fortitude",
+    "Vampiric Blood",
+    "Pillar of Frost",
+    "Blur",
+    "Metamorphosis",
+    "Last Resort",
+    "Untethered Rage",
+    "Fiery Brand",
+    "Barkskin",
+    "Celestial Alignment",
+    "Incarnation: Chosen of Elune",
+    "Berserk",
+    "Incarnation: Avatar of Ashamane",
+    "Berserk",
+    "Incarnation: Guardian of Ursoc",
+    "Ironbark",
+    "Dragonrage",
+    "Obsidian Scales",
+    "Time Dilation",
+    "Survival of the Fittest",
+    "Trueshot",
+    "Aspect of the Turtle",
+    "Feign Death",
+    "Takedown",
+    "Arcane Surge",
+    "Ice Block",
+    "Ice Cold",
+    "Mirror Image",
+    "Alter Time",
+    "Combustion",
+    "Greater Invisibility",
+    "Life Cocoon",
+    "Invoke Niuzao, the Black Ox",
+    "Blessing of Sacrifice",
+    "Divine Protection",
+    "Divine Shield",
+    "Blessing of Protection",
+    "Blessing of Spellwarding",
+    "Blessing of Freedom",
+    "Unbound Freedom",
+    'Wake of Ashes',
+    'Avenging Crusader',
+    "Avenging Wrath",
+    "Ardent Defender",
+    "Guardian of Ancient Kings",
+    "Gift of the Golden Valkyr",
+    "Sentinel",
+    "Dispersion",
+    "Desperate Prayer",
+    "Pain Suppression",
+    "Divine Hymn",
+    "Guardian Spirit",
+    "Voidform",
+    "Vanish",
+    "Cloak of Shadows",
+    "Evasion",
+    "Adrenaline Rush",
+    "Shadow Dance",
+    "Shadow Blades",
+    "Astral Shift",
+    "Unending Resolve",
+    "Die by the Sword",
+    "Avatar",
+    "Avatar of the Storm",
+    "Enraged Regeneration",
+    "Shield Wall"
+]
 
 
 if __name__ == "__main__":
     with open(sys.argv[1], "r") as f:
-        metadata_updates, character_updates, playback, inferences = read_export_data(f)
+        addon_version, metadata_updates, character_updates, playback, inferences = read_export_data(f)
 
     spells = read_spell_names(sys.argv[2])
 

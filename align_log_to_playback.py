@@ -14,7 +14,7 @@ from dtw import dtw
 from collections import defaultdict
 import argparse
 
-from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities, event_type_match, read_spell_names, normalize_combatlog_event
+from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities, event_type_match, read_spell_names, normalize_combatlog_event, all_tracked_abilities
 
 
 # Map absolute timestamps to offset timestamps (i.e., first entry in the log is time=0).
@@ -57,8 +57,10 @@ def read_addon_export(filename):
 
     with open(filename, "r") as f:
         data = decode_export_blob(f.read())
+        addon_version = data.get('addonVersion', b'not encoded').decode()
         metadata_updates = data[b'metadataUpdates']
         player_guid = metadata_updates[0][b'myGUID'].decode()
+        print('ADDON VERSION:', addon_version)
         print('Exporter:', player_guid)
 
         character_updates = data[b'characterUpdates']
@@ -271,6 +273,9 @@ class InferenceScore:
     def set_character_data(self, char):
         self.data = char
 
+    def guid(self):
+        return self.data['GUID']
+
     def player_label(self):
         return "%s (%s): %s %s %s" % \
             (self.data['playerName'],
@@ -290,8 +295,9 @@ class InferenceScore:
         self.events += 1
         self.num_no_inference = self.num_no_inference + 1
         for rec in log_records:
-            self.no_inference[rec['ability_id']][trace] = \
-                self.no_inference[rec['ability_id']][trace] + 1
+            if rec['event'] == 'SPELL_CAST_SUCCESS':
+                self.no_inference[rec['ability_id']][trace] += 1
+                print(rec)
 
     def add_inference(self, ability_id, matches, all_records):
         self.events += 1
@@ -299,7 +305,7 @@ class InferenceScore:
         if not matches:
             self.false_positives[ability_id].append([
                 (spells[rec['ability_id']], rec['event'], rec['caster_guid'])
-                    for rec in all_records ])
+                    for rec in all_records if rec['event'] == 'SPELL_CAST_SUCCESS' ])
 
     def print_false_positives(self):
         for ability, records in self.false_positives.items():
@@ -459,8 +465,28 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
                 scores[(actor, specmap[actor])].add_no_inference(event_trace, log_records)
 
 
+time_start = playback[0][1]
+print('first playback entry at time=', time_start)
+time_end = playback[-1][1]
+print('last playback entry at time=', time_end)
+
+# Get all events from combat log, not just the inference records
+# XXX: TODO: integrate with scoring above. requires merging combat log events with
+# inference record events into the single list looped over above. this is because
+# scores are keyed by (actor, spec) and spec can change over time.
+all_uses = defaultdict(lambda: defaultdict(int))
+for rec in full_combatlog:
+    if rec[1] == "SPELL_CAST_SUCCESS":
+        time, event, caster_guid = rec[0:3]
+        ability_id = int(rec[10])
+        ability_name = spells[ability_id]
+        if time >= time_start and time <= time_end and ability_name in all_tracked_abilities:
+            all_uses[caster_guid][ability_name] += 1
+        
+
 for char_tup, score in scores.items():
     if not score.isempty():
         print(score.player_label(), '----------------------------------------------')
         print(score)
+        print('    all uses:', ' '.join([ k + ": " + str(v) for k, v in all_uses[score.guid()].items() ]))
         score.print_false_positives()
