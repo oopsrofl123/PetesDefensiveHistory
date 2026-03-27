@@ -23,7 +23,7 @@ local function prepareExportData()
     ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Found "..#inference.." inference records")
 
     local data = {
-        addonVersion=ns.ADDON_VERSION,
+        addonVersion=C_AddOns.GetAddOnMetadata(addonName, 'Version'),
         metadataUpdates=metadataUpdates,
         characterUpdates=characterUpdates,
         playback=playback,
