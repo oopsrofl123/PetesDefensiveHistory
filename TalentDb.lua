@@ -524,14 +524,18 @@ ns.SpecTalentModifiers = {
             --{ { id=363916, modifies=requireBuff, amount=true } },  -- rank 1
             --{ { id=363916, modifies=requireBuff, amount=true } },  -- rank 2
         --},
-        [404977] = { -- -20s CDR for ALL spells
+        [404977] = { -- -20s CDR for ALL spells when used
             { { id=363916, modifies=cdr, amount=true } }
         },
-        [412723] = { -- -30s CDR for ALL spells
+        [412723] = { -- -30s CDR for ALL spells when used
             { { id=363916, modifies=cdr, amount=true } }
         },
-        [412713] = { -- reduces ALL spell cooldowns permanently
-            { { id=363916, modifies=cooldown, amount=-10, mult=true } }
+        [412713] = {
+            -- reduces ALL spell cooldowns permanently and replaces the CDR talents
+            -- XXX: TODO: possible bug: the code to apply amount=false talents after
+            -- amount=true talents is brittle. works now but may break one day.
+            { { id=363916, modifies=cdr, amount=false },
+              { id=363916, modifies=cooldown, amount=-10, mult=true } },
         },
     },
 
