@@ -1,21 +1,22 @@
 V1.0 RELEASE GOALS
 ===========================================================================
-- dump on other computer: pdh_bug5: nil availableAt
+1. ACCURACY
+    - as quantified by logs
+    - look into sentinel FNs in day2 logs
+    - use updating to ID sentinel - will ID after 3s.
+        - does not require a complete update database, just ardent defender (the buff similar to wings)
+2. STABILITY
+    - dump on other computer: pdh_bug5: nil availableAt
+3. MINIMAL FEATURES
+    - ensure tracing with no replay does not use much memory
 
-- check dump for changed flags. many changes.
-    - fort brew is now BIG
-    - some fort brew talents give shields, don't care much at the moment since monk has so
-      few tracked abilities
 
-- look into sentinel FNs in day2 logs
 - FINALIZED message in decoder output is wrong, is firing on every attempt of multi-attempt
   infers.
     - see Divine Shield from day 2
 
 
 TODO TESTING
-    - TRY UNBOUND FREEDOM WITH NO TARGET
-        - confirm that there is no auto-targeting of another player
     - DISABLE TRACING
         - run dungeon without tracing, ensure reasonable memory usage for normal users
     - RUN MORE KEYS WITH REPLAYS
@@ -25,7 +26,6 @@ TODO TESTING
         - version info
 
 BUGS
-    - [MAYBE BUG] Dark Prayer 462508, the aura applied by in m+ by void emissary, is flagged IMPORTANT
     - O.Scales: in replay, first scales button press is 0.689s from aura application and marked
       as pass. either the replay is wrong or the logic is bugged.
         - didn't have time to figure out the issue. pit of saron is somehow missing from combat log
@@ -40,10 +40,6 @@ REPLAYS
       that they are a superset of the true events.
 
 FEATURES
-    - disable ret DP since if it is too hard to distinguish from freedom?
-        - maybe not as hard now that unbound freedom is modeled? guess the ret has to actually cast the
-          freedom on someone else to get the bonus info.
-
     - test mode
         - people will be surprised by the history row since it doesn't normally show, test mode needs to
         demo so that users know what to expect
@@ -51,14 +47,10 @@ FEATURES
         - show growing..disappearing icons in history row
         - put text labels behind the history row and static row telling the user what they're looking at
 
-    - minimap button rather than compartment button
-        - does anyone even know where the compartment buttons are?
-
     * add a button somewhere to reset the internal data trackers
         - need this to allow resetting when entering a new instance, e.g.
         - or could do it on ZONE_AREA_CHANGED?
         - maybe add options to do it automatically (e.g. on ENCOUNTER_START would be good for key running)
-
 
 
 
@@ -183,6 +175,13 @@ NOTES ON COMPLEX CASES ---------------------------------------------------------
         - just need to prevent this from filling up the history tray. not a complex ability
     ----------------------------------------------------------------------------
 
+- it seems unbound freedom does automatically cast on someone else in player-based groups
+    - could change the logic to reflect this (i.e., we can be more aggressive by requiring both casts
+      be present to infer freedom).
+
+- [MAYBE BUG] Dark Prayer 462508, the aura applied by in m+ by void emissary, is flagged IMPORTANT
+    - just look into this. not sure this buff even exists anymore
+
 - auras still get orphaned rather than removed by UNIT_AURA
     - happens if another event (apart from UNIT_AURA(remove)) fires in the same frame first
     - nothing wrong with this IF UNIT_AURA(remove) was about to happen anyway, but don't want
@@ -200,6 +199,8 @@ NOTES ON COMPLEX CASES ---------------------------------------------------------
     - maybe pet tracking would be more successful than totem events?
 
 ABILITY SUPPORT
+    - maybe add shield talents for monk fort brew. they have so few abilities that distinguishing
+      them doesn't require much evidence
     - Roar of Sacrifice 53480
         - couldn't test due to pet req
     - Invoke Yu'lon, the Jade Serpent 322118
@@ -681,6 +682,18 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- minimap button
+
+- disable ret DP since if it is too hard to distinguish from freedom?
+    - with new BIG flag, DP not as hard to detect
+    - maybe not as hard now that unbound freedom is modeled? guess the ret has to actually cast the
+      freedom on someone else to get the bonus info.
+
+- check dump for changed flags. many changes.
+    - fort brew is now BIG
+    - some fort brew talents give shields, don't care much at the moment since monk has so
+      few tracked abilities
+
 - very frequent sentinel false negatives.
     - since sentinel has such a unique update signature this should be fixable
     - problem wasn't as large as i thought. counting all sentinels in log found 36/38 IDs
