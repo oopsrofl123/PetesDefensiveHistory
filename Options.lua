@@ -31,6 +31,10 @@ local optionsDefaults = {
     enableRaid = false,
     enableBattleground = false,
 
+    minimap = {
+        angle = 225,
+        hide = false,
+    },
     iconSize = 32,
     iconSpacing = 3,
     maxHistoryTrayItems = 4,
@@ -159,6 +163,21 @@ local function buildMainOptions()
 
     makeSectionHeader(layout, 'Appearance')
 
+    -- Can't use the nice makeCheckbox code because this option is in a subtable
+    setting = Settings.RegisterProxySetting(
+        category, 'minimap.hide', Settings.VarType.Boolean, "Hide minimap button",
+        optionsDefaults.minimap.hide,
+        function() return PetesDefensiveHistoryOptionsDb.minimap.hide end,
+        function(value)
+            PetesDefensiveHistoryOptionsDb.minimap.hide = value
+            if value then
+                ns.ldbicon:Hide('PetesDefensiveHistory')
+            else
+                ns.ldbicon:Show('PetesDefensiveHistory')
+            end
+        end)
+    Settings.CreateCheckbox(category, setting, "Show the minimap button")
+
     -- Set tracker icon size
     setting = makeSetting(category, 'iconSize', Settings.VarType.Number, 'Icon size')
     local options = Settings.CreateSliderOptions(8, 64, 1)
@@ -251,14 +270,14 @@ local function buildDeveloperOptions(topCategory)
     local category, layout =
         Settings.RegisterVerticalLayoutSubcategory(topCategory, "Developer options")
 
-    makeCheckbox(category, 'inferWithoutTalentData', 'Infer without talent data',
-        'Without talent data, it is difficult to know what abilities a player has and what their cooldowns are. When unchecked (the default), do not infer abilities on players without talent data unless it is an external cooldown cast by another player with talent data. By checking this box, the addon will infer all abilities on players without talent data, which can cause many strange false calls and interactions.')
-
     makeSectionHeader(layout, 'Logic tracing and replays')
     makeCheckbox(category, 'enableReplays', 'Enable logic replays',
         'Did an ability get mis-identified? Logic traces and event replays are the way to debug the complex scenarios this addon must handle. Enabling this option will record all relevant events and metadata to export a replay that can be aligned against a WoW combat log to check for errors. To export a replay, click the addon compartment button (top right of the screen in the default Blizzard UI) and copy the string in the pop-up window. Share your exports and combat logs on our Discord at |cFF00FFFFdiscord.gg/gVCtQrvpxt|r! |cFFFF0000Enabling this option will consume a large amount of memory, possibly ~100 Mb per 30 minute dungeon. Use /reload to clear it.|r')
 
     makeSectionHeader(layout, 'Debugging')
+    makeCheckbox(category, 'inferWithoutTalentData', 'Infer without talent data',
+        'Without talent data, it is difficult to know what abilities a player has and what their cooldowns are. When unchecked (the default), do not infer abilities on players without talent data unless it is an external cooldown cast by another player with talent data. By checking this box, the addon will infer all abilities on players without talent data, which can cause many strange false calls and interactions.')
+
     makeCheckbox(category, 'debugVisuals', 'Visual debugging', 
         "Add debugging widgets to the tracker icons.")
 

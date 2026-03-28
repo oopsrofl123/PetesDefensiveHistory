@@ -1,6 +1,9 @@
 -- get addon namespace
 local addonName, ns = ...
 
+-- Must be globally accessible so that addon options can hide the minimap button
+ns.ldbicon = LibStub('LibDBIcon-1.0')
+
 local welcomeFrame
 
 -- time in seconds to expire a non-buff event since there is no UNIT_AURA(removed)
@@ -690,6 +693,15 @@ local function initAddon()
     ns.groupSolutionUI = ns:allocGroupSolutionUI()
     ns.groupSolutionUI:Hide()
 
+    -- For the minimap button
+    ns.ldbicon:Register(addonName, ns.ldbObject, PetesDefensiveHistoryOptionsDb.minimap)
+print('minimap hide=', ns:GetOption("minimap").hide )
+    if not ns:GetOption("minimap").hide then
+        ns.ldbicon:Show('PetesDefensiveHistory')
+    else
+        ns.ldbicon:Hide('PetesDefensiveHistory')
+    end
+
     if not ns:GetOption('hideWelcomeMessage') then
         welcomeFrame:Show()
     else
@@ -717,10 +729,6 @@ local loadNum = 1
 loader:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
         initAddon()
-        -- XXX: TODO: useful when debugging options
-        -- Can't open the options pane while reading in the addon since saved variables
-        -- aren't loaded til ADDON_LOADED.
-        --Settings.OpenToCategory(ns.optionsCategory:GetID())
     end
 
     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, event.."("..loadNum..")")
@@ -915,6 +923,5 @@ do
     -- Open the solution UI
     SLASH_PDH1 = "/pdh"
     -- Open the config panel
-    -- SlashCmdList.PDH = function() Settings.OpenToCategory(ns.optionsCategory:GetID()) end
-    SlashCmdList.PDH = function() ns.groupSolutionUI:Show() end
+    SlashCmdList.PDH = function() Settings.OpenToCategory(ns.optionsCategory:GetID()) end
 end

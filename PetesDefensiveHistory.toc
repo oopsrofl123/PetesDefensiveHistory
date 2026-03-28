@@ -10,6 +10,8 @@ libs\LibStub\LibStub.lua
 libs\LibPrettyPrint\LibPrettyPrint.xml
 libs\LibButtonGlowcustom\LibButtonGlowcustom.lua
 libs\LibSpecialization\LibSpecialization\LibSpecialization.lua
+libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
 Globals.lua
 AbilityDb.lua
 Utils.lua
@@ -24,3 +26,4 @@ TrackerUI.lua
 DumpAbilityFlags.lua
 GroupData.lua
 PetesDefensiveHistory.lua
+Minimap.lua
