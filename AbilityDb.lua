@@ -668,7 +668,6 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            requireShield=true
 		},
 		{
 			name="Divine Shield",
