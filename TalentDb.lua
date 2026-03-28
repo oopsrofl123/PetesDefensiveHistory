@@ -157,8 +157,9 @@ ns.ClassTalentModifiers = {
         [110959] = {   -- greater invis
             { { id=110959, modifies=hasAbility, amount=true } },
         },
-        [382293] = {   -- greater invis speed boost
-            { { id=110959, modifies=requireBuff, amount=true } },
+        [382293] = {   -- greater invis speed boost. amount doesn't matter, just the buff
+            { { id=110959, modifies=requireBuff, amount=true } },  -- rank 1
+            { { id=110959, modifies=requireBuff, amount=true } },  -- rank 2
         },
         [210476] = {   -- greater invis CD
             { { id=110959, modifies=cooldown, amount=-60 } },
