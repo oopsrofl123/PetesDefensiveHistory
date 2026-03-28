@@ -171,6 +171,9 @@ ns.ClassTalentModifiers = {
         [443294] = {  -- hero talent adds CDR
             { { id=116849, modifies=cdr, amount=true } },
         },
+        [115203] = {  -- fort brew
+            { { id=115203, modifies=hasAbility, amount=true } },
+        },
     },
 
 
@@ -623,6 +626,12 @@ ns.SpecTalentModifiers = {
 
     -- Brewmaster monk ------------------------------------------------------------------------
     [268] = {
+        [121253] = {  -- root brew talent, assign spec specific stuff here
+            { { id=115203, modifies=cooldown, amount=240 } },
+        },
+        [388813] = {  -- fort brew class tree talent. diff cooldown for diff specs
+            { { id=115203, modifies=cooldown, amount=-120 } },
+        },
         [132578] = {
             { { id=132578, modifies=hasAbility, amount=true } },
         },
@@ -632,6 +641,9 @@ ns.SpecTalentModifiers = {
     },
     -- Mistweaver monk ------------------------------------------------------------------------
     [270] = {
+        [388813] = {  -- fort brew class tree talent. diff cooldown for diff specs
+            { { id=115203, modifies=cooldown, amount=-30 } },
+        },
         [116849] = {
             { { id=116849, modifies=hasAbility, amount=true } },
         },
@@ -644,6 +656,9 @@ ns.SpecTalentModifiers = {
     },
     -- Windwalker monk ------------------------------------------------------------------------
     [269] = {
+        [388813] = {  -- fort brew class tree talent. diff cooldown for diff specs
+            { { id=115203, modifies=cooldown, amount=-30 } },
+        },
     },
 
 
