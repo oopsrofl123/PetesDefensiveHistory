@@ -2,6 +2,8 @@ local _, ns = ...
 
 local inferenceRecordList = {}
 
+ns.numInferenceAttempts = 0
+
 function ns:getInferenceRecordData()
     return inferenceRecordList
 end
@@ -819,6 +821,7 @@ end
 -- logging in this top-level function, but will not suppress verbose trace logging.
 function ns:inferAbility(inferenceTrace, ev, cdTracker, quiet)
     quiet = quiet or false
+    ns.numInferenceAttempts = ns.numInferenceAttempts + 1
 
     local now = GetTime()
     -- track how many times we've tried to infer this ability
