@@ -594,20 +594,20 @@ ns.AbilityDb = {
 
 	----------------------------------------------------------------------------------------
     ["MONK"] = {
-        -- XXX: TODO: buff in-game is not imp or big flagged, so not observable
-		-- {
-	   	    -- name="Fortifying Brew",
-			-- id=115203,
-            -- iconId=615341,
-		    -- cooldown=360   -- talent: 360 > 240 base is really 6min for brew
-			-- duration=15,
-			-- duration_variable=ns.DURATION_FIXED,
-			-- charges=1,
-			-- cdr=false,
-            -- IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
-			-- targets=ns.TARGET_SELF,
-            -- requireButtonPress=true,
-		-- },
+		{
+	   	    name="Fortifying Brew",
+            alias="Fort.Brew",
+			id=115203,
+            iconId=615341,
+		    cooldown=120,   -- brew base is 6min, account for with talents
+			duration=15,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=false, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+		},
         {
 			name="Life Cocoon",
             alias='L.Cocoon',
@@ -665,7 +665,7 @@ ns.AbilityDb = {
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
-            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
 		},
@@ -683,6 +683,7 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
             requireDebuff=true,
+            requireUnitFlags=true,   -- not related to final stand, happens for holy/ret
 		},
 		{
 			name="Blessing of Protection",
