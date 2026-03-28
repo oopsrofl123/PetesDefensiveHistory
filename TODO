@@ -2,6 +2,11 @@ V1.0 RELEASE GOALS
 ===========================================================================
 - dump on other computer: pdh_bug5: nil availableAt
 
+- check dump for changed flags. many changes.
+    - fort brew is now BIG
+    - some fort brew talents give shields, don't care much at the moment since monk has so
+      few tracked abilities
+
 - look into sentinel FNs in day2 logs
 - FINALIZED message in decoder output is wrong, is firing on every attempt of multi-attempt
   infers.
