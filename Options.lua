@@ -41,6 +41,7 @@ local optionsDefaults = {
     growthDirection = 1,    -- LEFT
 
     disableInference = false,
+    throttleInference = 0.2,
     disableCDRTrackers = false,
     disableHistoryTray = false,
     hideHistoryItemsAtMaxCd = false,
@@ -203,6 +204,12 @@ local function buildMainOptions()
     -- Disable all inference. Put everything in the history tray
     makeCheckbox(category, "disableInference", "Disable inference",
         "Disable logic to infer abilities and the associated row of icons. All abilities will instead be sent to the history tray for the unit on which they were cast (which may not be the caster!). Items in the history tray receive a count-up timer that stops at the maximum cooldown length for all abilities that can target that unit and the player must know the associated cooldown length.")
+
+    setting = makeSetting(category, "throttleInference", Settings.VarType.Number,
+        "Throttle inferences by")
+    local options = Settings.CreateSliderOptions(0, 1, 0.05)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+    Settings.CreateSlider(category, setting, options, "Wait at least this many fractions of a second between inferences. Does not affect the frequency at which data is collected, which remains real-time.")
 
     makeCheckbox(category, "disableCDRTrackers", "Disable inaccurate timers",
         "Dynamic cooldown reduction (e.g., each cast of Power Word: Shield reduces the cooldown of Pain Suppression) cannot be tracked. Normally, these abilities will count down to the MAXIMUM cooldown time. Enabling this option will instead send those abilities to the history tray, declining to show an inaccurate cooldown swipe. NOTE: cooldown timers are especially inaccurate for abilities with BOTH dynamic cooldown reduction and charges (e.g., Shield Wall, Guardian of Ancient Kings, Pain Suppresion, etc.).") 

@@ -48,7 +48,7 @@ function ns:Event(newTrace, newSource)
     local source = newSource
     local char = ns:getTrackedCharacterByGUID(source)
     local inference = 0
-    local numPossibleSolutions = nil
+    local possibleSolutions = nil
     local certain = false
     local ability = nil
     local time = GetTime()
@@ -359,9 +359,23 @@ function ns:trackAura(trace, aura)
 end
 
 
+local lastManageEvents = {}
+
 -- Loop through all events for the tracked character 'guid'. Try to infer them
 -- if they still aren't guessed and execute life cycle functions.
-function ns:manageEvents(updateTrace, guid)
+function ns:manageEvents(updateTrace, guid, now)
+    -- This is where all the heavy lifting and calculations occur. Throttle how often
+    -- this function can run. Don't throttle scheduled callbacks though.
+    local last = lastManageEvents[guid] or 0
+    now = now or GetTime()
+    -- XXX: TODO: make an enum later, check for scheduled callbacks by trace name
+    if now - last < ns:GetOption('throttleInference') and
+       updateTrace ~= "E:track" and updateTrace ~= "E:orphan" then
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGTYPE.Verbose, string.format(
+            'Throttling manageEvents, last event was %0.3fs ago', now - last))
+        return
+    end
+
     local char = ns:getTrackedCharacterByGUID(guid)
 
     -- Tracking structure: each character has a list of events keyed by either
@@ -376,6 +390,9 @@ function ns:manageEvents(updateTrace, guid)
         for _, ev in pairs(evBatch) do
             -- Prevent tons of log spam and unnecessary :infer()s on unsolvable events
             if ev:hasPossibleSolutions() then
+                -- a manageEvents() call only counts against the inference throttle if
+                -- it actually tries to infer something.
+                lastManageEvents[guid] = now
                 ev:infer(updateTrace)
             end
 
