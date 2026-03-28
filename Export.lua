@@ -3,7 +3,7 @@ local addonName, ns = ...
 local exportFrame
 
 
-local function prepareExportData()
+function ns:prepareExportData()
     ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Getting metadata")
     local metadataUpdates = ns:getMetadataUpdatesData()
 
