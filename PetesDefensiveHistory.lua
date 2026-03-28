@@ -434,7 +434,7 @@ castHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID
 
     char:trackEvidence('cast', now)
 
-    ns:manageEvents("CAST", guid)
+    ns:manageEvents("CAST", guid, now)
 end)
 
 
@@ -456,7 +456,7 @@ absorbHandler:SetScript("OnEvent", function(self, event, target)
 
     char:trackEvidence('shield', now)
 
-    ns:manageEvents("ABSORB", guid)
+    ns:manageEvents("ABSORB", guid, now)
 end)
 
 
@@ -513,7 +513,7 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
     end
 
 
-    ns:manageEvents("FLAGS", guid)
+    ns:manageEvents("FLAGS", guid, now)
 end)
 
 
@@ -610,7 +610,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     end
 
     -- Run inference on all outstanding events for this character
-    ns:manageEvents("AURA", guid)
+    ns:manageEvents("AURA", guid, now)
 end)
 
 
