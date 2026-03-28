@@ -650,8 +650,10 @@ end)
 local testHandler = CreateFrame("Frame", addonName .. "TestHandler")
 testHandler:RegisterEvent("UNIT_SPELL_HASTE")
 testHandler:RegisterEvent("UNIT_ATTACK_SPEED")
-testHandler:SetScript("OnEvent", function(self, ...)
-    ns:playback(GetTime(), event, ...)
+testHandler:SetScript("OnEvent", function(self, event, unit)
+    local guid, char = ns:getTrackedCharacterBySlot(unit)
+    if not guid then return end
+    ns:playback(GetTime(), event, unit)
 end)
 
 
