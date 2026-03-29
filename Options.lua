@@ -31,6 +31,7 @@ local optionsDefaults = {
     enableRaid = false,
     enableBattleground = false,
 
+    -- The minimap defaults are ignored for old addon users
     minimap = {
         angle = 225,
         hide = false,

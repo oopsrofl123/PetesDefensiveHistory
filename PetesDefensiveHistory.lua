@@ -694,8 +694,10 @@ local function initAddon()
     ns.groupSolutionUI:Hide()
 
     -- For the minimap button
+    if not PetesDefensiveHistoryOptionsDb.minimap then
+        PetesDefensiveHistoryOptionsDb.minimap = { hide=false }
+    end
     ns.ldbicon:Register(addonName, ns.ldbObject, PetesDefensiveHistoryOptionsDb.minimap)
-print('minimap hide=', ns:GetOption("minimap").hide )
     if not ns:GetOption("minimap").hide then
         ns.ldbicon:Show('PetesDefensiveHistory')
     else
