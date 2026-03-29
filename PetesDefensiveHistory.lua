@@ -47,6 +47,16 @@ end
 
 
 local function findFrameForSlot(slot, slotRoot)
+    local maxN, frameRoot
+    if slotRoot == 'party' then
+        maxN = 5
+    elseif slotRoot == 'raid' then
+        maxN = 40
+    else
+        print("ERROR: unrecognized content type, slot root=", slotRoot)
+        return nil
+    end
+
     local framesChecked = 0
     if DandersFrames then
         for _, frame in pairs(DandersFrames_GetAllFrames()) do
@@ -55,19 +65,26 @@ local function findFrameForSlot(slot, slotRoot)
                 return frame
             end
         end
+    elseif ElvUI then
+        if ElvUI[1].db and ElvUI[1].db.unitframe.units.party.enable and ElvUF_Party then
+            if slotRoot ~= "party" then
+                print("ERROR: raid frames are not supported for ElvUI at the moment, please leave a comment on the discord if you are interested in raid support.")
+            else
+                frameRoot = "ElvUF_PartyGroup1UnitButton"
+            end
+
+            for i=1, maxN do
+                framesChecked = framesChecked + 1
+                if _G[frameRoot .. i].unit == slot then
+                    return _G[frameRoot..i]
+                end
+            end
+        else
+            print("ERROR: ElvUI detected but party frames not found")
+        end
     else
         -- Blizzard frames
-        local maxN, frameRoot
-        if slotRoot == 'party' then
-            maxN = 5
-            frameRoot = 'CompactPartyFrameMember'
-        elseif slotRoot == 'raid' then
-            maxN = 40
-            frameRoot = 'CompactRaidFrame'
-        else
-            return nil
-        end
-
+        frameRoot = slotRoot == "party" and 'CompactPartyFrameMember' or 'CompactRaidFrame'
         for i=1, maxN do
             framesChecked = framesChecked + 1
             if _G[frameRoot .. i].unit == slot then
