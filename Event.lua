@@ -266,6 +266,7 @@ function ns:Event(newTrace, newSource)
 
     function e:untrack()
         local eventList = ns.eventsForInference[source]
+print('source=', tostring(source), 'getid=', tostring(self:getId()), 'batchid=', tostring(self:getBatchId()), 'list[id]=', tostring(eventList[self:getId()]), 'list[id][batch]=', tostring(eventList[self:getId()][self:getBatchId()]))
         eventList[self:getId()][self:getBatchId()] = nil
         if #eventList[self:getId()] == 0 then
             eventList[self:getId()] = nil
