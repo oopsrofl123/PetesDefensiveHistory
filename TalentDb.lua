@@ -738,9 +738,13 @@ ns.SpecTalentModifiers = {
             -- wording doesn't mention sentinel, but does apply to it.
             -- rank 2 extends more than rank 1, but all that matters is the duration
             -- is longer than base.
+            -- duration extension causes aura updates. baseline sentinel already updates
+            -- but this is new for wings
             { { id=31884, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=31884, modifies=naturallyUpdates, amount=true },
               { id=389539, modifies=duration_variable, amount=ns.DURATION_GTE } },
             { { id=31884, modifies=duration_variable, amount=ns.DURATION_GTE },
+              { id=31884, modifies=naturallyUpdates, amount=true },
               { id=389539, modifies=duration_variable, amount=ns.DURATION_GTE } },
         },
         [204074] = {
