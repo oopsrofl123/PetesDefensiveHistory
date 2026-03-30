@@ -8,6 +8,9 @@
 
 ![](images/PDH1.gif)
 
+Players without LibSpecialization will not have cooldowns tracked. If they have external abilities, they will show up on targets.
+![](images/no_libspec_consequences.png)
+
 Tracks cooldowns for Blizzard-approved `IMPORTANT`, `BIG_DEFENSIVE` and `EXTERNAL` buffs.
 When identified, active cooldowns are glowed and cooldown timers are shown. Text-To-Speech (TTS) announcements are also supported. Buffs that cannot be identified are instead displayed on a second row similar to a GCD history tracker. These buffs display a "count-up" timer that indicates how much time has passed since that (unidentified) buff was applied.
 
