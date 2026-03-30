@@ -97,11 +97,19 @@ def confidence_string(conf):
     return string
 
 
+def reqs_met(reqs):
+    met = True
+    for name, req in (reqs.items() if len(reqs) > 0 else {}):
+        value, passes, final = req
+        met = met and passes
+    return met
+
+
 def reqs_string(reqs):
     string = "reqs: "
     for name, req in (reqs.items() if len(reqs) > 0 else {}):
         value, passes, final = req
-        string += "[" + passcolor(reqs) + name.decode() + "=" + ("%0.3f" % value) + ascii_reset + "]"
+        string += "[" + passcolor(passes) + name.decode() + "=" + ("%0.3f" % value) + ascii_reset + "]"
     return string
 
 
@@ -110,8 +118,9 @@ def decision_string(inf, spell_names):
         event_time, event_trace, event_id, event_source, event_slot, batch_id, \
         ability_id, certain, ability_caster, \
         logic, conf, reqs = inf
-    if ability_id is None:
-        return "coudln't infer ability"
+    meets_reqs = reqs_met(reqs)
+    if ability_id is None or not meets_reqs:
+        return "coudln't infer ability: " + ("no ability" if ability_id is None else "reqs not met")
     else:
         return "%s%0.3f %s: ability=[%s], event=[%s/%d], attempt=[%d], caster=[%s], time=[%0.3f]%s" % \
             (ascii_cyan, inference_time, "FINALIZED" if certain else "UNCERTAIN",
@@ -190,7 +199,8 @@ def read_export_data(f):
         print('    index=%d, time=[%0.3f] responded to [%s]: character data:' % \
             (index, time, trace.decode()))
 
-    playback = [ ('event', e[0], [ d(x) for x in e ]) for e in data[b'playback'] ]
+    start_time = data[b'playback'][0][0]
+    playback = [ ('event', e[0] - start_time, [e[0]-start_time] + [ d(x) for x in e[1:] ]) for e in data[b'playback'] ]
     print('PLAYBACK ------------------------------------------------------------------------')
     print('got', len(playback), 'events')
 
@@ -198,7 +208,7 @@ def read_export_data(f):
     print('INFERENCE -----------------------------------------------------------------------')
     inferences = data[b'inference']
     # Remove simulation inferences from zero knowledge solves
-    inferences = [ ('inf', inf[0], [ d(x) for x in inf ]) for inf in inferences if not inf[4].decode().startswith("SIMULATE(") ]
+    inferences = [ ('inf', inf[0] - start_time, [inf[0]-start_time] + [ d(x) for x in inf[1:] ]) for inf in inferences if not inf[4].decode().startswith("SIMULATE(") ]
     print('found', len(inferences), 'inference records')
 
     return addon_version, metadata_updates, character_updates, playback, inferences
