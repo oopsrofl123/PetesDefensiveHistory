@@ -437,18 +437,34 @@ end
 
 
 -- Currently only applies to auras, but maybe there's a generalization.
--- New events are fired when auras are updated because, in some cases, these updates
--- are new ability uses that must be tracked. However, many auras update themselves
--- without any link to a new ability use.
---
--- XXX: TODO: eventually: also exclude abilities that are known not to update. this
--- requires a new "doesNotUpdate" flag from a comprehensive pass on the ability database,
--- though.
-local function logicLayerAuraUpdateAllowed(event, ability)
+-- Some aura updates are actually new uses of an ability. E.g., GoAK can have 2 charges and
+-- if the 2nd is used before the 1st completes, the 2nd will simply update the first's aura
+-- rather than create a new aura for itself. Events that are created in such an update are
+-- flagged with :isUpdate()=true. Each ability's numAuraProviders is the number of different
+-- abilities that could create an aura. If this is 1, then an update is not an ability usage.
+local function logicLayerUpdateEventIsAbility(event, ability)
     if event:isUpdate() and ability.numAuraProviders == 1 then
         return { pass=false, final=true }
     end
     return { pass=true, final=true }
+end
+
+
+
+-- Confusing but slightly different from above: the previous logic layer addresses the
+-- question "can an updated aura mean a new ability was used?" while this logic layer
+-- addresses the question "can the aura from this ability be updated *at all*?" This can
+-- sometimes distinguish competing abilities. E.g., prot paladin wings have the same flags
+-- as blessing of freedom; however, prot wings can update (depending on talents) while
+-- freedom never updates. So when we are trying to differentiate wings from freedom, we know
+-- the ability is wings if we see an update.
+local function logicLayerAuraUpdateAllowed(event, ability)
+    if event:numUpdates() > 0 and ability.allowUpdates ~= nil and not ability.allowUpdates then
+        return { pass=false, final=true }
+    end
+    -- XXX: currently no abilities explicitly allow updates (except naturallyUpdates, but
+    -- I'm trying to phase that flag out).
+    return { pass=true, final=event:numUpdates() > 0 }
 end
 
 
@@ -467,7 +483,8 @@ ns.logicLayerAliases = {
     feign='f',               -- feign death
     shield='S',
     appliesInferredAura='A',
-    updateAllowed='u',       -- u for _u_pdate
+    updateIsAbility='u',     -- u for _u_pdate is ability
+    updateAllowed='w',       -- w for update allo_w_ed
     maybeFreedom='o',        -- maybe freed_o_m
 }
 
@@ -563,6 +580,7 @@ local function getPossibleSolutions(event, cdTracker)
             logic['appliesInferredAura'] = logicLayerAppliesInferredAura(aura, ability)
         end
         if aura then
+            logic['updateIsAbility'] = logicLayerUpdateEventIsAbility(event, ability)
             logic['updateAllowed'] = logicLayerAuraUpdateAllowed(event, ability)
         end
 
