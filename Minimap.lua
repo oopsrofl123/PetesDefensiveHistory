@@ -26,6 +26,7 @@ ns.ldbObject = ldb:NewDataObject(addonName, {
             C_AddOns.GetAddOnMetadata(addonName, 'Version')) -- 1, 1, 1)
         tooltip:AddLine(" ")
         tooltip:AddLine("Inference attempts this session: |cFFFFFFFF" .. ns.numInferenceAttempts)
+        tooltip:AddLine("    Throttled events: |cFFFFFFFF" .. ns.numThrottled)
         tooltip:AddLine(" ")
         local replays = ns:GetOption('enableReplays')
         tooltip:AddLine(string.format("Logic tracing and replays: %s|r",
