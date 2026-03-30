@@ -49,6 +49,7 @@ ns.ldbObject = ldb:NewDataObject(addonName, {
         tooltip:AddLine(" ")
         tooltip:AddLine("Left Click: |cFFFFFFFFOpen AddOn options")
         tooltip:AddLine("Right Click: |cFFFFFFFFShow group solutions")
-        tooltip:AddLine("Shift + Left Click: |cFFFFFFFFExport replay")
+        tooltip:AddLine("Shift+Left Click: |cFFFFFFFFExport replay")
+        tooltip:AddLine("Shift+Right Click: |cFFFFFFFFDelete replay data")
     end,
 })
