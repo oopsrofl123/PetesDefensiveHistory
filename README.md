@@ -9,6 +9,7 @@
 ![](images/PDH1.gif)
 
 Players without LibSpecialization will not have cooldowns tracked. If they have external abilities, they will show up on targets.
+
 ![](images/no_libspec_consequences.png)
 
 Tracks cooldowns for Blizzard-approved `IMPORTANT`, `BIG_DEFENSIVE` and `EXTERNAL` buffs.
