@@ -327,7 +327,8 @@ class InferenceScore:
             id_times = numpy.array(self.inference_event_times[ability] + [ numpy.inf] )
             fn_times = [ log_time for log_time in log_times
                              if numpy.min(numpy.absolute(id_times - log_time)) > 0.1 ]
-            print('        ' + ability + ': ' + ' '.join([ str(x) for x in fn_times ]))
+            if fn_times:
+                print('        ' + ability + ': ' + ' '.join([ str(x) for x in fn_times ]))
 
     def nolog_str(self):
         return '    No log: ' + ', '.join([ '%s: %d' % (k, v) for k, v in self.no_log.items() ])
