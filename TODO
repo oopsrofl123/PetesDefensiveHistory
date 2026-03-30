@@ -1,19 +1,29 @@
 V1.0 RELEASE GOALS
 ===========================================================================
 - remove or rework "naturallyUpdates" - is not used anymore
-    - it means something useful: self-updates are positive evidence of the ability
+    - problem is: naturallyUpdates was developed before numAuraProviders and was meant to
+      prevent generating events for updates. that's completely solved by numAuraProviders.
+      now the question is whether there is something useful left in this. these auras were
+      confirmed to update, unlike most abilities in the db.
+    - it means something useful: self-updates are positive evidence of the ability, but it
+      just isn't used.
+    1. can naturallyUpdates be renamed -> allowUpdates?
+    2. if so, can allowUpdates=true be interpreted differently from allowUpdates=nil?
 
 - update READMEs to demonstrate the history tray. this is easier than creating a test mode.
 
-- rename whatever the current 'no updates' logic layer is to something that instead means "updates != new cast"
+- improving AMS detection from riders
+    - King Thoras Trollbane is the caster, casts AMS
 
 - do not publish current ElvUI change without deleting the chat messages in :untrack() first
 print('source=', tostring(source), 'getid=', tostring(self:getId()), 'batchid=', tostring(self:getBatchId()), 'list[id]=', tostring(eventList[self:getId()]), 'list[id][batch]=', tostring(eventList[self:getId()][self:getBatchId()]))
 
 
-- improve scoring scripts to make finding FNs/FPs easier
-    - needed to explore the question below about what would break using update evidence to disprove freedom
-    - applies to AMS and Avatar (thunder blast)
+
+- rename whatever the current 'no updates' logic layer is to something that instead means "updates != new cast"
+
+- ice cold mis-IDed as alter time because of throttling
+    - throttling causes GetTime() used in Event:timeSince() to not accurately measure buff duration
 
 - trying to use updates to improve ID: wings
     - prot paladin wings and sentinel get extended by HoW
@@ -29,12 +39,11 @@ print('source=', tostring(source), 'getid=', tostring(self:getId()), 'batchid=',
     - add an updated counter to event
     - add a "doesNotUpdate" field to freedom
     - when wings tries to update (and is blocked), count update and in next :infer() exclude freedom
+- improve scoring scripts to make finding FNs/FPs easier
+    - needed to explore the question below about what would break using update evidence to disprove freedom
+    - applies to AMS and Avatar (thunder blast)
 
-- improving AMS detection from riders
-    - King Thoras Trollbane is the caster, casts AMS
 
-- ice cold mis-IDed as alter time because of throttling
-    - throttling causes GetTime() used in Event:timeSince() to not accurately measure buff duration
 
 
 DAY 3 LOGS
