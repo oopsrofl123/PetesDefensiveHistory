@@ -83,6 +83,7 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
+            allowUpdates=false,       -- helps differentiate from AMS
 		},
 		{
 			name="Vampiric Blood",
