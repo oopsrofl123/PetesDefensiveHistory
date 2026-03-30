@@ -578,18 +578,22 @@ function ns:updateTrackerUI()
         if not ns.trackerUI[slot] then
             ns.trackerUI[slot] = ns:allocTrackerUIForSlot(slot)
         end
+        local ui = ns.trackerUI[slot]
 
         ns:updateTrackerUIBySlot(slot)
 
         -- XXX: TODO: hack to clear history tray while history items/cooldowns are being
         -- folded into Character(). updateHistoryTray() should ask Character() what
         -- historyItems it should show in updateTrackerUIByIndex()
-        for _, item in pairs(ns.trackerUI[slot].historyTray.items) do
+        for _, item in pairs(ui.historyTray.items) do
             clearHistoryItem(item)
         end
 
-        if ns:addonIsActive() then
-            ns.trackerUI[slot]:Show()
+        local frame = ns:slotToFrame(slot)
+        if ns:addonIsActive() and frame and frame:IsVisible() then
+            ui:Show()
+        else
+            ui:Hide()
         end
     end
 
