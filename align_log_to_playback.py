@@ -14,7 +14,7 @@ from dtw import dtw
 from collections import defaultdict
 import argparse
 
-from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities, event_type_match, read_spell_names, normalize_combatlog_event, all_tracked_abilities
+from decode_playback import d, get_metadata, get_characters, character_string, get_character_abilities, event_type_match, read_spell_names, normalize_combatlog_event, all_tracked_abilities, reqs_met
 
 
 # Map absolute timestamps to offset timestamps (i.e., first entry in the log is time=0).
@@ -117,9 +117,10 @@ def get_cast_events(playback):
 def collapse_inferences(inferences):
     unique_inferences = {}
     for rectype, time, inf in inferences:
+        event_time = inf[3]
         event_id = inf[5]
         batch_id = inf[8]
-        eventkey = event_id + "/" + str(batch_id)
+        eventkey = event_id + "/" + str(batch_id) + "/" + str(event_time)
         attempt = inf[2]
         #if eventkey in unique_inferences:
             #print('overwriting previous inf for event ID', eventkey, 'attempt', attempt)
@@ -261,10 +262,12 @@ def match_inference_to_combatlog(inf, combatlog_event_times, combatlog_events, t
 
 class InferenceScore:
     def __init__(self):
+        self.truth = defaultdict(list)
         self.no_log = defaultdict(int)
         self.no_inference = defaultdict(lambda: defaultdict(int))
         self.num_no_inference = 0
         self.inference = defaultdict(list)
+        self.inference_event_times = defaultdict(list)
         self.data = {}
         self.false_positives = defaultdict(list)
         self.events = 0
@@ -287,6 +290,11 @@ class InferenceScore:
     def talents_known(self):
         return 'talentExportString' in self.data
 
+    # Records from the aligned combat log are the ground truth set
+    def add_truth(self, record):
+        # XXX: the true caster may not be the inferred player. deal with this later
+        self.truth[spells[int(record[10])]].append(record[0])  # record the times
+
     def add_not_logged(self, trace):
         self.events += 1
         self.no_log[trace] = self.no_log[trace] + 1
@@ -297,21 +305,29 @@ class InferenceScore:
         for rec in log_records:
             if rec['event'] == 'SPELL_CAST_SUCCESS':
                 self.no_inference[rec['ability_id']][trace] += 1
-                print(rec)
 
-    def add_inference(self, ability_id, matches, all_records):
+    def add_inference(self, ability_id, matches, all_records, event_time):
         self.events += 1
         self.inference[ability_id].append(len(matches))
+        self.inference_event_times[spells[ability_id]].append(event_time)
         if not matches:
             self.false_positives[ability_id].append([
-                (spells[rec['ability_id']], rec['event'], rec['caster_guid'])
+                (rec['time'], spells[rec['ability_id']], rec['event'], rec['caster_guid'])
                     for rec in all_records if rec['event'] == 'SPELL_CAST_SUCCESS' ])
 
     def print_false_positives(self):
         for ability, records in self.false_positives.items():
-            print(spells[ability], ability)
+            print('        ' + spells[ability], ability)
             for rec in records:
-                print('    ', rec)
+                print('            ', rec)
+
+    def print_false_negatives(self):
+        for ability, log_times in self.truth.items():
+            # there may be 0 ID attempts. add a dummy numpy.inf to handle the empty case
+            id_times = numpy.array(self.inference_event_times[ability] + [ numpy.inf] )
+            fn_times = [ log_time for log_time in log_times
+                             if numpy.min(numpy.absolute(id_times - log_time)) > 0.1 ]
+            print('        ' + ability + ': ' + ' '.join([ str(x) for x in fn_times ]))
 
     def nolog_str(self):
         return '    No log: ' + ', '.join([ '%s: %d' % (k, v) for k, v in self.no_log.items() ])
@@ -323,8 +339,8 @@ class InferenceScore:
         return string
     
     def infer_str(self):
-        return '\n'.join([ ('    %s: %d+ %d-') % \
-            (spells[ability_id], len(results) - results.count(0), results.count(0))
+        return '\n'.join([ '    Inferences:' ] + [ ('    %32s: %3d / %3d,   %3d FPs') % \
+            (spells[ability_id], len(results) - results.count(0), len(self.truth[spells[ability_id]]), results.count(0))
                 for ability_id, results in self.inference.items() ])
 
     def isempty(self):
@@ -394,8 +410,30 @@ guid_to_slot = {}
 
 scores = defaultdict(InferenceScore)
 
+
+# Get every cast event of a tracked ability from the combat log
+time_start = playback[0][1]
+print('first playback entry at time=', time_start)
+time_end = playback[-1][1]
+print('last playback entry at time=', time_end)
+combatlog_truthset = []
+for rec in full_combatlog:
+    if rec[1] == "SPELL_CAST_SUCCESS":
+        time, event, caster_guid = rec[0:3]
+        ability_id = int(rec[10])
+        ability_name = spells[ability_id]
+        # special case for takedown: it generates two cast events. the first one sometimes
+        # fires ~0.25s before the second, which matches the aura application. the second has
+        # no target (rec[7]=nil), so drop that one.
+        if ability_name == "Takedown":
+            if 'nil' == rec[7]:
+                continue
+        if time >= time_start and time <= time_end and ability_name in all_tracked_abilities:
+            combatlog_truthset.append(('combatlog', time, rec))
+
+
 quiet = True
-for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: x[1]):
+for rectype, time, record in sorted(playback + unique_inferences + combatlog_truthset, key=lambda x: x[1]):
     if rectype == 'event':
         _, event = record[0:2]
 
@@ -424,11 +462,22 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
 
             if not quiet: print('updating abilities..')
             character_abilities = get_character_abilities(characters)
+    elif rectype == 'combatlog':
+        # truth set records are spell casts, so caster is index 2
+        actor = record[2]
+        # special case for Death Knight's riders casting AMS
+        # XXX: in the logs I have, this was always Trollbane. maybe spec dependent though
+        if actor in specmap or record[3] == "King Thoras Trollbane":
+            scores[(actor, specmap[actor])].add_truth(record)
     elif rectype == 'inf':
         inference_time, inference_trace, inference_attempt, \
             event_time, event_trace, event_id, event_source_guid, event_slot, batch_id, \
             inferred_ability_id, certain, inferred_caster_guid, \
             logic, conf, reqs = record
+        meets_reqs = reqs_met(reqs)
+
+        # The final inference decision is sadly not explicitly recorded. This is the logic.
+        made_inference = inferred_ability_id is not None and certain and meets_reqs
 
         # until proven otherwise, score this under the event source actor 
         actor = event_source_guid
@@ -446,7 +495,7 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
             scores[(actor, specmap[actor])].add_not_logged(event_trace)
         else:
             # did the addon infer this ability?
-            if inferred_ability_id:
+            if made_inference:
                 # if we made an inference, assign the score to our guessed caster
                 # XXX: TODO: would be ideal to get an exact combat log match from which
                 # the true caster and spell ID could be derived.
@@ -458,35 +507,18 @@ for rectype, time, record in sorted(playback + unique_inferences, key=lambda x: 
                         rec['caster_guid'] == inferred_caster_guid and
                         event_type_match(rec['event'], event_trace)]
 
-                scores[(actor, specmap[actor])].add_inference(inferred_ability_id, matches, log_records)
+                scores[(actor, specmap[actor])].add_inference(inferred_ability_id, matches, log_records, event_time)
             else:
                 # did we know the abilities of the player that initiated the event?
                 # we can infer externals on such a player, but not that player's own abilities
                 scores[(actor, specmap[actor])].add_no_inference(event_trace, log_records)
 
 
-time_start = playback[0][1]
-print('first playback entry at time=', time_start)
-time_end = playback[-1][1]
-print('last playback entry at time=', time_end)
-
-# Get all events from combat log, not just the inference records
-# XXX: TODO: integrate with scoring above. requires merging combat log events with
-# inference record events into the single list looped over above. this is because
-# scores are keyed by (actor, spec) and spec can change over time.
-all_uses = defaultdict(lambda: defaultdict(int))
-for rec in full_combatlog:
-    if rec[1] == "SPELL_CAST_SUCCESS":
-        time, event, caster_guid = rec[0:3]
-        ability_id = int(rec[10])
-        ability_name = spells[ability_id]
-        if time >= time_start and time <= time_end and ability_name in all_tracked_abilities:
-            all_uses[caster_guid][ability_name] += 1
-        
-
 for char_tup, score in scores.items():
     if not score.isempty():
-        print(score.player_label(), '----------------------------------------------')
+        print(score.player_label(), '-----------------------------------')
         print(score)
-        print('    all uses:', ' '.join([ k + ": " + str(v) for k, v in all_uses[score.guid()].items() ]))
+        print("    False positives:")
         score.print_false_positives()
+        print("    False negatives:")
+        score.print_false_negatives()
