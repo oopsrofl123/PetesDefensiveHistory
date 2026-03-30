@@ -185,7 +185,8 @@ function ns:InferenceRecord(now, trace, event)
     local function stripReqs()
         local reqEvi = {}
         for k, v in pairs(requiredEvidence) do
-            reqEvi[ns.logicLayerAliases[k]] = ns:stripKeys(v)
+            -- remove key names, make tuple-like
+            reqEvi[ns.logicLayerAliases[k]] = { v.pass, v.final, v.diff  }
         end
         return reqEvi
     end
@@ -330,7 +331,7 @@ local function logicLayerDurationMatches(event, ability)
         end
 
         -- IMPORTANT! uses event timing, not aura timing
-        local buffDuration = event:timeSince()
+        local buffDuration = event:getDuration()
         local dv = event:isExpiring() and ability.duration_variable or ns.DURATION_LTE
         local tol = ns.DURATION_TOLERANCE
         diff = math.abs(buffDuration - ability.duration)
@@ -584,7 +585,7 @@ local function getPossibleSolutions(event, cdTracker)
             _, x.castTimeDiff = event:timeSinceClosest("cast", ability.caster)
             -- don't match on duration unless there is an expiring event
             x.durationDiff =
-                event:isExpiring() and math.abs(event:timeSince() - ability.duration) or 0
+                event:isExpiring() and math.abs(event:getDuration() - ability.duration) or 0
             x.reqsMet = reqsMet
             x.reqs = reqs
             table.insert(possibleSolutions, x)
