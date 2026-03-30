@@ -59,10 +59,9 @@ function ns:Event(newTrace, newSource)
 
     -- Optional fields
     local aura = nil
+    local numUpdates = 0
 
-    function e:incrementInference()
-        inference = inference + 1
-    end
+    function e:incrementInference() inference = inference + 1 end
 
     -- Trivial getters
     function e:getExpiration() return expiration end
@@ -147,6 +146,10 @@ function ns:Event(newTrace, newSource)
     function e:setCertain(newCertain) certain = newCertain end
 
     function e:setBlocked() blocked = true end
+
+    function e:addUpdate() numUpdates = numUpdates + 1 end
+
+    function e:numUpdates() return numUpdates end
 
     function e:setUpdate() isUpdate = true end
 
@@ -281,7 +284,6 @@ function ns:Event(newTrace, newSource)
 
     function e:untrack()
         local eventList = ns.eventsForInference[source]
-print('source=', tostring(source), 'getid=', tostring(self:getId()), 'batchid=', tostring(self:getBatchId()), 'list[id]=', tostring(eventList[self:getId()]), 'list[id][batch]=', tostring(eventList[self:getId()][self:getBatchId()]))
         eventList[self:getId()][self:getBatchId()] = nil
         if #eventList[self:getId()] == 0 then
             eventList[self:getId()] = nil
@@ -377,6 +379,8 @@ end
 
 local lastManageEvents = {}
 
+ns.numThrottled = 0
+
 -- Loop through all events for the tracked character 'guid'. Try to infer them
 -- if they still aren't guessed and execute life cycle functions.
 function ns:manageEvents(updateTrace, guid, now)
@@ -387,6 +391,7 @@ function ns:manageEvents(updateTrace, guid, now)
     -- XXX: TODO: make an enum later, check for scheduled callbacks by trace name
     if now - last < ns:GetOption('throttleInference') and
        updateTrace ~= "E:track" and updateTrace ~= "E:orphan" then
+        ns.numThrottled = ns.numThrottled + 1
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGTYPE.Verbose, string.format(
             'Throttling manageEvents, last event was %0.3fs ago', now - last))
         return
@@ -427,22 +432,32 @@ function ns:manageEvents(updateTrace, guid, now)
                         ev:getId(), ev:getBatchId(), index, ability.id))
             end
 
-
-            if not ev:isExpiring() then
-                -- special handling to reduce spam: for abilities with only one possible provider,
-                -- aura updates cannot mean a new ability was used. so block new events from
-                -- being registered.
-                -- N.B. do not :block() if the event batch is expiring, evBatch[1] may already
-                -- be nil.
-                --
-                -- XXX: TODO: blocks Avatar incorrectly
-                if ability and ability.numAuraProviders == 1 and not evBatch[1]:isBlocked() then
+            -- special handling to reduce spam: for abilities with only one possible provider,
+            -- aura updates cannot mean a new ability was used. so block new events from
+            -- being registered.
+            -- this used to wait until an inference was made, but now checks whether none of
+            -- the remaining possible abilities have >1 aura providers and blocks as soon as
+            -- that occurs.
+            --
+            -- XXX: below should no longer be true since expiry is handled in a separate loop
+            -- N.B. do not :block() if the event batch is expiring, evBatch[1] may already
+            -- be nil.
+            --
+            -- XXX: TODO: blocks Avatar incorrectly
+            if not evBatch[1]:isBlocked() then
+                shouldBlock = true
+                for _, ability in pairs(ev:getPossibleSolutions()) do
+                    shouldBlock = shouldBlock and (ability.numAuraProviders == 1)
+                end
+                if shouldBlock then
                     evBatch[1]:setBlocked()
                     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
-                        'blocking eventId=[%s/%d]: numProviders=1',
+                        'blocking eventId=[%s/%d]: max(numAuraProviders)=1',
                         ev:getId(), ev:getBatchId()))
                 end
+            end
 
+            if not ev:isExpiring() then
                 -- if numPossibleSolutions=0, then there will never be a possible solution.
                 -- keep the first event in the batch so it can be sent to the history tray, on
                 -- :expire(), but silently drop others.
