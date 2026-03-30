@@ -625,6 +625,11 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     end
 
     -- Aura expiration is when the associated event expires
+    -- IMPORTANT: this expiration must be fired here when the aura is removed. Do not
+    -- try to automatically detect this via C_UnitAuras.GetAuraDataByAuraInstanceID()
+    -- in Event:isExpiring() or similar. It will not work because of throttling, which
+    -- can be delayed and thus not accurately catch the end of the aura, confounding
+    -- duration-based confidence.
     for _, auraInstanceId in pairs(aurasRemoved) do
         ns:expireAuraEventByGUID(auraInstanceId, guid, now)
     end
