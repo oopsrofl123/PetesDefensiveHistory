@@ -1,93 +1,33 @@
 V1.0 RELEASE GOALS
 ===========================================================================
-- remove or rework "naturallyUpdates" - is not used anymore
-    - problem is: naturallyUpdates was developed before numAuraProviders and was meant to
-      prevent generating events for updates. that's completely solved by numAuraProviders.
-      now the question is whether there is something useful left in this. these auras were
-      confirmed to update, unlike most abilities in the db.
-    - it means something useful: self-updates are positive evidence of the ability, but it
-      just isn't used.
-    1. can naturallyUpdates be renamed -> allowUpdates?
-    2. if so, can allowUpdates=true be interpreted differently from allowUpdates=nil?
-
-- update READMEs to demonstrate the history tray. this is easier than creating a test mode.
-
-- improving AMS detection from riders
-    - King Thoras Trollbane is the caster, casts AMS
-
-- do not publish current ElvUI change without deleting the chat messages in :untrack() first
-print('source=', tostring(source), 'getid=', tostring(self:getId()), 'batchid=', tostring(self:getBatchId()), 'list[id]=', tostring(eventList[self:getId()]), 'list[id][batch]=', tostring(eventList[self:getId()][self:getBatchId()]))
-
-
-
-- rename whatever the current 'no updates' logic layer is to something that instead means "updates != new cast"
-
-- ice cold mis-IDed as alter time because of throttling
-    - throttling causes GetTime() used in Event:timeSince() to not accurately measure buff duration
-
-- trying to use updates to improve ID: wings
-    - prot paladin wings and sentinel get extended by HoW
-    - both need to be differentiated from freedom
-        - as soon as either one updates, we should know it isn't freedom because freedom doesn't update
-    - it looks like AMS gets updated, probably something to do with the shield breaking
-        - yes, this can be confirmed by SPELL_ABSORBED events in the combat log
-        - could differentiate from IBF
-        - would also benefit from numProviders=1 blocking
-    - could we :block() ability channels earlier than we currently do?
-        - rather than wait for an ability inference, we could block as soon as numAuraProviders=1 for all
-          possibleSolutions
-    - add an updated counter to event
-    - add a "doesNotUpdate" field to freedom
-    - when wings tries to update (and is blocked), count update and in next :infer() exclude freedom
-- improve scoring scripts to make finding FNs/FPs easier
-    - needed to explore the question below about what would break using update evidence to disprove freedom
-    - applies to AMS and Avatar (thunder blast)
-
-
-
-
-DAY 3 LOGS
-    - [FIXED] finalized message bug in decoder
-        - reqsmet was not assessed
-    - ATTACH log count of abilities to score object
-        - requires integrating combatlog events with the list of looped-over events because specs
-          can change over time and abilities need to counted for the correct spec of a specific actor
-    - CALCULATE FP/FN/TP rates
-
-    - is it possible feign death is not logged?
-        - ziiroe had 2 FLAGS(feign) events and 2 inferences but logs contain zero feign evidence
-        - not just no feign casts, grepping for -i feign returns nothing
-    - look at the "no log/no infer" AURA(update)s for DK, might be the same as paladin HoW (some ability
-      extends an aura)
-    - explore the handful of FNs for just about every ability
-    - draykoh did not feign death on rokh'zal's ritual sacrifice. i can't identify anything in the log
-      that broke him out in ~1s.
-    - appears feign was never cast.
-        - all 3 IDs were FPs
-        - can't look into these because of the FINALIZED bug in decode. fix it.
-    
-
-- go through day3 logs for accuracy
-- check encounter start. could we tell where keys start? pulls?
-    - ENCOUNTER_START/END only applies to boss fights in keys for some reason
-    - use aligned log's CHALLENGE_MODE_START to get key start time
-    - could also pull COMBATANT_INFO from aligned log as well
-- did divine shield unitflags help?
-
 1. ACCURACY
     - as quantified by logs
-    - use updating to ID sentinel - will ID after 3s.
-        - does not require a complete update database, just freedom (the buff with = flags to wings)
 2. STABILITY
     - dump on other computer: pdh_bug5: nil availableAt
 3. MINIMAL FEATURES
     - ensure tracing with no replay does not use much memory
+    - update READMEs. main page is a mess now
+        - broken discord link
+        - use header sections for
+            1. history tray explanation
+            2. no libspec example
+        - put everything else much later
 
 
-- FINALIZED message in decoder output is wrong, is firing on every attempt of multi-attempt
-  infers.
-    - see Divine Shield from day 2
+- add this debug line back to find elusive bug
+    print('source=', tostring(source), 'getid=', tostring(self:getId()), 'batchid=', tostring(self:getBatchId()), 'list[id]=', tostring(eventList[self:getId()]), 'list[id][batch]=', tostring(eventList[self:getId()][self:getBatchId()]))
 
+- improve AMS detection from riders
+    - King Thoras Trollbane is the caster, casts AMS
+
+- is it possible feign death is not logged?
+    - ziiroe had 2 FLAGS(feign) events and 2 inferences but logs contain zero feign evidence
+    - not just no feign casts, grepping for -i feign returns nothing
+    - draykoh did not feign death on rokh'zal's ritual sacrifice. i can't identify anything in the log
+    that broke him out in ~1s.
+    - appears feign was never cast.
+        - all 3 IDs were FPs
+        - can't look into these because of the FINALIZED bug in decode. fix it.
 
 TODO TESTING
     - DISABLE TRACING
@@ -97,13 +37,9 @@ TODO TESTING
           need to determine if the current log parser is really getting all of the relevant events
           and thus accurately assessing FNs.
         - version info
-    - ELVUI?
-        - can i really test this?
 
 BUGS
-    - [day3] Xorteaa - somehow this player's GoAKs were not flagged 01000. None of them were detected.
-      The same day/addon version detected GoAKs from other paladins.
-        - GoAK also didn't show up on my frames (big center def). very werid.
+
     - O.Scales: in replay, first scales button press is 0.689s from aura application and marked
       as pass. either the replay is wrong or the logic is bugged.
         - didn't have time to figure out the issue. pit of saron is somehow missing from combat log
@@ -111,24 +47,6 @@ BUGS
           part is that the replay shows two distinct aura IDs 2s apart each with the correct flag set
             - on second thought, maybe he really did double cast it by accident here. this doesn't
               happen for every o.scales cast.
-
-REPLAYS
-    - are FNs really assessed? need to loop through all combatlog events from tracked
-      abilities for this, but currently we only loop through the addon inference events, assuming
-      that they are a superset of the true events.
-
-FEATURES
-    - test mode
-        - people will be surprised by the history row since it doesn't normally show, test mode needs to
-        demo so that users know what to expect
-        - show activating/inactivating cooldown counters on top row
-        - show growing..disappearing icons in history row
-        - put text labels behind the history row and static row telling the user what they're looking at
-
-    * add a button somewhere to reset the internal data trackers
-        - need this to allow resetting when entering a new instance, e.g.
-        - or could do it on ZONE_AREA_CHANGED?
-        - maybe add options to do it automatically (e.g. on ENCOUNTER_START would be good for key running)
 
 
 
@@ -252,6 +170,28 @@ NOTES ON COMPLEX CASES ---------------------------------------------------------
           and naturallyUpdates=true. which is another way of saying updates aren't of interest.
         - just need to prevent this from filling up the history tray. not a complex ability
     ----------------------------------------------------------------------------
+
+* maybe add convenience option to reset tracing data at certain times
+    - need this to allow resetting when entering a new instance, e.g.
+    - or could do it on ZONE_AREA_CHANGED?
+    - maybe add options to do it automatically (e.g. on ENCOUNTER_START would be good for key running)
+
+- test mode
+    - people will be surprised by the history row since it doesn't normally show, test mode needs to
+      demo so that users know what to expect
+    - show activating/inactivating cooldown counters on top row
+    - show growing..disappearing icons in history row
+    - put text labels behind the history row and static row telling the user what they're looking at
+
+- remove or rework "naturallyUpdates" - is not used anymore
+    - problem is: naturallyUpdates was developed before numAuraProviders and was meant to
+      prevent generating events for updates. that's completely solved by numAuraProviders.
+      now the question is whether there is something useful left in this. these auras were
+      confirmed to update, unlike most abilities in the db.
+    - it means something useful: self-updates are positive evidence of the ability, but it
+      just isn't used.
+    1. can naturallyUpdates be renamed -> allowUpdates?
+    2. if so, can allowUpdates=true be interpreted differently from allowUpdates=nil?
 
 - address limitation of the ev:addUpdate() counter not working for event batches
     - as a followup: think more about the overlap between UpdateAllowed and UpdateEventIsAbility
@@ -734,6 +674,9 @@ LIMITATIONS
 
 KNOWN BUGS
 ===========================================================================
+- [day3] Xorteaa - this player's GoAKs were not flagged 01000. None were detected. Were not
+  displayed on Blizz frames either.  The same day/addon version detected GoAKs from other paladins.
+
 - LibSpec responses wipe internal cooldown trackers (not the visual indicators) and
   can occur up to ~5s after a group member changes. If this occurs during combat,
   issues likely to ensue.
@@ -763,6 +706,66 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- add a button somewhere to reset the internal data trackers
+
+- are FNs really assessed? need to loop through all combatlog events from tracked
+  abilities for this, but currently we only loop through the addon inference events, assuming
+  that they are a superset of the true events.
+
+- look at the "no log/no infer" AURA(update)s for DK, might be the same as paladin HoW (some ability
+  extends an aura)
+
+- explore the handful of FNs for just about every ability
+
+- check encounter start. could we tell where keys start? pulls?
+    - ENCOUNTER_START/END only applies to boss fights in keys for some reason
+    - use aligned log's CHALLENGE_MODE_START to get key start time
+    - could also pull COMBATANT_INFO from aligned log as well
+
+- did divine shield unitflags help?
+    - yes, it works. probably helps sometimes
+
+- use updating to ID sentinel - will ID after 3s.
+    - does not require a complete update database, just freedom (the buff with = flags to wings)
+
+- FINALIZED message in decoder output is wrong, is firing on every attempt of multi-attempt
+  infers.
+    - see Divine Shield from day 2
+
+- [FIXED] finalized message bug in decoder
+    - reqsmet was not assessed
+
+- ATTACH log count of abilities to score object
+    - requires integrating combatlog events with the list of looped-over events because specs
+      can change over time and abilities need to counted for the correct spec of a specific actor
+
+
+- add allowUpdates=false for IBF to diff from AMS, if IBF doesn't update
+
+- rename whatever the current 'no updates' logic layer is to something that instead means "updates != new cast"
+
+- ice cold mis-IDed as alter time because of throttling
+    - throttling causes GetTime() used in Event:timeSince() to not accurately measure buff duration
+
+- trying to use updates to improve ID: wings
+    - prot paladin wings and sentinel get extended by HoW
+    - both need to be differentiated from freedom
+        - as soon as either one updates, we should know it isn't freedom because freedom doesn't update
+    - it looks like AMS gets updated, probably something to do with the shield breaking
+        - yes, this can be confirmed by SPELL_ABSORBED events in the combat log
+        - could differentiate from IBF
+        - would also benefit from numProviders=1 blocking
+    - could we :block() ability channels earlier than we currently do?
+        - rather than wait for an ability inference, we could block as soon as numAuraProviders=1 for all
+          possibleSolutions
+    - add an updated counter to event
+    - add a "doesNotUpdate" field to freedom
+    - when wings tries to update (and is blocked), count update and in next :infer() exclude freedom
+
+- improve scoring scripts to make finding FNs/FPs easier
+    - needed to explore the question below about what would break using update evidence to disprove freedom
+    - applies to AMS and Avatar (thunder blast)
+
 - elvui
     - ElvUF_Party
     - ElvUF_PartyGroup1 (is player)
