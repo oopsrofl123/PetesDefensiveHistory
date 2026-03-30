@@ -4,6 +4,11 @@ local inferenceRecordList = {}
 
 ns.numInferenceAttempts = 0
 
+function ns:clearInferenceRecordData()
+    inferenceRecordList = {}
+end
+
+
 function ns:getInferenceRecordData()
     return inferenceRecordList
 end

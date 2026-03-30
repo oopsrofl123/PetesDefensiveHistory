@@ -158,6 +158,10 @@ end
 local metadataUpdatesIndex = 0  -- index in updates table
 local metadataUpdatesData = {}
 
+function ns:clearMetadataUpdatesData()
+    metadataUpdatesData = {}
+end
+
 function ns:getMetadataUpdatesData()
     return metadataUpdatesData
 end
@@ -427,6 +431,11 @@ function ns:playback(now, event, ...)
     if not ns:GetOption('enableReplays') then return end
     local record = { now, event, ... }
     table.insert(eventPlaybackList, record)
+end
+
+
+function ns:clearPlaybackData()
+    eventPlaybackList = {}
 end
 
 

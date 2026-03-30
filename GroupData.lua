@@ -68,6 +68,11 @@ function ns:recordCharacterDataUpdate(trace)
 end
 
 
+function ns:clearCharacterUpdatesData()
+    characterUpdatesData = {}
+end
+
+
 function ns:getCharacterUpdatesData()
     return characterUpdatesData
 end
