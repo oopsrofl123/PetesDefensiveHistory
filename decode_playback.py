@@ -100,7 +100,7 @@ def confidence_string(conf):
 def reqs_met(reqs):
     met = True
     for name, req in (reqs.items() if len(reqs) > 0 else {}):
-        value, passes, final = req
+        passes, final, value = req
         met = met and passes
     return met
 
@@ -108,7 +108,7 @@ def reqs_met(reqs):
 def reqs_string(reqs):
     string = "reqs: "
     for name, req in (reqs.items() if len(reqs) > 0 else {}):
-        value, passes, final = req
+        passes, final, value = req
         string += "[" + passcolor(passes) + name.decode() + "=" + ("%0.3f" % value) + ascii_reset + "]"
     return string
 
@@ -120,7 +120,7 @@ def decision_string(inf, spell_names):
         logic, conf, reqs = inf
     meets_reqs = reqs_met(reqs)
     if ability_id is None or not meets_reqs:
-        return "coudln't infer ability: " + ("no ability" if ability_id is None else "reqs not met")
+        return "couldn't infer ability: " + ("no ability" if ability_id is None else "reqs not met")
     else:
         return "%s%0.3f %s: ability=[%s], event=[%s/%d], attempt=[%d], caster=[%s], time=[%0.3f]%s" % \
             (ascii_cyan, inference_time, "FINALIZED" if certain else "UNCERTAIN",
