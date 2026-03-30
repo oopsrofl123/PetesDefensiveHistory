@@ -493,7 +493,6 @@ function ns:manageEvents(updateTrace, guid, now)
             local aura = ev:getAura()
             if aura and not ev:isExpiring() then
                 if not C_UnitAuras.GetAuraDataByAuraInstanceID(ev:getSlot(), aura.auraInstanceId) then
-                    local now = GetTime()
                     ns:playback(now, 'EXPIRE_ORPHANED_AURA',
                         updateTrace, ev:getSlot(), ev:getId(), ev:getBatchId())
                     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
