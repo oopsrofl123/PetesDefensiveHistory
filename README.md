@@ -8,7 +8,7 @@
 
 ![](images/PDH1.gif)
 
-Players without LibSpecialization will not have cooldowns tracked. If they have external abilities, they will show up on targets.
+**NO COOLDOWN TRACKING FOR PLAYERS WITHOUT LibSpecialization!** If they have external abilities, they will show up on the target's *history tray* (row below cooldowns).
 
 ![](images/no_libspec_consequences.png)
 
