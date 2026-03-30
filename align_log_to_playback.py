@@ -78,7 +78,7 @@ def read_addon_export(filename):
         print('got', len(playback), 'events')
         start_time = playback[0][1]  # applies to both events and inferences
         playback = [ normalize(rec, start_time) for rec in playback ]
-        print(playback[:2])
+        #print(playback[:2])
 
         print('INFERENCE -----------------------------------------------------------------------')
         inferences = data[b'inference']
@@ -87,7 +87,7 @@ def read_addon_export(filename):
             for inf in inferences if not inf[4].decode().startswith("SIMULATE(") ]
         inferences = [ normalize(rec, start_time) for rec in inferences ]
         print('Found', len(inferences), 'inference records')
-        print(inferences[:2])
+        #print(inferences[:2])
 
     return player_guid, metadata_updates, character_updates, playback, inferences
 
