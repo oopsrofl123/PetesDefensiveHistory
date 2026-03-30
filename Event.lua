@@ -218,6 +218,21 @@ function ns:Event(newTrace, newSource)
         return GetTime() - time
     end
 
+
+    -- Extremely important: do not call :timeSince() to measure aura durations. Because
+    -- of throttling, event processing may happen far after major event lifecycle stages
+    -- like :expire(). Use this function to measure how long an aura has existed so far
+    -- or did exist before it expired.
+    --
+    -- :timeSince() is appropriate for measuring things like evidence finality.
+    function e:getDuration()
+        if expiration then
+            return expiration - time
+        else
+            return GetTime() - time
+        end
+    end
+
     -- If source is nil, return a table of (actor, closest, diff) tuples for all tracked characters
     function e:timeSinceClosest(evidenceType, source)
         if source then
