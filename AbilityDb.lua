@@ -731,6 +731,7 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=true, RAIDINCOMBAT=false,
 			targets=ns.TARGET_ANY,
             requireButtonPress=true,
+            allowUpdates=false,    -- use an aura update as exclusionary criteria
 		},
         -- Unbound freedom is a very complex case. This is the only example of an ability
         -- that puts an IMPORTANT flagged buff on two players in a single button press.
@@ -760,6 +761,7 @@ ns.AbilityDb = {
             -- When unbound is present, B.o.Freedom is considered a different ability for
             -- the purpose of requiring a button press.
             requireMaybeFreedom=true,
+            allowUpdates=false,    -- use an aura update as exclusionary criteria
 		},
         -- Ret talent removes wings and attaches it to wake of ashes. The
         -- buff given is the avenging wrath buff, so copy its flags.
