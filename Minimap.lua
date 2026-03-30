@@ -16,8 +16,13 @@ ns.ldbObject = ldb:NewDataObject(addonName, {
                 Settings.OpenToCategory(ns.optionsCategory:GetID())
             end
         elseif mouseButton == "RightButton" then
-            -- Show the zero knowledge solution UI
-            ns.groupSolutionUI:Show()
+            if IsShiftKeyDown() then
+                -- Show a popup dialog asking if the user really wants to delete export data
+                StaticPopup_Show("PDH_CONFIRM_EXPORT_DELETE_DIALOG")
+            else
+                -- Show the zero knowledge solution UI
+                ns.groupSolutionUI:Show()
+            end
         end
     end,
     OnTooltipShow=function(tooltip)

@@ -3,6 +3,29 @@ local addonName, ns = ...
 local exportFrame
 
 
+local function clearAllExportData()
+    print("Clearing all logic tracing and replay data..")
+    ns:clearMetadataUpdatesData()
+    ns:clearCharacterUpdatesData()
+    ns:clearPlaybackData()
+    ns:clearInferenceRecordData()
+    collectgarbage('collect')
+end
+
+
+StaticPopupDialogs["PDH_CONFIRM_EXPORT_DELETE_DIALOG"] = {
+    text="Are you sure you want to permanently delete your logic tracing and reply history?",
+    button1="Ok",
+    button2="Cancel",
+    timeout=0,
+    whileDead=true,
+    hideOnEscape=true,
+    preferredIndex=3,
+    OnAccept=function(self) clearAllExportData() end,
+    OnCancel=function(self) return true end,
+}
+
+
 function ns:prepareExportData()
     ns:printDebug(ns.LOGTYPE.Export, ns.LOGLEVEL.Normal, "Getting metadata")
     local metadataUpdates = ns:getMetadataUpdatesData()
@@ -57,7 +80,7 @@ end
 
 
 function PetesDefensiveHistory_OnAddonCompartmentClick(addonName, buttonName)
-    prepareExportData()
+    ns:prepareExportData()
 end
 
 
@@ -98,6 +121,7 @@ local function allocExportFrame()
 
     return f
 end
+
 
 do
     exportFrame = allocExportFrame()
