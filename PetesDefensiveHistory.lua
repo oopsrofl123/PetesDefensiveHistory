@@ -609,6 +609,13 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     for _, auraInstanceId in pairs(aurasUpdated) do
         local ev = ns:getAuraEventByGUID(auraInstanceId, guid)
         if ev then
+            -- record the update as evidence whether blocked or not. blocking is used
+            -- to prevent the appearance of a new ability usage.
+            --
+            -- XXX: this won't work for charge abilities since 'ev' will always refer only
+            -- to the batch head. need a formal batch container rather than special treatment
+            -- of the head event.
+            ev:addUpdate()
             if not ev:isBlocked() then
                 ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
                     "|cff00ff00++++++++++++++ target=" .. unitTarget ..
