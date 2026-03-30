@@ -318,9 +318,8 @@ if __name__ == "__main__":
                 event_time, event_trace, event_id, event_source, event_slot, batch_id, \
                 ability_id, certain, ability_caster, \
                 logic, conf, reqs = record
-            if True or event_source == "Player-3721-0C5111C6":
-                print(infer_string(record))
-                print("PASS:", logic_string(logic, event_source, True))
-                print("FAIL:", logic_string(logic, event_source, False))
-                print("CONF:", confidence_string(conf) + " " + reqs_string(reqs))
-                print(decision_string(record, spells))
+            print(infer_string(record))
+            print("PASS:", logic_string(logic, event_source, True))
+            print("FAIL:", logic_string(logic, event_source, False))
+            print("CONF:", confidence_string(conf) + " " + reqs_string(reqs))
+            print(decision_string(record, spells))
