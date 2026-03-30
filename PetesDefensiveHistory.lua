@@ -15,6 +15,11 @@ local slotToGUID = {}
 local playerNameToSlot = {}
 local slotToFrame = {}
 
+-- Need to set up some callbacks on frame :Hide()s and :Show()s. Keep track of every
+-- frame that we hooked a script to, so that we don't hook the script multiple times.
+-- This list has nothing to do with the *current set of frames in use*.
+local framesEverTouched = {}
+
 -- Converting GUID -> slot (=player, party1, arena1, etc) is FOR COSMETIC
 -- PURPOSES ONLY. DO NOT BASE ANY LOGIC ON UNITS.
 local GUIDToSlot = {}
@@ -113,7 +118,7 @@ local function updateTrackedSlots()
 
     slotToGUID = {}
     slotToFrame = {}
-    slotToPlayerName = {}
+    playerNameToSlot = {}
     GUIDToSlot = {}
     -- getSlotSet returns ['player', 'party1', ...] or ['raid1', 'raid2', ... ] for the
     -- current set of group members. Accounts for addonIsActive() state.
@@ -124,6 +129,16 @@ local function updateTrackedSlots()
 
             -- Current user interface element linked to this slot
             local frame = findFrameForSlot(slot, slotRoot)
+            if frame then
+                local frameName = frame:GetName()
+                if not framesEverTouched[frameName] then
+                    ns:printDebug(ns.LOGTYPE.UI, ns.LOGTYPE.Normal,
+                        "Frame "..frameName.." observed for the first time, hooking scripts")
+                    frame:HookScript("OnHide", function(self) ns:updateTrackerUI() end)
+                    frame:HookScript("OnShow", function(self) ns:updateTrackerUI() end)
+                    framesEverTouched[frameName] = frame -- doesn't matter what is stored
+                end
+            end
 
             -- Player name, hyphenated with realm if appropriate
             local playerName, realm = UnitNameUnmodified(slot)
