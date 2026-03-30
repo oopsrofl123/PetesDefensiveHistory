@@ -88,25 +88,6 @@ function ns:shallowcopy(t)
 end
 
 
--- Return a copy of t with key values deleted
-function ns:stripKeys(t)
-    local newt = {}
-    for k, v in pairs(t) do
-        table.insert(newt, v)
-    end
-    return newt
-end
-
-
--- tlist is a list of tables: return a copy of the list of tables with each table
--- stripped of its own keys and the top-level list stripped of its keys.
-function ns:stripKeysList(tlist)
-    local newTlist = {}
-    for k, v in pairs(tlist) do
-        table.insert(newTlist, ns:stripKeys(v))
-    end
-    return newTlist
-end
 
 function ns:specIdToString(specId)
     if specId then
