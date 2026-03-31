@@ -602,9 +602,10 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     end
 
     local playbackFlags = {}
-    -- ensure no secret data is accessed for playback
-    local sanitizedAurasAdded = {}
+    local aurasAddedThisCall = {}
+    local sanitizedAurasAdded = {}  -- ensure no secret data is accessed for playback
     for _, v in pairs(aurasAdded) do
+        aurasAddedThisCall[v.auraInstanceID] = true
         local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
         playbackFlags[v.auraInstanceID] = { aura.IMPORTANT, aura.BIG, aura.EXTERNAL,
             aura.RAID, aura.RAIDINCOMBAT, aura.HELPFUL, aura.HARMFUL, aura.CANCELABLE,
@@ -640,11 +641,16 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- to the batch head. need a formal batch container rather than special treatment
             -- of the head event.
             ev:addUpdate()
-            if not ev:isBlocked() then
+
+            -- aurasAddedThisCall: solve one odd corner case: Survival of the Fittest for the
+            -- Dark Ranger hero spec. The talent that causes SotF to apply exhiliration causes
+            -- SotF to be both added *and* updated in the same UNIT_AURA. No other ability does
+            -- this.
+            if not ev:isBlocked() and not aurasAddedThisCall[auraInstanceId] then
                 ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
                     "|cff00ff00++++++++++++++ target=" .. unitTarget ..
                     ": updating " .. ev:getId() .. "|r")
-                local newEv = ns:trackAura("AURA(update)", ev:getAura()) -- aura is always present
+                local newEv = ns:trackAura("AURA(update)", ev:getAura())
                 newEv:setUpdate()  -- this is an update event
             end
         else
