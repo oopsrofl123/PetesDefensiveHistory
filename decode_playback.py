@@ -249,6 +249,7 @@ all_tracked_abilities = [
     "Alter Time",
     "Combustion",
     "Greater Invisibility",
+    "Fortifying Brew",
     "Life Cocoon",
     "Invoke Niuzao, the Black Ox",
     "Blessing of Sacrifice",
