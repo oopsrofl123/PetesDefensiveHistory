@@ -405,6 +405,30 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
 		},
+        -- Dark Ranger hero talent: when exhiliration is used, SotF is applied for 3s.
+        -- This ability absorbs short SotF casts to prevent them from being assigned to
+        -- the real SotF.
+        -- XXX: change later: for now, let's just treat this as if it were exhil since
+        -- it exactly tracks.
+		{
+			--name="Smoke Screen",
+            --alias='S.Screen',
+			--id=430709,
+            --iconId=463284,
+            name='Exhilaration',
+            alias='Exhil',
+            id=109304,
+            appliesOtherAura=264735,
+            iconId=461117,
+			cooldown=120,
+			duration=3,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+		},
 		{
 			name="Trueshot",
 			id=288613,
@@ -634,7 +658,7 @@ ns.AbilityDb = {
 			charges=1,
 			cdr=false,
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=true, RAIDINCOMBAT=false,
-			targets=ns.TARGET_ANY,
+			targets=ns.TARGET_SELF,
             requireButtonPress=true,
 		},
 	},
