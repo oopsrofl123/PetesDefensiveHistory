@@ -628,7 +628,11 @@ ns.SpecTalentModifiers = {
     -- Brewmaster monk ------------------------------------------------------------------------
     [268] = {
         [121253] = {  -- root brew talent, assign spec specific stuff here
-            { { id=115203, modifies=cooldown, amount=240 } },
+            { { id=115203, modifies=cooldown, amount=240 },
+              -- tiger palm reduces all brew CDs by 1s baseline. model this as CDR for fort
+              -- many more brewm talents "reduce cooldown of your brews" by X seconds, but
+              -- no point in accounting for them since this is baseline.
+              { id=115203, modifies=cdr, amount=true } },
         },
         [388813] = {  -- fort brew class tree talent. diff cooldown for diff specs
             { { id=115203, modifies=cooldown, amount=-120 } },
