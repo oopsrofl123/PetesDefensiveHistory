@@ -119,6 +119,18 @@ ns.ClassTalentModifiers = {
             { { id=186265, modifies=cooldown, amount=-15 } },   -- rank 1
             { { id=186265, modifies=cooldown, amount=-30 } },   -- rank 2
         },
+        [430709] = {   -- HoT on exhil
+            { { id=109304, modifies=requireBuff, amount=true } },
+        },
+        [270581] = {
+            { { id=109304, modifies=cooldown, amount=-30 } },    -- rank 1
+            { { id=109304, modifies=cooldown, amount=-60 } },    -- rank 2
+        },
+        [430709] = {
+            -- dark ranger hero talent that gives SotF for 3s on exhil
+            -- XXX: for now, since exhil is not generally trackable, we will 
+            { { id=109304, modifies=hasAbility, amount=true } },
+        },
     },
 
 
