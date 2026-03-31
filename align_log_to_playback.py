@@ -57,7 +57,7 @@ def read_addon_export(filename):
 
     with open(filename, "r") as f:
         data = decode_export_blob(f.read())
-        addon_version = data.get('addonVersion', b'not encoded').decode()
+        addon_version = data.get(b'addonVersion', b'not encoded').decode()
         metadata_updates = data[b'metadataUpdates']
         player_guid = metadata_updates[0][b'myGUID'].decode()
         print('ADDON VERSION:', addon_version)
@@ -381,10 +381,9 @@ addon_user_guid, metadata_updates, character_updates, playback, inferences = \
     read_addon_export(addon_export_in)
 
 full_combatlog = read_combatlog(combatlog_in, args.aligned)
-
-if args.aligned:
-    warp = 0   # don't modify aligned combat logs
-else:
+ 
+warp = 0
+if not args.aligned:
     print("Aligning combat log to exported events, this can take a while for large logs..")
     # For alignment: choose an event type that isn't too frequent and is recorded and exported
     # by the addon. If event is too frequent, the diffs between events could become
@@ -502,9 +501,14 @@ for rectype, time, record in sorted(playback + unique_inferences + combatlog_tru
                 # the true caster and spell ID could be derived.
                 actor = inferred_caster_guid
 
+                effective_ability = spells[inferred_ability_id]
+                if effective_ability == 'Wake of Ashes':
+                    # There is no wake of ashes aura, the attached Avenging Wrath is the
+                    # tracked aura.
+                    effective_ability = "Avenging Wrath"
                 # Does the combat log indicate that this ability was cast near the event time?
                 matches = [ rec for rec in log_records
-                    if spells[rec['ability_id']] == spells[inferred_ability_id] and
+                    if spells[rec['ability_id']] == effective_ability and
                         rec['caster_guid'] == inferred_caster_guid and
                         event_type_match(rec['event'], event_trace)]
 
