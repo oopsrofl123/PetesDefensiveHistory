@@ -70,10 +70,28 @@ local function findFrameForSlot(slot, slotRoot)
                 return frame
             end
         end
+    -- Grid2 doesn't hide Blizzard frames by default, so this check must happen
+    -- before searching through the Blizzard frames to prefer Grid's.
+    elseif Grid2 then
+        if slotRoot ~= "party" then
+            print("ERROR: raid frames are not supported for Grid2 at the moment, please leave a comment on the discord if you are interested in raid support.")
+            return
+        else
+            frameRoot = "Grid2LayoutHeader1UnitButton"
+        end
+        for i=1, maxN do
+            framesChecked = framesChecked + 1
+            -- Grid2 loads very late, so often f=nil when logging on
+            local f = _G[frameRoot .. i]
+            if f and f.unit == slot then
+                return f
+            end
+        end
     elseif ElvUI then
         if ElvUI[1].db and ElvUI[1].db.unitframe.units.party.enable and ElvUF_Party then
             if slotRoot ~= "party" then
                 print("ERROR: raid frames are not supported for ElvUI at the moment, please leave a comment on the discord if you are interested in raid support.")
+                return
             else
                 frameRoot = "ElvUF_PartyGroup1UnitButton"
             end
@@ -763,11 +781,21 @@ local function initAddon()
         ns.ldbicon:Hide('PetesDefensiveHistory')
     end
 
+    -- Show the welcome message
     if not ns:GetOption('hideWelcomeMessage') then
         welcomeFrame:Show()
     else
         welcomeFrame:Hide()
     end
+
+    -- Necessary for Grid2: Grid2's frames are created so late that they don't exist
+    -- on login after all of the events that loader handles. This callback executes
+    -- on the next frame after login, which I believe means the first rendered frame
+    -- after the loading screen. After getting past the first login, Grid2's frames
+    -- don't seem to cause an issue.
+    C_Timer.After(0, function()
+        ns:respondToRosterUpdate('GRID2_SPECIAL_CALLBACK')
+    end)
 end
 
 
@@ -777,6 +805,7 @@ end
 -- to detect later changes in group/instance state to auto-en/disable the addon as the
 -- user prefers.
 loader:RegisterEvent("ADDON_LOADED")
+loader:RegisterEvent("PLAYER_LOGIN")
 loader:RegisterEvent("PLAYER_ENTERING_WORLD")
 loader:RegisterEvent("GROUP_ROSTER_UPDATE")
 loader:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
