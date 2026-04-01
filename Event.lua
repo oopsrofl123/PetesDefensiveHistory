@@ -270,8 +270,11 @@ function ns:Event(newTrace, newSource)
         end
 
         -- weird, but want a short and unique ID for printing
+        --maxBatchId = batchId
         for _, ev in pairs(eventList[self:getId()]) do
-            batchId = ev:getBatchId() + 1
+            if ev:getBatchId() > batchId then
+                batchId = ev:getBatchId() + 1
+            end
         end
         eventList[self:getId()][batchId] = self
 
@@ -286,7 +289,12 @@ function ns:Event(newTrace, newSource)
         local eventList = ns.eventsForInference[source]
 --print('source=', tostring(source), 'getid=', tostring(self:getId()), 'batchid=', tostring(self:getBatchId()), 'list[id]=', tostring(eventList[self:getId()]), 'list[id][batch]=', tostring(eventList[self:getId()][self:getBatchId()]))
         eventList[self:getId()][self:getBatchId()] = nil
-        if #eventList[self:getId()] == 0 then
+        numEvents = 0
+        for _, _ in pairs(eventList) do
+            numEvents = numEvents + 1
+        end
+        --if #eventList[self:getId()] == 0 then
+        if numEvents == 0 then
             eventList[self:getId()] = nil
         end
     end
