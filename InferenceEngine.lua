@@ -158,10 +158,7 @@ function ns:InferenceRecord(now, trace, event)
 
         for _, match in pairs(confidenceLayers.layers) do
             local layerName, ability, certain, data = unpack(match)
-print('stripConf:', layerName, ability, certain, data)
             layers[ns.confidenceLayerAliases[layerName]] = { ability and ability.id or nil, certain, data }
-print('stripConf recorded:', layers[ns.confidenceLayerAliases[layerName]])
-print('stripConf recorded length:', #layers[ns.confidenceLayerAliases[layerName]])
         end
 
         return { abId, certain, numPossible, layers }
