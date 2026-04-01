@@ -4,7 +4,8 @@ local addonName, ns = ...
 -- Very different from the MAX_HISTORY size. This must be large enough to show
 -- all abilities for a character AND all externals across the group that could
 -- be applied to that character.
-local UI_MAX_ABILITIES_PER_SLOT = 12
+-- XXX: at 12, a group of 3 paladins+resto druid exceeded this
+local UI_MAX_ABILITIES_PER_SLOT = 20
 
 -- eventually make this all settable (via options), but this is not important enough right now
 local UI_ICON_SIZE = 48
