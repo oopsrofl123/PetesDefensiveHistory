@@ -1,5 +1,59 @@
+UPCOMING RELEASE
+================
+- Support Grid2
+- Fortifying Brew - respect dynamic cooldown reduction
+- Survival of the Fittest - account for Dark Ranger hero talent that gives 3s of SotF on Exhilaration
+    - BONUS! Add Exhilaration tracking for Dark Ranger hunters (not trackable for other specs)
+- All abilities - fix incorrect flag for Niuzao that claimed it was castable on others
+
+
 V1.0 RELEASE GOALS
 ===========================================================================
+
+- fix :untrack(): the #eventList==0 should not work since it's a named list
+
+- bubble is never IDable if ardent defender is available. same flags, same duration.
+    - need a more aggressive evidence handler since bubble has so many forms of evidence (extra taunts,
+      UNIT_FLAGS, debuff)
+
+- aug mastery increases duration of helpful auras by X%
+
+- need to add note about exhil only working for dark ranger hero spec or else people will bug report it
+
+
+DAY 4 LOGS
+
+- o.scales false negs for glizard
+    - real cast at 4097.831, aura=611
+    - buff removed and reapplied (see log) at 4105.057 as aura=623
+    - same tick removed and reapplied fury of the aspects
+    - isFullUpdate=false
+    - cast seq was
+        4104.401 fire breath (empower end)
+        4104.994 hover
+        4105.355 eruption (start)
+    - lust was cast at 3771.366, 4480.904, 5222.971
+    - breath cast at 4090.921, so fury was running at 4105
+        - removed 4105.043 (the tick in question)
+        - removed 4107.872
+    - could this have something to do with aug mastery?
+
+- g.invis. false negs for arcani
+
+- d.prot false negs for roren
+    - another case where this paladin's divine protection has the wrong flags. just like the
+      xorteaa situation where GoAK didn't have the correct flags. so weird.
+
+- alter time false negs for zuwu
+
+
+
+- add UNIT_COMBAT handler with HEAL event detection for, e.g., exhil. maybe others.
+    - this might require a different way of tracking evidence since these events are so frequent
+
+- dump nonhelpful spells. see the PvPCallOuts addon - has more abilities than i thought.
+    - e.g., dancing rune weapon. why does that work? it did not create an IMPORTANT buff for me.
+      maybe it was a non-helpful aura? Xuen? Storm earth and fire?
 
 - maybe useful? when leaving a follower dungeon, a UNIT_AURA with isFullUpdate=true is fired
     - also when entering follower dungeon
@@ -26,6 +80,7 @@ V1.0 RELEASE GOALS
             2. no libspec example
             3. abilities do not always ID instantly. need to gather data to guess, sometimes takes several sec
                 - TTS announcer will only play if within 1.5s of abil use
+            4. explain the (!) badges
         - put everything else much later
 
 - add this debug line back to find elusive bug
@@ -181,6 +236,8 @@ NOTES ON COMPLEX CASES ---------------------------------------------------------
           and naturallyUpdates=true. which is another way of saying updates aren't of interest.
         - just need to prevent this from filling up the history tray. not a complex ability
     ----------------------------------------------------------------------------
+
+- group solution UI limit of 12 (now 20) can actually be exceeded
 
 * maybe add convenience option to reset tracing data at certain times
     - need this to allow resetting when entering a new instance, e.g.
@@ -717,6 +774,11 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- dark ranger talents cause SotF to fire an update in the same event as AURA(add). instantly
+  consumes both charges
+    - caused by the required dark ranger hero talent smoke screen
+    - also makes exhil apply SotF for 3s, meaning exhil is detectable for that spec
+
 - add a button somewhere to reset the internal data trackers
 
 - are FNs really assessed? need to loop through all combatlog events from tracked
