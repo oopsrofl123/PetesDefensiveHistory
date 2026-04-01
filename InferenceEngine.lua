@@ -157,8 +157,11 @@ function ns:InferenceRecord(now, trace, event)
         local layers = {}
 
         for _, match in pairs(confidenceLayers.layers) do
-            local layerName, ability, certain = unpack(match)
-            layers[ns.confidenceLayerAliases[layerName]] = { ability and ability.id or nil, certain }
+            local layerName, ability, certain, data = unpack(match)
+print('stripConf:', layerName, ability, certain, data)
+            layers[ns.confidenceLayerAliases[layerName]] = { ability and ability.id or nil, certain, data }
+print('stripConf recorded:', layers[ns.confidenceLayerAliases[layerName]])
+print('stripConf recorded length:', #layers[ns.confidenceLayerAliases[layerName]])
         end
 
         return { abId, certain, numPossible, layers }
@@ -643,19 +646,20 @@ end
 
 ----------------------------------------------------------------------------
 -- Confidence layers return one of:
---   1. {layerName, nil, false}
---   2. {layerName, ability, certain=true|false}
+--   1. {layerName, false, false, data}
+--   2. {layerName, ability, certain=true|false, data}
 ----------------------------------------------------------------------------
 
 local function confidenceLayerOnlyOnePossible(possibleSolutions)
-    if #possibleSolutions == 1 then
+    numSolutions = #possibleSolutions
+    if numSolutions == 1 then
         traceConfidence('onlyOnePossible', 'success: #possibleSolutions=%d',
-            #possibleSolutions)
-        return { "oneSolution", possibleSolutions[1], true }
+            numSolutions)
+        return { "oneSolution", possibleSolutions[1], true, numSolutions }
     else
         traceConfidence('onlyOnePossible', 'failure: #possibleSolutions=%d',
-            #possibleSolutions)
-        return { "oneSolution", nil, false }
+            numSolutions)
+        return { "oneSolution", false, false, numSolutions }
     end
 end
 
@@ -666,14 +670,15 @@ local function confidenceLayerDuration(possibleSolutions)
         { name='dummy', durationDiff=ns.INFINITY },
         function(a, b) return a.durationDiff < b.durationDiff end)
 
-    if second.durationDiff - best.durationDiff >= DURATION_CONFIDENT_DIFFERENCE then
+    local diff = second.durationDiff - best.durationDiff
+    if diff >= DURATION_CONFIDENT_DIFFERENCE then
         traceConfidence('duration', 'success: best=%0.3f, second=%0.3f, required diff=%0.3f',
             best.durationDiff, second.durationDiff, DURATION_CONFIDENT_DIFFERENCE)
-        return { "duration", best, true }
+        return { "duration", best, true, diff }
     else
         traceConfidence('duration', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
             best.durationDiff, second.durationDiff, DURATION_CONFIDENT_DIFFERENCE)
-        return { "duration", nil, false }
+        return { "duration", false, false, diff }
     end
 end
 
@@ -686,12 +691,13 @@ local function confidenceLayerCastTime(possibleSolutions)
         { name='dummy', castTimeDiff=ns.INFINITY },
         function(a, b) return a.castTimeDiff < b.castTimeDiff end)
 
-    if second.castTimeDiff - best.castTimeDiff >= CASTTIME_CONFIDENT_DIFFERENCE then
-        return { "castTime", best, true }
+    local diff = second.castTimeDiff - best.castTimeDiff
+    if diff >= CASTTIME_CONFIDENT_DIFFERENCE then
+        return { "castTime", best, true, diff }
     else
         traceConfidence('castTime', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
             best.castTimeDiff, second.castTimeDiff, CASTTIME_CONFIDENT_DIFFERENCE)
-        return { "castTime", nil, false }
+        return { "castTime", false, false, diff }
     end
 end
 
@@ -722,7 +728,7 @@ local function confidenceLayerAbilitiesApplySameAura(possibleSolutions)
             if otherAura ~= ability.appliesOtherAura then
                 traceConfidence('sameAura', 'failure: otherAbility1=%d, otherAbility2=%d',
                     otherAura, ability.appliesOtherAura)
-                return { 'uncertainSameAura', nil, false }
+                return { 'uncertainSameAura', false, false, -1 }
             end
         else
             -- if theAbility isn't nil, then another ability without an
@@ -730,7 +736,7 @@ local function confidenceLayerAbilitiesApplySameAura(possibleSolutions)
             if theAbility then
                 traceConfidence('sameAura', 'failure: theAbility1=%s, theAbility2=%s',
                     theAbility.alias or theAbility.name, ability.alias or ability.name)
-                return { 'uncertainSameAura', nil, false }
+                return { 'uncertainSameAura', false, false, -1 }
             else
                 theAbility = ability
             end
@@ -739,15 +745,15 @@ local function confidenceLayerAbilitiesApplySameAura(possibleSolutions)
     --      3. the ability exists, is unique and matches the shared appliesOtherAura ID
     if not theAbility then
         traceConfidence('sameAura', 'failure: theAbility1=nil')
-        return { 'uncertainSameAura', nil, false }
+        return { 'uncertainSameAura', false, false, -1 }
     end
     if theAbility.id ~= otherAura then
         traceConfidence('sameAura', 'failure: theAbility1=%d, otherAura=%d',
             theAbility.id, otherAura)
-        return { 'uncertainSameAura', nil, false }
+        return { 'uncertainSameAura', false, false, -1 }
     end
 
-    return { 'uncertainSameAura', theAbility, false }
+    return { 'uncertainSameAura', theAbility, false, -1 }
 end
 
 
@@ -773,7 +779,7 @@ local function confidenceLayerUnboundFreedom(possibleSolutions, event)
         -- freedom or unbound freedom. the former does not have a "maybeFreedom" req.
         _, req = evidenceWitnessed(event, freedom, "freedom", "caster")
         if req.pass then
-            return { 'unboundFreedom', freedom, true }
+            return { 'unboundFreedom', freedom, true, -1 }
         else
             traceConfidence('unboundFreedom',
                 'failure: no freedom evidence: pass=%s, final=%s, diff=%0.3f',
@@ -783,7 +789,7 @@ local function confidenceLayerUnboundFreedom(possibleSolutions, event)
         traceConfidence('unboundFreedom', 'failure: no freedom ability')
     end
 
-    return { 'unboundFreedom', nil, false }
+    return { 'unboundFreedom', false, false, -1 }
 end
 
 
