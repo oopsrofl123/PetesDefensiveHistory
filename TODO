@@ -5,13 +5,11 @@ UPCOMING RELEASE
 - Survival of the Fittest - account for Dark Ranger hero talent that gives 3s of SotF on Exhilaration
     - BONUS! Add Exhilaration tracking for Dark Ranger hunters (not trackable for other specs)
 - All abilities - fix incorrect flag for Niuzao that claimed it was castable on others
+- Fix rare bug in event tracking
 
 
 V1.0 RELEASE GOALS
 ===========================================================================
-
-- fix :untrack(): the #eventList==0 should not work since it's a named list
-
 - bubble is never IDable if ardent defender is available. same flags, same duration.
     - need a more aggressive evidence handler since bubble has so many forms of evidence (extra taunts,
       UNIT_FLAGS, debuff)
@@ -20,6 +18,13 @@ V1.0 RELEASE GOALS
 
 - need to add note about exhil only working for dark ranger hero spec or else people will bug report it
 
+- ironbark can't be distinguished from sac
+    - look into more other event types?
+    - what about cast time evidence? from replays it seems the cast time is always extremely close
+      to unit aura.
+    - get data CASTTIME_CONFIDENT_DIFFERENCE. is the current 0.15 too lax?
+        - confidence layers don't record the diffs in best vs. 2nd best cast times
+        - need to add them to replays and collect data
 
 DAY 4 LOGS
 
@@ -61,11 +66,6 @@ DAY 4 LOGS
 - nouguetz error: lots of failures to ID obsidian scales, 1 failure to ID fort brew. why? those are
   easy IDs.
 
-- akilos error: cooldowns without a group frame. think this might be related to not having frames
-  shown while solo
-    - think this may cause his second error with slot=nil when joining a group
-    - can reproduce by leaving a fol dungeon with solo party frames disabled
-    - has nothing to do with elvui - happens for blizz default
 
 1. ACCURACY
     - as quantified by logs
@@ -774,6 +774,14 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- akilos error: cooldowns without a group frame. think this might be related to not having frames
+  shown while solo
+    - think this may cause his second error with slot=nil when joining a group
+    - can reproduce by leaving a fol dungeon with solo party frames disabled
+    - has nothing to do with elvui - happens for blizz default
+
+- fix :untrack(): the #eventList==0 should not work since it's a named list
+
 - dark ranger talents cause SotF to fire an update in the same event as AURA(add). instantly
   consumes both charges
     - caused by the required dark ranger hero talent smoke screen
