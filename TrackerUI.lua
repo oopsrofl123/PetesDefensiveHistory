@@ -462,7 +462,7 @@ local function updateStaticRow(slot)
             item.swipeTexture.chargeLabel:Hide()
         end
 
-        if ability.cdr then
+        if ability.cdr and not ns:GetOption("hideInaccurateBadges") then
             item.warningbg:Show()
             item.warning:Show()
         else
@@ -590,7 +590,9 @@ function ns:updateTrackerUI()
         end
 
         local frame = ns:slotToFrame(slot)
-        if ns:addonIsActive() and frame and frame:IsVisible() then
+        if ns:addonIsActive() and
+           frame and frame:IsVisible() and
+           (slot ~= 'player' or not ns:GetOption('hidePersonalCDs')) then
             ui:Show()
         else
             ui:Hide()

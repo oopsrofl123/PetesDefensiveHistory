@@ -36,6 +36,8 @@ local optionsDefaults = {
         angle = 225,
         hide = false,
     },
+    hidePersonalCDs = false,
+    hideInaccurateBadges = false,
     iconSize = 32,
     iconSpacing = 3,
     maxHistoryTrayItems = 4,
@@ -45,6 +47,7 @@ local optionsDefaults = {
     anchorTo = 1,           -- TOPLEFT
     growthDirection = 1,    -- LEFT
 
+    enableMplusXalatathHack = true,
     disableInference = false,
     throttleInference = 0.2,
     disableCDRTrackers = false,
@@ -52,6 +55,7 @@ local optionsDefaults = {
     hideHistoryItemsAtMaxCd = false,
     showTooltips = true,
     hideWelcomeMessage = false,
+    
 
     enableTTS = false,
     TTSnoUntracked = false,
@@ -179,6 +183,12 @@ local function buildMainOptions()
         end)
     Settings.CreateCheckbox(category, setting, "Show the minimap button")
 
+    makeCheckbox(category, "hidePersonalCDs", "Hide my cooldowns",
+        "Hide the cooldown tracker (both static cooldowns and the history tray) for the player's own frame.")
+
+    makeCheckbox(category, "hideInaccurateBadges", "Hide |cFFFF0000(!)|r badges",
+        "When an ability's cooldown timer is very hard to guess, a small |cFFFF0000(!)|r badge is placed on its top left corner. This usually only happens for abilities with dynamic cooldown reduction (e.g., Avatar's cooldown is reduced for every 20 rage spent). Check this option to hide the |cFFFF0000(!)|r badges.")
+
     -- Set tracker icon size
     setting = makeSetting(category, 'iconSize', Settings.VarType.Number, 'Icon size')
     local options = Settings.CreateSliderOptions(8, 64, 1)
@@ -222,6 +232,7 @@ local function buildMainOptions()
     makeSectionHeader(layout, 'Behavior')
 
     -- Disable all inference. Put everything in the history tray
+
     makeCheckbox(category, "disableInference", "Disable inference",
         "Disable logic to infer abilities and the associated row of icons. All abilities will instead be sent to the history tray for the unit on which they were cast (which may not be the caster!). Items in the history tray receive a count-up timer that stops at the maximum cooldown length for all abilities that can target that unit and the player must know the associated cooldown length.")
 
@@ -239,6 +250,9 @@ local function buildMainOptions()
 
     makeCheckbox(category, "hideHistoryItemsAtMaxCd", "Hide old history tray items",
         "Hide unidentified abilities in the history tray after the maximum possible cooldown is reached.")
+
+    makeCheckbox(category, "enableMplusXalatathHack", "Enable M+ Voidbinding hack",
+        "The Xal'atath's Bargain affix Voidbinding gives 30% faster cooldown recovery, which confuses internal cooldown logic and sometimes prevents spell identification. This hack helps to continue identifying abilities during Voidbinding weeks and is only active in M+ keys level 11 and lower.")
 
     makeCheckbox(category, "showTooltips", "Show spell tooltips",
         "Show spell tooltips for abilities that can be identified. This does not work for abilities in the history tray, since these abilities are not identified.")
