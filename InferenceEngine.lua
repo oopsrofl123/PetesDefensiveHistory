@@ -314,7 +314,6 @@ local function logicLayerAbilityOffCooldown(event, ability, cdTracker)
         -- 1/1.3 = 0.7692 is the true adjustment assuming 100% uptime of the buff.
         -- just use 0.75.
         if ns:useMplusXalatathHack() then
-print('using xalatath hack')
             offCDat = offCDat - 0.75*ability.cooldown
         end
 
