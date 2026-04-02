@@ -306,6 +306,18 @@ local function logicLayerAbilityOffCooldown(event, ability, cdTracker)
             offCDat = offCDat - 0.7*ability.cooldown
         end
 
+        -- Crazy hack for the Voidbinding M+ affix that increases CD recovery rate by
+        -- 30% (this means for every 1s that passes, 1.3s of CD is recovered). This
+        -- calculation does not affect the displayed cooldown timers, only the
+        -- exclusion logic that prevents an ability from being IDed if the engine
+        -- believes it is still on cooldown.
+        -- 1/1.3 = 0.7692 is the true adjustment assuming 100% uptime of the buff.
+        -- just use 0.75.
+        if ns:useMplusXalatathHack() then
+print('using xalatath hack')
+            offCDat = offCDat - 0.75*ability.cooldown
+        end
+
         -- if the buff was applied before the oldest charge came off CD, then this
         -- ability had no charges available to use (was fully on CD).  Allow a small
         -- tolerance.

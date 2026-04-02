@@ -1,15 +1,14 @@
-UPCOMING RELEASE
-================
-- Support Grid2
-- Fortifying Brew - respect dynamic cooldown reduction
-- Survival of the Fittest - account for Dark Ranger hero talent that gives 3s of SotF on Exhilaration
-    - BONUS! Add Exhilaration tracking for Dark Ranger hunters (not trackable for other specs)
-- All abilities - fix incorrect flag for Niuzao that claimed it was castable on others
-- Fix rare bug in event tracking
+NEW RELEASE: 0.9.7h
+- Option to hide your own cooldown tracker row
+- Option to remove the inaccurate warning (!) badges that appear on hard-to-track timers
+- Short-term hack to deal with the M+ Xal'atath affix that gives 30% faster cooldown recovery. This fix improves spell identification during this affix but does not affect cooldown timer displays. Only active in M+ keys < level 12, otherwise has no effect.
+    - New option to disable the above M+ hack
 
 
 V1.0 RELEASE GOALS
 ===========================================================================
+- many FNs: m+ affix voidbinding causes 30% increased cooldown recovery rate
+
 - bubble is never IDable if ardent defender is available. same flags, same duration.
     - need a more aggressive evidence handler since bubble has so many forms of evidence (extra taunts,
       UNIT_FLAGS, debuff)

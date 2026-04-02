@@ -738,6 +738,33 @@ end)
 
 
 --------------------------------------------------------------------------------------
+-- Test some events I don't currently use.
+--------------------------------------------------------------------------------------
+
+ns.activeKeystoneLevel = nil
+
+local mplusHandler = CreateFrame("Frame", addonName .. "MplusHandler")
+mplusHandler:RegisterEvent("CHALLENGE_MODE_START")
+mplusHandler:RegisterEvent("CHALLENGE_MODE_COMPLETED")
+mplusHandler:SetScript("OnEvent", function(self, event, ...)
+    if event == "CHALLENGE_MODE_START" then
+        ns.activeKeystoneLevel, _, _ = C_ChallengeMode.GetActiveKeystoneInfo()
+    else
+        ns.activeKeystoneLevel = nil
+    end
+    ns:playback(GetTime(), event, ...)
+end)
+
+function ns:useMplusXalatathHack()
+    -- XXX: use some calendar code and/or precomputed tables to decide if this is
+    -- a Voidbinding week.
+    return ns.activeKeystoneLevel and
+        ns.activeKeystoneLevel < 12 and
+        ns:GetOption('enableMplusXalatathHack')
+end
+
+
+--------------------------------------------------------------------------------------
 -- Handle initialization and group roster updates.
 --------------------------------------------------------------------------------------
 local loader = CreateFrame("Frame", addonName .. "Loader")
