@@ -314,7 +314,7 @@ local function logicLayerAbilityOffCooldown(event, ability, cdTracker)
         -- 1/1.3 = 0.7692 is the true adjustment assuming 100% uptime of the buff.
         -- just use 0.75.
         if ns:useMplusXalatathHack() then
-            offCDat = offCDat - 0.75*ability.cooldown
+            offCDat = offCDat - 0.25*ability.cooldown
         end
 
         -- if the buff was applied before the oldest charge came off CD, then this
