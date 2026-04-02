@@ -1,4 +1,5 @@
-NEW RELEASE: 0.9.7h
+**NEW RELEASE: 0.9.7h**
+
 - Option to hide your own cooldown tracker row
 - Option to remove the inaccurate warning (!) badges that appear on hard-to-track timers
 - Short-term hack to deal with the M+ Xal'atath affix that gives 30% faster cooldown recovery. This fix improves spell identification during this affix but does not affect cooldown timer displays. Only active in M+ keys < level 12, otherwise has no effect.
