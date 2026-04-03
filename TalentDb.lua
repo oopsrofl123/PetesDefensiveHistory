@@ -7,6 +7,7 @@ local cooldown = "cooldown"
 local duration = "duration"
 local duration_variable = "duration_variable"
 local hasAbility = "hasAbility"
+local hidesAbility = "hidesAbility"
 local requireBuff = "requireBuff"
 local requireShield = "requireShield"
 local naturallyUpdates = "naturallyUpdates"
@@ -936,9 +937,37 @@ ns.SpecTalentModifiers = {
     },
     -- Enhancement shaman ------------------------------------------------------------------------
     [263] = {
+        [384352] = {   -- doom winds
+            { { id=384352, modifies=hasAbility, amount=true } },
+        },
+        [114051] = {
+            -- ascend: different ID than resto, but give the resto ID for appliesOtherAura
+            -- although it replaces doom winds, it applies the doom winds buff which remains
+            -- IMPORTANT-flagged. So we'll just make the cooldown =
+            { { id=114052, modifies=hasAbility, amount=true },
+              -- XXX: still thinking about whether to hide doom winds. this does nothing
+              { id=384352, modifies=hidesAbility, amount=false },
+              { id=384352, modifies=cooldown, amount=120 } },    -- make equal to ascend
+        },
+        [384444] = {
+            { { id=114052, modifies=cooldown, amount=-60 },
+              { id=384352, modifies=cooldown, amount=-60 }, },
+        },
     },
     -- Resto shaman ------------------------------------------------------------------------
     [264] = {
+        [114052] = {   -- ascendance
+            { { id=114052, modifies=hasAbility, amount=true } },
+        },
+        [462440] = {
+            { { id=114052, modifies=cooldown, amount=-60 } },
+        },
+        [462443] = {   -- also gives +25% haste, which might be a separate aura
+            { { id=114052, modifies=duration, amount=3 } },
+        },
+        [378270] = {   -- deeply rooted elements (ascend proc)
+            { { id=378270, modifies=hasAbility, amount=true } },
+        },
     },
 
 
