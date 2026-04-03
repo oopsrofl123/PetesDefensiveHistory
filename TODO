@@ -1,10 +1,19 @@
 **NEW RELEASE: 0.9.7j**
 
+
+- **IMPORTANT:** Blizzard is still changing which buffs are reported by their
+  "IMPORTANT", "BIG DEFENSIVE" and "EXTERNAL" aura lists. If a particular ability always
+  gets sent to the history tray rather than being properly tracked, the most likely reason is
+  that Blizzard changed the flags. I will update these as often as I can.
+
+
 - Vuhdo support added
 - Improve speed of paladin bubble detection
 - Detect when party members die
 - Fix mis-identification of retribution paladin Divine Protection as Freedom
 - Fix "'availableAt' (a nil value)" bug that was caused by BoP/Spellwarding shared cooldowns
+- Support newly added Shaman abilities: Ascendance and Doom winds
+    - the free ascendance talents Deeply Rooted Elements (6s proc)
 
 
 V1.0 RELEASE GOALS
