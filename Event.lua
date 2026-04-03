@@ -60,6 +60,7 @@ function ns:Event(newTrace, newSource)
     -- Optional fields
     local aura = nil
     local numUpdates = 0
+    local debuffInSamePayload = false
 
     function e:incrementInference() inference = inference + 1 end
 
@@ -138,7 +139,11 @@ function ns:Event(newTrace, newSource)
         return ability
     end
 
+    function e:getDebuffInSamePayload() return debuffInSamePayload end
+
     -- Trivial setters
+    function e:setDebuffInSamePayload(x) debuffInSamePayload = x end
+
     function e:setAbility(newAbility) ability = newAbility end
 
     function e:setAbilityOffCooldown(at) abilityOffCooldown = at end
@@ -214,6 +219,7 @@ function ns:Event(newTrace, newSource)
         prepareClosestEvents(evidenceTrackers, 'feign')
         prepareClosestEvents(evidenceTrackers, 'maybeFreedom')
         prepareClosestEvents(evidenceTrackers, 'freedom')
+        prepareClosestEvents(evidenceTrackers, 'died')
     end
 
 
@@ -369,7 +375,7 @@ function ns:Event(newTrace, newSource)
 end
 
 
-function ns:trackAura(trace, aura)
+function ns:trackAura(trace, aura, debuffInSamePayload)
     ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
         '+++ trackAura(%s): auraStart=[%0.3f] ID=[%d], target=[%s], flags=[%s %d%d CN: %d NP: %d%d CC: %d%d]',
         trace, aura.startTime % 10000, aura.auraInstanceId, ns:cosmeticOnlyMapGUIDToSlot(aura.target),
@@ -380,6 +386,7 @@ function ns:trackAura(trace, aura)
 
     local ev = ns:Event(trace, aura.target)
     ev:setAura(aura)
+    ev:setDebuffInSamePayload(debuffInSamePayload)
     ev:track() -- Have to track this after :setAura() because :setAura() determines the tracker ID
 
     return ev
