@@ -4,11 +4,15 @@
 - Improve speed of paladin bubble detection
 - Detect when party members die
 - Fix mis-identification of retribution paladin Divine Protection as Freedom
+- Fix "'availableAt' (a nil value)" bug that was caused by BoP/Spellwarding shared cooldowns
 
 
 V1.0 RELEASE GOALS
 ===========================================================================
 - Update READMEs
+
+- day 7 logs still have some data to mine, esp combat drop FNs
+    - some paladin FNs
 
 - reminder: do something with new ev:debuffInSamePayload()
 
