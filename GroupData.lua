@@ -35,6 +35,7 @@ function ns:makeEvidenceTracker()
         feign=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         maybeFreedom=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         freedom=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        died=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
     }
 end        
 
@@ -109,6 +110,7 @@ function ns:Character(slot)
     local abilities = {}
     local possibleAbilities = {}
     local evidenceTracker = ns:makeEvidenceTracker()
+    local hasLibSpec = false
 
 
     -- Unlike inference records/events, the amount of character data stored doesn't grow
@@ -126,6 +128,7 @@ function ns:Character(slot)
             specId=specId,
             specName=specName,
             talentExportString=talentExportString,
+            hasLibSpec=hasLibSpec,
             talentRanks=talentRanks,
             abilities=abilities,
             possibleAbilities=possibleAbilities,
@@ -158,6 +161,7 @@ function ns:Character(slot)
         end
     end
 
+    function char:hasLibSpec() return hasLibSpec end
 
     function char:setBasicInfo(slot)
         slot = slot or ns:cosmeticOnlyMapGUIDToSlot(GUID)
@@ -175,6 +179,7 @@ function ns:Character(slot)
     -- Setting these resolves all of the downstream
     function char:setSpecAndTalents(spec, tstring)
         specId = spec
+        hasLibSpec = tstring ~= nil
 
         -- Try this again. Often fails when zoning into LFG.
         -- XXX: TODO: i think this needs to return nil, signaling a need to try again later
