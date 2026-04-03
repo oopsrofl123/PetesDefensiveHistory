@@ -12,6 +12,7 @@ local requireShield = "requireShield"
 local naturallyUpdates = "naturallyUpdates"
 local reset = "canReset"
 local targets = "targets"
+local BIGFLAG = "BIG"
 
 
 -- Why have separate class and spec trees? Some talents with equal IDs do different
@@ -50,7 +51,7 @@ ns.ClassTalentModifiers = {
         [49998] = {  -- death strike required for blood and unholy
               { { id=48707, modifies=hasAbility, amount=true } },      -- gives AMS
         },
-        [48792] = {
+        [48792] = {  -- icebound fortitude
             { { id=48792, modifies=hasAbility, amount=true } }
         },
         [205727] = {
@@ -90,7 +91,7 @@ ns.ClassTalentModifiers = {
 
     -- Evoker class tree ----------------------------------------------------------------------
     ["EVOKER"] = {
-        [363916] = {
+        [363916] = {  -- obsidian scales
             { { id=363916, modifies=hasAbility, amount=true } },
         },
         [375406] = {
@@ -128,7 +129,8 @@ ns.ClassTalentModifiers = {
         },
         [430709] = {
             -- dark ranger hero talent that gives SotF for 3s on exhil
-            -- XXX: for now, since exhil is not generally trackable, we will 
+            -- XXX: for now, since exhil is not generally trackable, it will only be
+            -- given to dark ranger-specced hunters.
             { { id=109304, modifies=hasAbility, amount=true } },
         },
     },
@@ -161,7 +163,7 @@ ns.ClassTalentModifiers = {
         },
         [414659] = {   -- ice cold
             { { id=414659, modifies=hasAbility, amount=true },
-              { id=45438, modifies=hasAbility, amount=false } },
+              { id=45438, modifies=hasAbility, amount=false } },  -- removes ice block
         },
         [1255166] = {
             { { id=342245, modifies=cooldown, amount=-10 } },
@@ -205,13 +207,13 @@ ns.ClassTalentModifiers = {
               { id=31884, modifies=requireBuff, amount=true },
               { id=389539, modifies=requireBuff, amount=true } } 
         },
-        [1044] = {
+        [1044] = {  -- freedom
             { { id=1044, modifies=hasAbility, amount=true } }
         },
-        [1022] = {
+        [1022] = {  -- bop
             { { id=1022, modifies=hasAbility, amount=true } }
         },
-        [6940] = {
+        [6940] = {  -- sac
             { { id=6940, modifies=hasAbility, amount=true } }
         },
         [384909] = {
@@ -243,7 +245,7 @@ ns.ClassTalentModifiers = {
 
     -- Priest class tree -----------------------------------------------------------------------
     ["PRIEST"] = {
-        [19236] = {
+        [19236] = {  -- desperate prayer
             { { id=19236, modifies=hasAbility, amount=true } },
         },
         [238100] = {
@@ -260,10 +262,10 @@ ns.ClassTalentModifiers = {
 
     -- Rogue class tree -----------------------------------------------------------------------
     ["ROGUE"] = {
-        [31224] = {
+        [31224] = {  -- cloak
             { { id=31224, modifies=hasAbility, amount=true } }
         },
-        [5277] = {
+        [5277] = {   -- evasion
             { { id=5277, modifies=hasAbility, amount=true } }
         },
         [457022] = {
@@ -277,7 +279,7 @@ ns.ClassTalentModifiers = {
 
     -- Shaman class tree -----------------------------------------------------------------------
     ["SHAMAN"] = {
-        [108271] = {
+        [108271] = {  -- astral shift
             { { id=108271, modifies=hasAbility, amount=true } }
         },
         [381647] = {
@@ -312,7 +314,7 @@ ns.ClassTalentModifiers = {
 ns.SpecTalentModifiers = {
     -- Blood death knight ------------------------------------------------------------------------
     [250] = {
-        [55233] = {
+        [55233] = {  -- vamp blood
             { { id=55233, modifies=hasAbility, amount=true } }
         },
         [317133] = {
@@ -354,13 +356,13 @@ ns.SpecTalentModifiers = {
     -- Havoc demon hunter -------------------------------------------------------------------------
     [577] = {
         [198013] = {   -- root havoc talent
-            { { id=198589, modifies=hasAbility, amount=true } },
+            { { id=198589, modifies=hasAbility, amount=true } },     -- give blur
         },
     },
     -- Vengeance demon hunter ---------------------------------------------------------------------
     [581] = {
         [212084] = {    -- root vengeance talent
-            { { id=187827, modifies=hasAbility, amount=true } },
+            { { id=187827, modifies=hasAbility, amount=true } },     -- give VDH meta
         },
         [1256353] = {   -- reduces meta cd by 10s every 3rd voidfall meteor
             { { id=187827, modifies=cdr, amount=true } },
@@ -389,7 +391,7 @@ ns.SpecTalentModifiers = {
             { { id=1270444, modifies=hasAbility, amount=true },                   -- rank 4
               { id=187827, modifies=duration_variable, amount=ns.DURATION_GTE } },
         },
-        [204021] = {
+        [204021] = {   -- fiery brand
             { { id=204021, modifies=hasAbility, amount=true } },
         },
         [207739] = {   -- burning alive. fiery brand spreads, causing updates and adding dur
@@ -410,17 +412,17 @@ ns.SpecTalentModifiers = {
     -- Devourer demon hunter ----------------------------------------------------------------------
     [1480] = {
         [473728] = {   -- root devourer talent
-            { { id=198589, modifies=hasAbility, amount=true } },
+            { { id=198589, modifies=hasAbility, amount=true } },   -- give blur
         },
     },
 
 
     -- Balance druid -------------------------------------------------------------------------
     [102] = {
-        [1239669] = {  -- balance druid root talent. give barkskin
-            { { id=22812, modifies=hasAbility, amount=true } },
+        [1239669] = {  -- balance druid root talent
+            { { id=22812, modifies=hasAbility, amount=true } },    -- give barkskin
         },
-        [194223] = {
+        [194223] = {   -- celestial alignment
             { { id=194223, modifies=hasAbility, amount=true } },
         },
         [468743] = {
@@ -433,7 +435,7 @@ ns.SpecTalentModifiers = {
             { { id=194223, modifies=cooldown, amount=-60 },
               { id=102560, modifies=cooldown, amount=-60 } },
         },
-        [102560] = {
+        [102560] = {    -- balance incarn
             { { id=102560, modifies=hasAbility, amount=true },
               { id=194223, modifies=hasAbility, amount=false } }
         },
@@ -444,17 +446,17 @@ ns.SpecTalentModifiers = {
     },
     -- Feral druid ---------------------------------------------------------------------------
     [103] = {
-        [5217] = {  -- feral druid root talent. give barkskin
-            { { id=22812, modifies=hasAbility, amount=true } },
+        [5217] = {     -- feral druid root talent
+            { { id=22812, modifies=hasAbility, amount=true } },     -- give barkskin
         },
-        [106951] = {
+        [106951] = {   -- berserk
             { { id=106951, modifies=hasAbility, amount=true } },
         },
         [391174] = {
             { { id=106951, modifies=cooldown, amount=-60 },
               { id=102543, modifies=cooldown, amount=-60 } },
         },
-        [102543] = {
+        [102543] = {   -- feral incarn
             { { id=106951, modifies=hasAbility, amount=false },
               { id=102543, modifies=hasAbility, amount=true } },
         },
@@ -478,10 +480,10 @@ ns.SpecTalentModifiers = {
         [393611] = {
             { { id=22812, modifies=duration, amount=2 } },
         },
-        [50334] = {
+        [50334] = {  -- guardian berserk
             { { id=50334, modifies=hasAbility, amount=true } },
         },
-        [102558] = {
+        [102558] = {  -- guardian incarn
             { { id=50334, modifies=hasAbility, amount=false },
               { id=102558, modifies=hasAbility, amount=true } },
         },
@@ -494,7 +496,7 @@ ns.SpecTalentModifiers = {
         [33763] = {  -- resto druid root talent. give barkskin
             { { id=22812, modifies=hasAbility, amount=true } },
         },
-        [102342] = {
+        [102342] = {  -- ironbark
             { { id=102342, modifies=hasAbility, amount=true } },
         },
         [382552] = {
@@ -507,7 +509,7 @@ ns.SpecTalentModifiers = {
 
     -- Devastation evoker -------------------------------------------------------------------
     [1467] = {
-        [375087] = {
+        [375087] = {   -- dragonrage
             { { id=375087, modifies=hasAbility, amount=true } },
         },
         [375797] = {  -- extends dur by 5s for each emp cast. reduces by 25% each time
@@ -516,7 +518,7 @@ ns.SpecTalentModifiers = {
     },
     -- Preservation evoker ------------------------------------------------------------------
     [1468] = {
-        [357170] = {
+        [357170] = {   -- time dilation
             { { id=357170, modifies=hasAbility, amount=true } },
         },
         [376204] = {
@@ -561,7 +563,7 @@ ns.SpecTalentModifiers = {
     },
     -- Marks hunter -------------------------------------------------------------------------
     [254] = {
-        [288613] = {
+        [288613] = {  -- trueshot
             { { id=288613, modifies=hasAbility, amount=true } },
         },
         [260404] = {
@@ -573,7 +575,7 @@ ns.SpecTalentModifiers = {
     },
     -- Survival hunter ----------------------------------------------------------------------
     [255] = {
-        [1250646] = {
+        [1250646] = {  -- takedown
             { { id=1250646, modifies=hasAbility, amount=true } },
         },
         [1251790] = {
@@ -594,7 +596,7 @@ ns.SpecTalentModifiers = {
 
     -- Arcane mage ----------------------------------------------------------------------------
     [62] = {
-        [365350] = {
+        [365350] = {   -- arcane surge
             { { id=365350, modifies=hasAbility, amount=true } },
         },
         [449412] = {   -- sunfury hero talent extends arcane surge
@@ -603,7 +605,7 @@ ns.SpecTalentModifiers = {
     },
     -- Fire mage ------------------------------------------------------------------------------
     [63] = {
-        [190319] = {
+        [190319] = {   -- combustion
             { { id=190319, modifies=hasAbility, amount=true } },
         },
         [1254194] = {
@@ -649,7 +651,7 @@ ns.SpecTalentModifiers = {
         [388813] = {  -- fort brew class tree talent. diff cooldown for diff specs
             { { id=115203, modifies=cooldown, amount=-120 } },
         },
-        [132578] = {
+        [132578] = {   -- niuzao
             { { id=132578, modifies=hasAbility, amount=true } },
         },
         [450989] = {
@@ -661,7 +663,7 @@ ns.SpecTalentModifiers = {
         [388813] = {  -- fort brew class tree talent. diff cooldown for diff specs
             { { id=115203, modifies=cooldown, amount=-30 } },
         },
-        [116849] = {
+        [116849] = {   -- life cocoon
             { { id=116849, modifies=hasAbility, amount=true } },
         },
         [202424] = {
@@ -682,16 +684,16 @@ ns.SpecTalentModifiers = {
     -- Holy Paladin ------------------------------------------------------------------------
     [65] = {
         [20473] = { -- required root holy talent. add holy-specific mods here
-            { { id=498, modifies=hasAbility, amount=true } }    -- holy gets divine protection
+            { { id=498, modifies=hasAbility, amount=true } }    -- give divine protection
         },
         [384820] = {
             { { id=6940, modifies=cooldown, amount=-15 } }
         },
-        [31884] = {
+        [31884] = {  -- avenging wrath
             { { id=31884, modifies=hasAbility, amount=true } }
         },
         -- avenging crusader adds the hammer of wrath buff.
-        [216331] = {
+        [216331] = {  -- avenging crusader
             { { id=216331, modifies=hasAbility, amount=true } }
         },
         [1241511] = {
@@ -714,23 +716,23 @@ ns.SpecTalentModifiers = {
         [384820] = {
             { { id=6940, modifies=cooldown, amount=-60 } }
         },
-        [31850] = {
+        [31850] = {   -- ardent defender
             { { id=31850, modifies=hasAbility, amount=true } }
         },
-        [204018] = {
+        [204018] = {  -- spellwarding
             { { id=204018, modifies=hasAbility, amount=true } }
         },
         [392928] = {
             { { id=135928, modifies=cdr, amount=true } }
         },
-        [31884] = {
+        [31884] = {   -- avenging wrath
             { { id=31884, modifies=hasAbility, amount=true } }
         },
-        [389539] = {
+        [389539] = {  -- sentinel
             { { id=389539, modifies=hasAbility, amount=true },
               { id=389539, modifies=naturallyUpdates, amount=true } },
         },
-        [86659] = {
+        [86659] = {   -- GoAK
             { { id=86659, modifies=hasAbility, amount=true } }
         },
         [378425] = {
@@ -743,7 +745,7 @@ ns.SpecTalentModifiers = {
             { { id=389539, modifies=duration, amount=25, mult=true },
             { id=31884, modifies=duration, amount=25, mult=true } }
         },
-        [378279] = {
+        [378279] = {  -- cheat death
             { { id=393108, modifies=hasAbility, amount=true },
             { id=86659, modifies=cdr, amount=true } }
         },
@@ -776,9 +778,10 @@ ns.SpecTalentModifiers = {
     -- Ret Paladin ------------------------------------------------------------------------
     [70] = {
         [184575] = { -- 1st spec talent. put ret spec stuff here
-            { { id=31884, modifies=cooldown, amount=-60 },    -- ret gets -60s on wings
-              { id=498, modifies=hasAbility, amount=true },   -- ret gets divine protection
-              { id=498, modifies=cooldown, amount=30 } }      -- but ret DP is a 90s cd
+            { { id=31884, modifies=cooldown, amount=-60 },   -- ret gets -60s on wings
+              { id=498, modifies=hasAbility, amount=true },  -- ret gets divine protection
+              { id=498, modifies=BIGFLAG, amount=false },    -- ret DP is not a BIG_DEFENSIVE
+              { id=498, modifies=cooldown, amount=30 } }     -- but ret DP is a 90s cd
         },
         [1261562] = {
             { { id=498, modifies=requireShield, amount=true },
@@ -787,7 +790,7 @@ ns.SpecTalentModifiers = {
         [384820] = {
             { { id=6940, modifies=cooldown, amount=-60 } }
         },
-        [31884] = {
+        [31884] = {  -- avenging wrath
             { { id=31884, modifies=hasAbility, amount=true } }
         },
         --[255937] = {
@@ -799,7 +802,7 @@ ns.SpecTalentModifiers = {
             { { id=31884, modifies=duration, amount=4 },      -- rank 2
               { id=255937, modifies=duration, amount=4 } },
         },
-        [458359] = {
+        [458359] = {  -- wake of ashes
             { { id=255937, modifies=hasAbility, amount=true },
               { id=31884, modifies=hasAbility, amount=false } }
         },
@@ -813,7 +816,7 @@ ns.SpecTalentModifiers = {
 
     -- Discipline priest -------------------------------------------------------------------
     [256] = {
-        [33206] = {
+        [33206] = {  -- pain supp
             { { id=33206, modifies=hasAbility, amount=true } },
         },
         [373035] = {
@@ -823,7 +826,7 @@ ns.SpecTalentModifiers = {
     },
     -- Holy priest -------------------------------------------------------------------------
     [257] = {
-        [47788] = {
+        [47788] = {  -- guardian spirit
             { { id=47788, modifies=hasAbility, amount=true } },
         },
         [200209] = {
@@ -834,7 +837,7 @@ ns.SpecTalentModifiers = {
             -- XXX: TODO: does cheat fire a UNIT_DIED?
             { { id=47788, modifies=cdr, amount=true } },
         },
-        [64843] = {
+        [64843] = {  -- divine hymn
             { { id=64843, modifies=hasAbility, amount=true } },
         },
         [419110] = {
@@ -843,10 +846,10 @@ ns.SpecTalentModifiers = {
     },
     -- Shadow priest -----------------------------------------------------------------------
     [258] = {
-        [335467] = {  -- shadow priest root talent, give dispersion
-            { { id=47585, modifies=hasAbility, amount=true } },
+        [335467] = {  -- shadow priest root talent
+            { { id=47585, modifies=hasAbility, amount=true } },    -- give dispersion
         },
-        [228260] = {
+        [228260] = {  -- void form
             { { id=228260, modifies=hasAbility, amount=true } },
         },
         [1231346] = { -- extend duration on SW:madness
@@ -866,16 +869,16 @@ ns.SpecTalentModifiers = {
 
     -- Assassination rogue -----------------------------------------------------------------
     [259] = {
-        [2823] = {
+        [2823] = {     -- vanish
             { { id=1856, modifies=hasAbility, amount=true } },   -- give vanish
         },
     },
     -- Outlaw rogue ------------------------------------------------------------------------
     [260] = {
-        [279876] = {
+        [279876] = {   -- vanish
             { { id=1856, modifies=hasAbility, amount=true } },   -- give vanish
         },
-        [13750] = {
+        [13750] = {    -- adrenaline rush
             { { id=13750, modifies=hasAbility, amount=true } },
         },
         [1259465] = {
@@ -908,7 +911,7 @@ ns.SpecTalentModifiers = {
             -- meaning haste procs increase duration. again, approximate with DURATION_GTE
             { { id=185313, modifies=duration_variable, amount=ns.DURATION_GTE } },
         },
-        [121471] = {
+        [121471] = {   -- shadow blades
             { { id=121471, modifies=hasAbility, amount=true } }
         },
         [196976] = {  -- gives master of shadows buff on dance
@@ -942,38 +945,38 @@ ns.SpecTalentModifiers = {
     -- Affliction warlock ------------------------------------------------------------------------
     [265] = {
         [980] = {  -- root affliction talent
-            { { id=104773, modifies=hasAbility, amount=true } }
+            { { id=104773, modifies=hasAbility, amount=true } }   -- give unending resolve
         },
     },
     -- Demo warlock ------------------------------------------------------------------------
     [266] = {
         [105174] = {  -- root demo talent
-            { { id=104773, modifies=hasAbility, amount=true } }
+            { { id=104773, modifies=hasAbility, amount=true } }   -- give unending resolve
         },
     },
     -- Destro warlock ------------------------------------------------------------------------
     [267] = {
         [116858] = {  -- root destro talent
-            { { id=104773, modifies=hasAbility, amount=true } }
+            { { id=104773, modifies=hasAbility, amount=true } }   -- give unending resolve
         },
     },
 
 
     -- Arms warrior ------------------------------------------------------------------------
     [71] = {
-        [118038] = {
+        [118038] = {   -- die by the sword
             { { id=118038, modifies=hasAbility, amount=true } },
         },
-        [107574] = {
+        [107574] = {   -- avatar
             { { id=107574, modifies=hasAbility, amount=true } },
         },
     },
     -- Fury warrior ------------------------------------------------------------------------
     [72] = {
-        [184364] = {
+        [184364] = {   -- enraged regen
             { { id=184364, modifies=hasAbility, amount=true } },
         },
-        [107574] = {
+        [107574] = {   -- avatar
             { { id=107574, modifies=hasAbility, amount=true } },
         },
         [383468] = {
@@ -991,7 +994,7 @@ ns.SpecTalentModifiers = {
     },
     -- Prot warrior ------------------------------------------------------------------------
     [73] = {
-        [107574] = {
+        [107574] = {   -- avatar
             { { id=107574, modifies=hasAbility, amount=true } },
         },
         [1270724] = {  -- thunder blast extends dur +2. the extension is an aura update
@@ -1003,7 +1006,7 @@ ns.SpecTalentModifiers = {
         [437134] = {   -- Avatar of the Storm: hero talent that procs avatar for 4s
             { { id=437134, modifies=hasAbility, amount=true } },
         },
-        [871] = {
+        [871] = {      -- shield wall
             { { id=871, modifies=hasAbility, amount=true } },
         },
         [1243659] = {  -- last stand adds a buff to shield wall
