@@ -750,13 +750,15 @@ end)
 --------------------------------------------------------------------------------------
 
 local deathHandler = CreateFrame("Frame", addonName .. "DeathHandler")
-deathHandler:RegisterEvent("UNIT_DIED")
 deathHandler:SetScript("OnEvent", function(self, event, unit)
+    -- Seems that unlike all the other handlers, unit is always secret
+    local now = GetTime()
+    -- log the event regardless. want to see if it is ever non-secret
+    ns:playback(now, event, (issecretvalue(unit) and "secret") or unit)
+    if issecretvalue(unit) then return end
     local guid, char = ns:getTrackedCharacterBySlot(unit)
     if not guid then return end
-    local now = GetTime()
     char:trackEvidence('died', now)
-    ns:playback(now, event, unit)
 end)
 
 
@@ -765,8 +767,6 @@ end)
 --------------------------------------------------------------------------------------
 
 local testHandler = CreateFrame("Frame", addonName .. "TestHandler")
-testHandler:RegisterEvent("UNIT_SPELL_HASTE")
-testHandler:RegisterEvent("UNIT_ATTACK_SPEED")
 testHandler:SetScript("OnEvent", function(self, event, unit)
     local guid, char = ns:getTrackedCharacterBySlot(unit)
     if not guid then return end
@@ -954,6 +954,9 @@ function ns:enableAddon()
     flagsHandler:RegisterEvent("UNIT_FLAGS")
     encounterHandler:RegisterEvent("ENCOUNTER_START")
     encounterHandler:RegisterEvent("ENCOUNTER_END")
+    deathHandler:RegisterEvent("UNIT_DIED")
+    testHandler:RegisterEvent("UNIT_SPELL_HASTE")
+    testHandler:RegisterEvent("UNIT_ATTACK_SPEED")
     --poller:Invoke()
 
     ns:respondToRosterUpdate('enableAddon')
@@ -980,6 +983,9 @@ function ns:disableAddon()
     flagsHandler:UnregisterEvent("UNIT_FLAGS")
     encounterHandler:UnregisterEvent("ENCOUNTER_START")
     encounterHandler:UnregisterEvent("ENCOUNTER_END")
+    deathHandler:UnregisterEvent("UNIT_DIED")
+    testHandler:UnregisterEvent("UNIT_SPELL_HASTE")
+    testHandler:UnregisterEvent("UNIT_ATTACK_SPEED")
     --poller:Cancel()
 
     ns:respondToRosterUpdate('disableAddon')
