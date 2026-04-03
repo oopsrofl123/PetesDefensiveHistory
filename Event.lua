@@ -141,6 +141,8 @@ function ns:Event(newTrace, newSource)
 
     function e:getDebuffInSamePayload() return debuffInSamePayload end
 
+    function e:getAbilityOffCooldown(at) return abilityOffCooldown end
+
     -- Trivial setters
     function e:setDebuffInSamePayload(x) debuffInSamePayload = x end
 
