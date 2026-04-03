@@ -801,12 +801,31 @@ local function confidenceLayerUnboundFreedom(possibleSolutions, event)
 end
 
 
+-- Bubble and AD have identical flags and durations, making them tough to distinguish.
+-- However, bubble has many alternative forms of evidence that are not individually
+-- convincing, but if all are present, then the ability is almost certainly bubble.
+local function confidenceLayerBubble(possibleSolutions)
+    local numSolutions = #possibleSolutions
+    if numSolutions == 2 then
+        local a1, a2 = unpack(possibleSolutions)
+        local bubble = (a1.name == 'Divine Shield' and a1) or (a2.name == 'Divine Shield' and a2) or nil
+        local ardent = (a1.name == 'Ardent Defender' and a1) or (a2.name == 'Ardent Defender' and a2) or nil
+        if ardent and bubble then
+            return { 'bubble', bubble.reqsMet and bubble, true, bubble.reqsMet }
+        end
+        return { 'bubble', false, false, a1.name..' and '..a2.name }
+    end
+    return { 'bubble', false, false, numSolutions }
+end
+
+
 ns.confidenceLayerAliases = {
     oneSolution='1',
     castTime='P',
     duration='U',
     uncertainSameAura='u',
     unboundFreedom='o',
+    bubble='b',
 }
 
 -- Given a list of possible abilities that could have produced event, determine:
@@ -836,6 +855,7 @@ local function getConfidentMatch(possibleSolutions, event)
         confidenceLayerDuration(possibleSolutions),
         confidenceLayerAbilitiesApplySameAura(possibleSolutions),
         confidenceLayerUnboundFreedom(possibleSolutions, event),
+        confidenceLayerBubble(possibleSolutions),
     }
 
     -- XXX: TODO: first match wins. maybe better strategy in the future
