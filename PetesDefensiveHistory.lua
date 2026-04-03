@@ -433,7 +433,7 @@ function ns:finalizeInference(ev, ability)
                ability.id ~= otherAbility.id then
                 ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
                     "applying BoP/spellwarding cooldown hack")
-                trackCooldown(ev, otherAbility) -- doesn't alter event
+                trackCooldown(ev, otherAbility) -- DOES alter event by setting cooldown
                 -- confusing: trackCooldown saves the time when the cooldown will be
                 -- available again in the event. BoP/spellward happen to have the same
                 -- cooldowns.
