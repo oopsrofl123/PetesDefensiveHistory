@@ -293,7 +293,17 @@ class InferenceScore:
     # Records from the aligned combat log are the ground truth set
     def add_truth(self, record):
         # XXX: the true caster may not be the inferred player. deal with this later
-        self.truth[spells[int(record[10])]].append(record[0])  # record the times
+        ability = spells[int(record[10])]
+        this_time = record[0]
+        # special handling for alter time: the initial cast and the (optional) second
+        # cast are both recorded as SPELL_CAST_SUCCESS. so don't accept another alter
+        # time truth record if it's within 8s of the previous alter time record.
+        if ability == 'Alter Time':
+            recent = [ True for last_cast in self.truth[ability] if abs(last_cast - this_time) < 10 ]
+            if recent:
+                print('skipping second Alter Time activation at t=', this_time)
+                return
+        self.truth[spells[int(record[10])]].append(this_time)  # record the times
 
     def add_not_logged(self, trace):
         self.events += 1
