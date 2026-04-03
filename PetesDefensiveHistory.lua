@@ -87,6 +87,15 @@ local function findFrameForSlot(slot, slotRoot)
                 return f
             end
         end
+    elseif Vd1 then
+        if slotRoot ~= "party" then
+            print("ERROR: raid frames are not supported for VuhDo at the moment, please leave a comment on the discord if you are interested in raid support.")
+        end
+        for _, frame in pairs(VUHDO_getUnitButtons(slot) or {}) do
+            if frame.raidid == slot then
+                return frame
+            end
+        end
     elseif ElvUI then
         if ElvUI[1].db and ElvUI[1].db.unitframe.units.party.enable and ElvUF_Party then
             if slotRoot ~= "party" then
@@ -622,6 +631,16 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     local playbackFlags = {}
     local aurasAddedThisCall = {}
     local sanitizedAurasAdded = {}  -- ensure no secret data is accessed for playback
+
+    -- Were any debuffs added this payload? Buffs that also apply debuffs often do not
+    -- apply them in the same frame, but when they do it's a little more evidence about
+    -- what ability was used.
+    local debuffAddedThisCall = false
+    for _, v in pairs(aurasAdded) do
+        if ns:isDebuff(unitTarget, v.auraInstanceID) then
+            debuffAddedThisCall = true
+        end
+    end
     for _, v in pairs(aurasAdded) do
         aurasAddedThisCall[v.auraInstanceID] = true
         local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
@@ -637,7 +656,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- blessing of freedom on a player without talent data.
             if char:hasTalentData() or aura.EXTERNAL or ns:GetOption('inferWithoutTalentData') then
                 -- This aura is important, likely from a big cooldown
-                ns:trackAura("AURA(add)", aura)
+                ns:trackAura("AURA(add)", aura, debuffAddedThisCall)
             end
         else
             -- The aura isn't flagged, but it could be concurrent evidence
@@ -647,7 +666,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     if #aurasAdded > 0 then
         updateInfo['addedAuras'] = sanitizedAurasAdded
     end
-    ns:playback(now, 'UNIT_AURA', unitTarget, updateInfo, playbackFlags)
+    ns:playback(now, 'UNIT_AURA', unitTarget, updateInfo, playbackFlags, debuffAddedThisCall)
 
     for _, auraInstanceId in pairs(aurasUpdated) do
         local ev = ns:getAuraEventByGUID(auraInstanceId, guid)
@@ -720,6 +739,21 @@ end)
 local encounterHandler = CreateFrame("Frame", addonName .. "EncounterHandler")
 encounterHandler:SetScript("OnEvent", function(self, event, ...)
     ns:playback(GetTime(), event, ...)
+end)
+
+
+--------------------------------------------------------------------------------------
+-- Track when group members die
+--------------------------------------------------------------------------------------
+
+local deathHandler = CreateFrame("Frame", addonName .. "DeathHandler")
+deathHandler:RegisterEvent("UNIT_DIED")
+deathHandler:SetScript("OnEvent", function(self, event, unit)
+    local guid, char = ns:getTrackedCharacterBySlot(unit)
+    if not guid then return end
+    local now = GetTime()
+    char:trackEvidence('died', now)
+    ns:playback(now, event, unit)
 end)
 
 
