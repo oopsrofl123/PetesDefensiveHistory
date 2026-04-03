@@ -1,24 +1,61 @@
-**NEW RELEASE: 0.9.7h**
+**NEW RELEASE: 0.9.7j**
 
-- Option to hide your own cooldown tracker row
-- Option to remove the inaccurate warning (!) badges that appear on hard-to-track timers
-- Short-term hack to deal with the M+ Xal'atath affix that gives 30% faster cooldown recovery. This fix improves spell identification during this affix but does not affect cooldown timer displays. Only active in M+ keys < level 12, otherwise has no effect.
-    - New option to disable the above M+ hack
+- Vuhdo support added
+- Improve speed of paladin bubble detection
+- Detect when party members die
+- Fix mis-identification of retribution paladin Divine Protection as Freedom
 
 
 V1.0 RELEASE GOALS
 ===========================================================================
-- many FNs: m+ affix voidbinding causes 30% increased cooldown recovery rate
+- Update READMEs
 
-- bubble is never IDable if ardent defender is available. same flags, same duration.
-    - need a more aggressive evidence handler since bubble has so many forms of evidence (extra taunts,
-      UNIT_FLAGS, debuff)
+- reminder: do something with new ev:debuffInSamePayload()
+
+- hide old history tray items hides everything?
+    - not sure why, the code looks correct
+    - a better maxCD estimate can be taken from possibleSolutions now. maybe
+      getPossibleSolutions() doesn't need to calculate it at all
+
+- use unbound freedom to diff DP and freedom for ret
+
+- The addon now notifies the user when a group member doesn't have LibSpec
+
+- Improve accuracy for augmentation evokers due to their mastery that increases buff durations.
+
+- mirror image FN because CHALLENGE_MODE_START reset the cd
+
+- arcane surge is never IDable because of mirror images
+
+- combat drops are FNing like crazy. what happened?
+
+- ice cold was FPed as alter time because of a death
+    - use new died in duration to force duration_variable=LTE
+    - in that case, would be a FN since the two couldn't be distinguished
+    - addedinsameframe could maybe save some?
+    - does the "summon" event that occurs in the combat log have some in-game trigger?
+
+- need to use party member death in duration logic layer
+    - currently just tracking it to see how it works
+
+- [maybe] add debuffAddedInSameFrame evidence
+    - when a possible ability requires a debuff AND the buff/debuff arrive in the same UNIT_AURA
+      payload, that's pretty convincing (though not definitive) evidence that the two are related
+    - maybe use this to break ties?
+
+- Maybe default talents. Detect content type, use most popular build from data sites.
+    PROS:
+        - there's no harm in having every ability listed as possible
+    CONS:
+        - since talents affect durations and timers, it may make the addon look inaccurate
+
 
 - aug mastery increases duration of helpful auras by X%
 
 - need to add note about exhil only working for dark ranger hero spec or else people will bug report it
 
-- ironbark can't be distinguished from sac
+- [IS THIS TRUE?] ironbark can't be distinguished from sac
+    - this might have been the Voidbinding cooldown bug
     - look into more other event types?
     - what about cast time evidence? from replays it seems the cast time is always extremely close
       to unit aura.
@@ -774,6 +811,12 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- bubble is never IDable if ardent defender is available. same flags, same duration.
+    - need a more aggressive evidence handler since bubble has so many forms of
+      evidence (extra taunts, UNIT_FLAGS, debuff)
+
+- many FNs: m+ affix voidbinding causes 30% increased cooldown recovery rate
+
 - akilos error: cooldowns without a group frame. think this might be related to not having frames
   shown while solo
     - think this may cause his second error with slot=nil when joining a group
