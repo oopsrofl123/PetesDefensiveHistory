@@ -1118,27 +1118,27 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
 		},
-        -- {   -- enhance ascendance
-			-- name="Ascendance",
-            -- alias='Ascend',
-			-- id=114051,
-            -- iconId=135791,
-			-- cooldown=180,
-			-- duration=15,
-			-- duration_variable=ns.DURATION_FIXED,
-			-- charges=1,
-			-- cdr=false,
-            -- IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
-			-- targets=ns.TARGET_SELF,
-            -- requireButtonPress=true,
-		-- },
+        {   -- enhance ascendance
+			name="Ascendance",
+            alias='Ascend',
+			id=114051,
+            iconId=135791,
+			cooldown=180,
+			duration=15,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+		},
 		{
 			name="Deeply Rooted Elements",
             alias='Ascend proc',
 			id=378270,
-            appliesOtherAura=114052,
+            appliesOtherAura=114052,   -- resto ascend by default
             iconId=960689,
-			cooldown=6,   -- XXX: No idea. May be an internal CD. Setting to its duration for now
+			cooldown=6,   -- XXX: Don't know if there's an internal CD. Set to duration for now
 			duration=6,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
@@ -1161,6 +1161,39 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
         },
+        -- Enhance ascend still applies Doom Winds, but the Doom Winds ability is not
+        -- a stand-alone spell. This dummy ability absorbs the Doom Winds buff but is
+        -- hidden.
+		{
+			name="Doom Winds from Ascendance",
+            alias='D.Winds(asc)',
+			id=38435200,          -- make up a new, very unlikely to ever exist ID
+            hideAbility=true,
+            appliesOtherAura=114051,   -- enhance ascend
+            iconId=1035054,
+			cooldown=180,         -- match the base cooldown of ascend
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+        },
+        {   -- ele ascendance
+			name="Ascendance",
+            alias='Ascend',
+			id=114050,
+            iconId=135791,
+			cooldown=180,
+			duration=15,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+		},
         -- XXX: TODO: marked as important, but no event fires when it's used
 		-- {
 			-- name="Healing Tide Totem",
