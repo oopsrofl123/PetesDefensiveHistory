@@ -46,7 +46,7 @@ There are a few important things to understand about how this AddOn works and it
 ![](images/DisableHistoryTray.png)
 
 # Complicated things happen!
-* Players without LibSpecialization can cause unexpected things. For example, if someone without LibSpec uses an external ability, an icon will be added to the **target's history tray**.
+* Players without LibSpecialization can cause unexpected things. For example, if someone without LibSpec uses an external defensive, an icon will be added to the **target's history tray**.
 
 ![](images/no_libspec_consequences.png)
 *Life Cocoon was cast on the Paladin by a Monk without LibSpec*
@@ -74,8 +74,8 @@ There are a few important things to understand about how this AddOn works and it
 
 
 # Known bugs
-There are several known bugs. Unlike *limitations*, which are permanent inadequacies of
-the approach used, these bugs will be fixed in upcoming releases. Here are a few in no
+There are several known bugs. Unlike *limitations*, which are permanent,
+these bugs will be fixed in upcoming releases. Here are a few in no
 particular order:
 * **Group members without LibSpec can cause wacky results on players with LibSpec!** If a
   group member without LibSpec uses an ability that would be tracked, the addon will still
@@ -89,9 +89,6 @@ particular order:
   fixed by adding a default ability set for each spec. This will work better for specs
   where the base abilities are near-guaranteed (e.g., Pain Suppression on a disc priest)
   than specs with more optional talents (e.g., Blessing of Protection on a ret paladin).
-* Blessing of freedoms in history tray: the free second Blessing of Freedom talent Unbound
-  Freedom creates two freedoms for one cast. Currently only one freedom will be assigned
-  to the caster and the other will go to the history tray when it times out.
 * Avatar, Guardian of Ancient Kings, and VDH (tank) Metamorphosis inference is currently
   inaccurate, but is solvable.
 * Changes to party sort order aren't detected, so trackers will not follow the sorting.
@@ -101,22 +98,3 @@ particular order:
 * VDH meta is currently bugged in WoW: the cheat death proc also puts meta on cooldown if
   it is available. This bug will be added to the addon if it continues to exist for much
   longer.
-
-
-### History tray fallback mode when cooldown is ambiguous
-The default mode: when a big cooldown is used, keep the icon around (without knowing what it is) and attach a timer that counts up. Similar to a GCD tracker - is useful if the player knows the cooldown of the ability.
-
-To reduce clutter, the count-up timer is removed when the longest possible cooldown across all abilities that could be present on that player is reached.
-
-![](images/fallback_behavior.png)
-
-
-### Cooldown tracking when ability can be guessed
-In some cases, the ability used can be guessed. For example, if the group has no external defensives and a spec has only one ability X that is classified as a BIG_DEFENSIVE, then any time a big defensive buff is shown it must be ability X.
-
-![](images/cooldowns_tracked.png)
-
-### Group-wide solving which abilities can always be uniquely identified
-Use `/pdh` to show which group members are valid targets for each ability in the group. Abilities that can always be guessed are colored, greyed out abilities can only sometimes be guessed.
-
-![](images/group_solutions_UI.png)
