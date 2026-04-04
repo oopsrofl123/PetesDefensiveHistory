@@ -70,6 +70,22 @@ local function findFrameForSlot(slot, slotRoot)
                 return frame
             end
         end
+    -- Must check for both the addon and the party header since many EQOL users (myself
+    -- included) don't use its party frames.
+    elseif EnhanceQoL and EQOLUFPartyHeader then
+        if slotRoot ~= "party" then
+            print("ERROR: raid frames are not supported for EnhanceQoL at the moment, please leave a comment on the discord if you are interested in raid support.")
+            return
+        else
+            frameRoot = "EQOLUFPartyHeaderUnitButton"
+        end
+        for i=1, maxN do
+            framesChecked = framesChecked + 1
+            local f = _G[frameRoot .. i]
+            if f and f.unit == slot then
+                return f
+            end
+        end
     -- Grid2 doesn't hide Blizzard frames by default, so this check must happen
     -- before searching through the Blizzard frames to prefer Grid's.
     elseif Grid2 then
@@ -631,6 +647,28 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
         end
     end
 
+    -- Aura expiration is when the associated event expires
+    -- IMPORTANT: this expiration must be fired here when the aura is removed. Do not
+    -- try to automatically detect this via C_UnitAuras.GetAuraDataByAuraInstanceID()
+    -- in Event:isExpiring() or similar. It will not work because of throttling, which
+    -- can be delayed and thus not accurately catch the end of the aura, confounding
+    -- duration-based confidence.
+    local obsidianScalesRemovalEvent  -- nil if this didn't happen
+    for _, auraInstanceId in pairs(aurasRemoved) do
+        local expiredEvent = ns:expireAuraEventByGUID(auraInstanceId, guid, now)
+        -- Handle a special case for obsidian scales: for reasons I haven't yet uncovered,
+        -- obsidian scales' aura is removed and replaced by a new aura in the middle of its
+        -- duration. The new aura has the same flags and is thus detected as a new ability
+        -- use. It must be prevented from going through inference because there is no new
+        -- evidence corresponding to the new aura.
+        if expiredEvent then
+            local ability = expiredEvent:getAbility()
+            if ability and ability.name == 'Obsidian Scales' then
+                obsidianScalesRemovalEvent = expiredEvent
+            end
+        end
+    end
+
     local playbackFlags = {}
     local aurasAddedThisCall = {}
     local sanitizedAurasAdded = {}  -- ensure no secret data is accessed for playback
@@ -657,7 +695,46 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- unknown and the inferences will cause many false positives.
             -- XXX: TODO: this causes a FALSE NEGATIVE when a player with talent data casts
             -- blessing of freedom on a player without talent data.
-            if char:hasTalentData() or aura.EXTERNAL or ns:GetOption('inferWithoutTalentData') then
+            local obsidianScalesHack = false
+            if obsidianScalesRemovalEvent then
+                local ab
+                for _, x in pairs(char:getAbilities()) do
+                    if x.name == "Obsidian Scales" then
+                        ab = x
+                        break
+                    end
+                end
+                -- Are we trying to add a new obsidian scales when one was removed in this
+                -- UNIT_AURA? If so, this is an odd scales-only behavior that does not reflect
+                -- a new ability use but rather a weird way of updating the aura duration.
+                -- there is no other evidence to check to bolster confidence that this is
+                -- truly scales because this is not a distinct cast.
+                if aura.IMPORTANT == ab.IMPORTANT and aura.BIG == ab.BIG and
+                   aura.EXTERNAL == ab.EXTERNAL and aura.RAIDINCOMBAT == ab.RAIDINCOMBAT then
+                    obsidianScalesHack = true
+                    -- the new aura is indeed a distinct aura by ID, but it is a continuation of
+                    -- the previous scales. so its start time should really be set to the old
+                    -- scales' value. just update the ID and discard the new info.
+                    local oldAura = obsidianScalesRemovalEvent:getAura()
+                    local oldId = obsidianScalesRemovalEvent:getId()
+                    oldAura.auraInstanceId = aura.auraInstanceId
+                    -- record old and new instance IDs
+                    ns:playback(now, 'OBSIDIAN_SCALES_HACK', oldId, aura.auraInstanceId)
+                    ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+                        'applying O.Scales hack: %s -> %d', oldId, aura.auraInstanceId))
+
+                    -- Attach the old event batch to the new aura ID to properly track the expiry.
+                    -- Doing it this way prevents inference, which is both unnecessary and would
+                    -- fail.
+                    local eventList = ns.eventsForInference[obsidianScalesRemovalEvent:getSource()]
+                    obsidianScalesRemovalEvent:setAura(oldAura)  -- does nothing
+                    eventList[obsidianScalesRemovalEvent:getId()] = eventList[oldId]
+                    eventList[oldId] = nil
+                end
+            end
+
+            if (char:hasTalentData() or aura.EXTERNAL or ns:GetOption('inferWithoutTalentData')) and
+               not obsidianScalesHack then
                 -- This aura is important, likely from a big cooldown
                 ns:trackAura("AURA(add)", aura, debuffAddedThisCall)
             end
@@ -699,16 +776,6 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- but are also awarded when pressing avatar.
             char:trackAuraEvidence(unitTarget, auraInstanceId, now)
         end
-    end
-
-    -- Aura expiration is when the associated event expires
-    -- IMPORTANT: this expiration must be fired here when the aura is removed. Do not
-    -- try to automatically detect this via C_UnitAuras.GetAuraDataByAuraInstanceID()
-    -- in Event:isExpiring() or similar. It will not work because of throttling, which
-    -- can be delayed and thus not accurately catch the end of the aura, confounding
-    -- duration-based confidence.
-    for _, auraInstanceId in pairs(aurasRemoved) do
-        ns:expireAuraEventByGUID(auraInstanceId, guid, now)
     end
 
     -- Run inference on all outstanding events for this character
