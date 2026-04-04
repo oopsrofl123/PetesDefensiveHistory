@@ -16,6 +16,7 @@ local function applyOneModifier(modifiedAbility, mod)
 
     if type(mod.amount) == "boolean" or
        mod.modifies == "duration_variable" or
+       mod.modifies == "appliesOtherAura" or
        mod.modifies == "targets" then
         modifiedAbility[mod.modifies] = mod.amount
     else -- numeric case
@@ -74,9 +75,10 @@ function ns:applyTalentModifiers(classFile, specId, baseAbility, talentRanks)
     -- then use a standard < comparator.
     local function toOrd(mod)
         local first = mod.mult and 1 or 0
-        local second = mod.modifies == "hasAbility" and mod.amount == false and 100000 or 0
-        local third = mod.modifies == "cdr" and mod.amount == false and 100000 or 0
-        return first + second
+        local second = mod.modifies == "hasAbility" and mod.amount == false and 100 or 0
+        local third = mod.modifies == "cdr" and mod.amount == false and 100 or 0
+        local fourth = mod.modifies == 'appliesOtherAura' and 1000 or 0
+        return first + second + third + fourth
     end
     -- Sort additive effects before multiplicative effects and put talents
     -- that *remove* abilities at the end of the sort. This is a very brittle
