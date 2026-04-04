@@ -1,4 +1,4 @@
-**NEW RELEASE: 0.9.7j**
+**NEW RELEASE: 0.9.7k**
 
 Available soon on CurseForge
 
@@ -32,6 +32,12 @@ Available soon on CurseForge
 
 V1.0 RELEASE GOALS
 ===========================================================================
+- probably some weird stuff if someone uses a cooldown right before key start
+    - see day 8 incarn on pull timer
+    - guessing: CD is reset, addon doesn't know that
+    - buff is refreshed so the aura glow continues
+    - but the second cast is denied because it should still be on CD
+
 - add masque support
 
 - testing doom winds: had a case where the cast was 0.117s away from the aura
