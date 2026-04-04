@@ -16,16 +16,16 @@ There are a few important things to understand about how this AddOn works and it
 * Talents are necessary to know (a) what abilities someone has and (b) what their cooldowns are.
 * Players without LibSpecialization *will have no cooldown icons next to their frames*!
 
-The mage does not have LibSpecialization
 ![](images/NoLibSpec2.png)
+The mage does not have LibSpecialization
 
 
 # There is a second row of icons for each player called the **history tray**
 * The AddOn *guesses what abilities are used* based on several lines of evidence.
 * When it can't guess the correct ability, it puts it in the second row or *history tray*. This is like a GCD tracker for cooldowns.
 
-Freedom could not be guessed on the druid
 ![](images/HistoryTray.png)
+Freedom could not be guessed on the druid
 
 If they have external abilities, they will show up on the target's *history tray* (row below cooldowns).
 
