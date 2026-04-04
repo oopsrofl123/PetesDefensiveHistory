@@ -1,10 +1,23 @@
 # PetesDefensiveHistory
 
-**WHILE MOSTLY FUNCTIONAL, THIS ADDON IS STILL UNDER ACTIVE DEVELOPMENT. EXPECT SOME BUGS AND INCONVENIENCES AND /reloads.**
+**WHILE MOSTLY FUNCTIONAL, THIS ADDON IS STILL UNDER ACTIVE DEVELOPMENT. EXPECT SOME BUGS, INCONVENIENCES AND /reloads.**
 
 
 [![Join Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?logo=discord&logoColor=white)](https://discord.gg/gVCtQrvpxt) Help by reporting bugs and sharing logic export strings and combat logs!
 
+Tracks cooldowns for Blizzard-approved `IMPORTANT`, `BIG_DEFENSIVE` and `EXTERNAL` buffs.
+When identified, active cooldowns are glowed and cooldown timers are shown. Text-To-Speech (TTS) announcements are also supported. Buffs that cannot be identified are instead displayed on a second row similar to a GCD history tracker. These buffs display a "count-up" timer that indicates how much time has passed since that (unidentified) buff was applied.
+
+PetesDefensiveHistory uses a flexible inference engine to identify abilities through several lines of evidence. Many abilities can be detected immediately on cast. In future versions, more abilities will be added.
+
+* Tracks 61 offensive and defensive cooldowns.
+* Detects talents and hero specs.
+* Text-to-Speech (TTS) ability announcer.
+* Supports DandersFrames, EnhanceQoL, Grid2, VuhDo, ElvUI and Blizzard default frames.
+* Data exporter and log analyzer to measure inference accuracy using combat logs as a truth source.
+* Designed for Mythic+ but future updates will add support for raids and allies in arena.
+
+**Would love to integrate the inference engine with a UI-focused addon. Please contact me if interested!**
 
 ![](images/PDH1.gif)
 
@@ -32,23 +45,12 @@ There are a few important things to understand about how this AddOn works and it
 
 ![](images/DisableHistoryTray.png)
 
-If they have external abilities, they will show up on the target's *history tray* (row below cooldowns).
+# Complicated things happen!
+* Players without LibSpecialization can cause unexpected things. For example, if someone without LibSpec uses an external ability, an icon will be added to the **target's history tray**.
 
 ![](images/no_libspec_consequences.png)
+*Life Cocoon was cast on the Paladin by a Monk without LibSpec*
 
-Tracks cooldowns for Blizzard-approved `IMPORTANT`, `BIG_DEFENSIVE` and `EXTERNAL` buffs.
-When identified, active cooldowns are glowed and cooldown timers are shown. Text-To-Speech (TTS) announcements are also supported. Buffs that cannot be identified are instead displayed on a second row similar to a GCD history tracker. These buffs display a "count-up" timer that indicates how much time has passed since that (unidentified) buff was applied.
-
-PetesDefensiveHistory uses a flexible inference engine to identify abilities through several lines of evidence. Many abilities can be detected immediately on cast. In future versions, more abilities will be added.
-
-* Tracks 61 offensive and defensive cooldowns.
-* Detects talents and hero specs.
-* Text-to-Speech (TTS) ability announcer.
-* Supports DandersFrames and Blizzard default frames.
-* Data exporter and log analyzer to measure inference accuracy using combat logs as a truth source.
-* Designed for Mythic+ but future update will add support for raids and allies in arena.
-
-Layout options are currently limited, mimicking OmniCD layouts with cooldowns to the left of party frames. **Would love to integrate the inference engine with a UI-focused addon. Please contact me if interested!**
 
 
 # Limitations
