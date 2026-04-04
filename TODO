@@ -1,17 +1,22 @@
 **NEW RELEASE: 0.9.7j**
 
+Available soon on CurseForge
 
 - **IMPORTANT:** Blizzard is still changing which buffs are reported by their
   "IMPORTANT", "BIG DEFENSIVE" and "EXTERNAL" aura lists. If a particular ability always
   gets sent to the history tray rather than being properly tracked, the most likely reason is
   that Blizzard changed the flags. I will update these as often as I can.
 
-
+**Support for new frames addons**
 - Vuhdo support added
 - EnhanceQoL party frames support added
+
+**Improved accuracy**
 - Improve speed of paladin bubble detection
 - Better detection for party members deaths
 - Fix mis-identification of retribution paladin Divine Protection as Freedom
+
+**BUG FIXES**
 - Fix "'availableAt' (a nil value)" bug that was caused by BoP/Spellwarding shared cooldowns
 - Fix Fiery Brand always appearing in the history tray even though it is detected
 - Fix Obsidian scales often appearing in the history tray even though it is detected
@@ -19,6 +24,7 @@
   Since icons are sent to the history tray when abilities cannot be identified, the maximum
   possible is the max across all abilities available to that player.
 
+**New tracked abilities!**
 - Support newly added Shaman abilities: Ascendance and Doom winds
     - the free ascendance talents Deeply Rooted Elements (6s proc)
 
