@@ -8,16 +8,39 @@
 
 
 - Vuhdo support added
+- EnhanceQoL party frames support added
 - Improve speed of paladin bubble detection
-- Detect when party members die
+- Better detection for party members deaths
 - Fix mis-identification of retribution paladin Divine Protection as Freedom
 - Fix "'availableAt' (a nil value)" bug that was caused by BoP/Spellwarding shared cooldowns
+- Fix Fiery Brand always appearing in the history tray even though it is detected
+- Fix Obsidian scales often appearing in the history tray even though it is detected
+- The history tray now defaults to hiding icons once they pass the maximum possible cooldown.
+  Since icons are sent to the history tray when abilities cannot be identified, the maximum
+  possible is the max across all abilities available to that player.
+
 - Support newly added Shaman abilities: Ascendance and Doom winds
     - the free ascendance talents Deeply Rooted Elements (6s proc)
 
 
+
 V1.0 RELEASE GOALS
 ===========================================================================
+- add masque support
+
+- testing doom winds: had a case where the cast was 0.117s away from the aura
+    - see latedoomwindsaura export
+
+- day7: 1605.6: unbound freedom lemnos -> cptgrumpus failed by o
+    - freedom was still on cooldown for lemnos, preventing the required matched freedom
+    - this is the ret BIG DP bug -> DP was mis-IDed as freedom, so it thought it was on cd.
+
+- fort brew too... why? maybe an old version?
+
+- ElvUI icon skins
+
+- Separate history tray icon size slider (maybe make smaller by default too)
+
 - Update READMEs
 
 - day 7 logs still have some data to mine, esp combat drop FNs
@@ -824,6 +847,17 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- fiery brand bug: see discord, brand is lit up but put into history tray. why?
+    - two bugs:
+    1. new batchId code did not work, always assigned batchId=1. probably broke many charged abilities
+    2. numSolutions=0 always caused a block. the first update of fiery brand usually caused
+       0 possible solutions because no keypress coincided with the update event
+
+- obsidian scales still failing on kira's stream? maybe mastery/duration?
+    - obsidian scales has a very odd behavior where is removes/re-adds a new obsidian scales
+      buff. this does not correspond to the player casting a second charge of scales, it just
+      happens sometimes 6-8s into the buff.
+
 - bubble is never IDable if ardent defender is available. same flags, same duration.
     - need a more aggressive evidence handler since bubble has so many forms of
       evidence (extra taunts, UNIT_FLAGS, debuff)
