@@ -324,10 +324,10 @@ local function logicLayerAbilityOffCooldown(event, ability, cdTracker)
             traceLogic(event, ability,
                 "excluded (not off cd): recharging until [%0.3fs], event at [%0.3fs]",
                 offCDat, event:getTime())
-            return { pass=false, final=true }
+            return { pass=false, final=true, diff=offCDat }  -- not really a diff
         end
     end
-    return { pass=true, final=false }
+    return { pass=true, final=false, diff=offCDat }  -- not really a diff
 end
 
 
