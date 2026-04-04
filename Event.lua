@@ -30,7 +30,11 @@ function ns:expireAuraEventByGUID(auraInstanceId, guid, when)
         for _, event in pairs(evBatch) do
             event:setExpiration(when)
         end
+        -- Return the head event of the batch that was just expired.
+        -- XXX: eventually return the batch object
+        return evBatch[1]
     end
+    return nil
 end
 
 
@@ -295,13 +299,11 @@ function ns:Event(newTrace, newSource)
 
     function e:untrack()
         local eventList = ns.eventsForInference[source]
---print('source=', tostring(source), 'getid=', tostring(self:getId()), 'batchid=', tostring(self:getBatchId()), 'list[id]=', tostring(eventList[self:getId()]), 'list[id][batch]=', tostring(eventList[self:getId()][self:getBatchId()]))
         eventList[self:getId()][self:getBatchId()] = nil
         numEvents = 0
         for _, _ in pairs(eventList) do
             numEvents = numEvents + 1
         end
-        --if #eventList[self:getId()] == 0 then
         if numEvents == 0 then
             eventList[self:getId()] = nil
         end
