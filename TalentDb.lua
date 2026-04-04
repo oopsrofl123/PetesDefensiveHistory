@@ -7,13 +7,14 @@ local cooldown = "cooldown"
 local duration = "duration"
 local duration_variable = "duration_variable"
 local hasAbility = "hasAbility"
-local hidesAbility = "hidesAbility"
+local hideAbility = "hideAbility"
 local requireBuff = "requireBuff"
 local requireShield = "requireShield"
 local naturallyUpdates = "naturallyUpdates"
 local reset = "canReset"
 local targets = "targets"
 local BIGFLAG = "BIG"
+local appliesOtherAura = "appliesOtherAura"
 
 
 -- Why have separate class and spec trees? Some talents with equal IDs do different
@@ -932,10 +933,19 @@ ns.SpecTalentModifiers = {
     },
 
 
-    -- Elemental shaman ------------------------------------------------------------------------
+    -- Elemental shaman ---------------------------------------------------------------------
     [262] = {
+        [114050] = {   -- ascendance
+            { { id=114050, modifies=hasAbility, amount=true } },
+        },
+        [462440] = {
+            { { id=114050, modifies=cooldown, amount=-60 } },
+        },
+        [462443] = {
+            { { id=114050, modifies=duration, amount=3 } },
+        },
     },
-    -- Enhancement shaman ------------------------------------------------------------------------
+    -- Enhancement shaman -------------------------------------------------------------------
     [263] = {
         [384352] = {   -- doom winds
             { { id=384352, modifies=hasAbility, amount=true } },
@@ -944,14 +954,21 @@ ns.SpecTalentModifiers = {
             -- ascend: different ID than resto, but give the resto ID for appliesOtherAura
             -- although it replaces doom winds, it applies the doom winds buff which remains
             -- IMPORTANT-flagged. So we'll just make the cooldown =
-            { { id=114052, modifies=hasAbility, amount=true },
-              -- XXX: still thinking about whether to hide doom winds. this does nothing
-              { id=384352, modifies=hidesAbility, amount=false },
-              { id=384352, modifies=cooldown, amount=120 } },    -- make equal to ascend
+            { { id=114051, modifies=hasAbility, amount=true },
+              -- this doesn't do anything. deeply rooted elements is a choice node with ascend
+              -- and there is no DRE cooldown, so nothing to track.
+              { id=378270, modifies=appliesOtherAura, amount=114051 }, -- make enh ascend
+              { id=384352, modifies=hasAbility, amount=false },      -- disable real doom winds
+              { id=38435200, modifies=hasAbility, amount=true }, },  -- use dummy doom winds
         },
         [384444] = {
-            { { id=114052, modifies=cooldown, amount=-60 },
-              { id=384352, modifies=cooldown, amount=-60 }, },
+            { { id=114051, modifies=cooldown, amount=-60 },
+              { id=384352, modifies=duration, amount=2 },
+              { id=38435200, modifies=duration, amount=2 },
+              { id=38435200, modifies=cooldown, amount=-60 }, },
+        },
+        [378270] = {  -- deeply rooted elements. replaces doom winds and is a choice node with ascend
+            { { id=384352, modifies=hasAbility, amount=false }, },
         },
     },
     -- Resto shaman ------------------------------------------------------------------------
