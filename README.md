@@ -15,7 +15,10 @@ There are a few important things to understand about how this AddOn works and it
 * LibSpecialization communicates your talents to your groupmates. Many players have it installed without knowing - for example, BigWigs (and PetesDefensiveHistory!) both bundle it.
 * Talents are necessary to know (a) what abilities someone has and (b) what their cooldowns are.
 * Players without LibSpecialization *will have no cooldown icons next to their frames*!
+
+
 ![](images/NoLibSpec2.png)
+
 
 If they have external abilities, they will show up on the target's *history tray* (row below cooldowns).
 
