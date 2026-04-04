@@ -52,7 +52,7 @@ local optionsDefaults = {
     throttleInference = 0.2,
     disableCDRTrackers = false,
     disableHistoryTray = false,
-    hideHistoryItemsAtMaxCd = false,
+    hideHistoryItemsAtMaxCd = true,
     showTooltips = true,
     hideWelcomeMessage = false,
     
