@@ -147,6 +147,7 @@ end
 function ns:startGlow(ability)
     local slot = ns:cosmeticOnlyMapGUIDToSlot(ability.caster)
     local cd = ns.trackerUI[slot].staticRow.items[ability.name]
+
     -- The cooldown swipe could be active, e.g. for abilities with charges,
     -- CDR abilities, or redirected buffs like VDH meta, which can be applied
     -- by several other abilities.
@@ -469,12 +470,11 @@ local function updateStaticRow(slot)
             item.warningbg:Hide()
             item.warning:Hide()
         end
-        item:Show()
         item.icon:Show()
 
         sizeHistoryItem(item)
         -- Did the user opt in to showing this ability?
-        if not ns:GetOption("show_"..ability.id) then
+        if not ns:GetOption("show_"..ability.id) or ability.hideAbility then
             item:Hide()
         else
             item:Show()
