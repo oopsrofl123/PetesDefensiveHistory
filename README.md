@@ -58,6 +58,9 @@ There are a few important things to understand about how this AddOn works and it
   small number of Blizzard marked buffs and some additional logic about who those buffs
   can be cast by and applied to. This addon does not rely on exploits in which secret spell
   IDs are inadvertently leaked.
+* **Only abilities flagged by Blizzard can be tracked.** In very rare cases, an ability not
+  flagged by Blizzard can be guessed accurately, but we are mostly restricted to just the
+  flagged abilities. Blizzard continues to change which abilities are flagged.
 * **Tracking only works for players with LibSpecialization.** LibSpecialization is
   included in this addon as well as many common addons such as BigWigs. For players
   without LibSpecialization, all buffs will be sent to the history tracker (i.e., treated
@@ -77,6 +80,8 @@ There are a few important things to understand about how this AddOn works and it
 There are several known bugs. Unlike *limitations*, which are permanent,
 these bugs will be fixed in upcoming releases. Here are a few in no
 particular order:
+* **Combat drops fail to identify.** Shadowmeld, Feign
+  Death, Greater Invis, and Vanish are being missed more often than they should be.
 * **Group members without LibSpec can cause wacky results on players with LibSpec!** If a
   group member without LibSpec uses an ability that would be tracked, the addon will still
   try to guess that ability. But because that member didn't have LibSpec, they won't have
