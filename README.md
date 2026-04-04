@@ -23,9 +23,14 @@ There are a few important things to understand about how this AddOn works and it
 # There is a second row of icons
 * The AddOn *guesses what abilities are used* based on several lines of evidence.
 * When it can't guess the correct ability, it puts it in the second row or **history tray**. This is like a GCD tracker for cooldowns.
+* The history tray **counts up** from the time the buff was applied. If you know the cooldown of the ability, then you can know when it is available even when the AddOn fails.
 
 ![](images/HistoryTray.png)
 *Freedom could not be guessed on the druid*
+
+* Turn off the history tray with this option:
+
+![](images/DisableHistoryTray.png)
 
 If they have external abilities, they will show up on the target's *history tray* (row below cooldowns).
 
