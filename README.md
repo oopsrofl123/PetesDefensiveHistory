@@ -20,9 +20,9 @@ There are a few important things to understand about how this AddOn works and it
 *The mage does not have LibSpecialization*
 
 
-# There is a second row of icons for each player called the **history tray**
+# There is a second row of icons
 * The AddOn *guesses what abilities are used* based on several lines of evidence.
-* When it can't guess the correct ability, it puts it in the second row or *history tray*. This is like a GCD tracker for cooldowns.
+* When it can't guess the correct ability, it puts it in the second row or **history tray**. This is like a GCD tracker for cooldowns.
 
 ![](images/HistoryTray.png)
 *Freedom could not be guessed on the druid*
