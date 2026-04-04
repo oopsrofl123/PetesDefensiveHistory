@@ -8,7 +8,16 @@
 
 ![](images/PDH1.gif)
 
-**NO COOLDOWN TRACKING FOR PLAYERS WITHOUT LibSpecialization!** If they have external abilities, they will show up on the target's *history tray* (row below cooldowns).
+# Read this first!
+There are a few important things to understand about how this AddOn works and its limitations!
+
+# NO COOLDOWN TRACKING FOR PLAYERS WITHOUT LibSpecialization!
+* LibSpecialization communicates your talents to your groupmates. Many players have it installed without knowing - for example, BigWigs (and PetesDefensiveHistory!) both bundle it.
+* Talents are necessary to know (a) what abilities someone has and (b) what their cooldowns are.
+* Players without LibSpecialization *will have no cooldown icons next to their frames*!
+![](images/NoLibSpec2.png)
+
+If they have external abilities, they will show up on the target's *history tray* (row below cooldowns).
 
 ![](images/no_libspec_consequences.png)
 
