@@ -282,9 +282,8 @@ function ns:Event(newTrace, newSource)
         end
 
         -- weird, but want a short and unique ID for printing
-        --maxBatchId = batchId
         for _, ev in pairs(eventList[self:getId()]) do
-            if ev:getBatchId() > batchId then
+            if ev:getBatchId() >= batchId then
                 batchId = ev:getBatchId() + 1
             end
         end
@@ -339,8 +338,10 @@ function ns:Event(newTrace, newSource)
                         ability.alias or ability.name, self:getTime()))
             end
 
-            -- UI feedback
-            if ability and not self:isExpiring() then
+            -- UI feedback. Don't re-glow the icon if we are just finalizing a previous
+            -- uncertain inference.
+            if ability and not self:isExpiring() and
+                (not prevAbility or ability.id ~= prevAbility.id) then
                 ns:startGlow(self:getAuraAbility())
             end
         end
@@ -355,7 +356,7 @@ function ns:Event(newTrace, newSource)
     function e:expire()
         -- Visual feedback
         local ability, certain = self:getAbility()
-        if ability then
+        if ability and not ability.hideAbility then
             ns:stopGlow(self:getAuraAbility())
         end
 
@@ -464,7 +465,7 @@ function ns:manageEvents(updateTrace, guid, now)
             -- be nil.
             --
             -- XXX: TODO: blocks Avatar incorrectly
-            if not evBatch[1]:isBlocked() then
+            if not evBatch[1]:isBlocked() and ev:hasPossibleSolutions() then
                 shouldBlock = true
                 for _, ability in pairs(ev:getPossibleSolutions()) do
                     shouldBlock = shouldBlock and (ability.numAuraProviders == 1)
