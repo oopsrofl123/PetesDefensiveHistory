@@ -50,7 +50,7 @@ function ns:getTrackedCharacterBySlot(slot)
 end
 
 
-
+-- XXX: This function has become a total mess since adding support for so many addons.
 local function findFrameForSlot(slot, slotRoot)
     local maxN, frameRoot
     if slotRoot == 'party' then
@@ -72,6 +72,25 @@ local function findFrameForSlot(slot, slotRoot)
         end
     -- Must check for both the addon and the party header since many EQOL users (myself
     -- included) don't use its party frames.
+    elseif Cell then
+        if CellPartyFrameHeader and CellPartyFrameHeader:IsVisible() then
+            if slotRoot ~= "party" then
+                print("ERROR: raid frames are not supported for Cell at the moment, please leave a comment on the discord if you are interested in raid support.")
+                return
+            else
+                frameRoot = "CellPartyFrameHeaderUnitButton"
+            end
+            for i=1, maxN do
+                framesChecked = framesChecked + 1
+                local f = _G[frameRoot .. i]
+                if f and f.unit == slot then
+                    return f
+                end
+            end
+        elseif CellSoloFrame and CellSoloFrame:IsVisible() then
+            -- Cell has a differently named container when solo
+            return CellSoloFramePlayer
+        end
     elseif EnhanceQoL and EQOLUFPartyHeader then
         if slotRoot ~= "party" then
             print("ERROR: raid frames are not supported for EnhanceQoL at the moment, please leave a comment on the discord if you are interested in raid support.")
@@ -413,7 +432,8 @@ function ns:finalizeInference(ev, ability)
     -- and was IDed quickly enough (1.5s since it was used).
     if not ev:isExpiring() and ev:timeSince() < 1.5 and ns:GetOption('enableTTS') and
        (not ns:GetOption('TTSnoUntracked') or ns:GetOption('show_'..ability.id)) and
-       (not ns:GetOption('TTSnoSelfCasts') or ability.caster ~= ev:getTarget()) then
+       (not ns:GetOption('TTSnoSelfCasts') or ability.caster ~= ev:getTarget()) and
+       not ability.hideAbility then
         C_VoiceChat.SpeakText(
             C_TTSSettings.GetVoiceOptionID(Enum.TtsVoiceType.Standard),
             ability.name,
@@ -516,8 +536,8 @@ castHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID
     local now = GetTime()
 
     -- the maybe secrets probably aren't useful
-    ns:playback(now, "UNIT_SPELLCAST_SUCCEEDED", caster,
-        ns:maskSecret(castGUID), ns:maskSecret(spellID), ns:maskSecret(castBarId))
+    ns:playback(now, "UNIT_SPELLCAST_SUCCEEDED", caster, ns:maskSecret(spellID),
+        ns:maskSecret(castGUID), ns:maskSecret(castBarId))
 
     traceHandler("SPELLCAST", caster, "%s, %s",
         tostring(ns:maskSecret(spellID)), tostring(ns:maskSecret(castBarID)))
@@ -654,6 +674,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- can be delayed and thus not accurately catch the end of the aura, confounding
     -- duration-based confidence.
     local obsidianScalesRemovalEvent  -- nil if this didn't happen
+    local debuffRemovedThisCall = false
     for _, auraInstanceId in pairs(aurasRemoved) do
         local expiredEvent = ns:expireAuraEventByGUID(auraInstanceId, guid, now)
         -- Handle a special case for obsidian scales: for reasons I haven't yet uncovered,
@@ -666,6 +687,12 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             if ability and ability.name == 'Obsidian Scales' then
                 obsidianScalesRemovalEvent = expiredEvent
             end
+        end
+
+        local isDebuff = ns:isDebuff(unitTarget, auraInstanceId)
+        debuffRemovedThisCall = debuffRemovedThisCall or isDebuff
+        if isDebuff then
+            char:trackEvidence('debuffRemoved', now)
         end
     end
 
@@ -739,8 +766,23 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 ns:trackAura("AURA(add)", aura, debuffAddedThisCall)
             end
         else
-            -- The aura isn't flagged, but it could be concurrent evidence
-            char:trackAuraEvidence(unitTarget, v.auraInstanceID, now)
+            -- Skip the Blizzard unsecreted auras
+            if issecretvalue(v.spellId) then
+                -- XXX: very carefully dip a toe into non-flagged auras
+                -- still set trackAuraEvidence below or else evidence could be lost
+                if debuffRemovedThisCall and char:getRaceId() == 3 and char:getSpec() ~= 268 then
+                    local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
+                    local ev = ns:trackAura("AURA(stoneform)", aura, debuffAddedThisCall)
+                    ev:setStoneform()
+                    ns:playback("MAYBE_STONEFORM", unitTarget, v.auraInstanceID,
+                        debuffRemovedThisCall, char:getRaceId(), char:getSpec())
+                end
+
+                -- The aura isn't flagged, but it could be concurrent evidence
+                char:trackAuraEvidence(unitTarget, v.auraInstanceID, now)
+            else
+                ns:playback('REJECT_NONSECRET_AURA(add)', v.auraInstanceID, v.spellId)
+            end
         end
     end
     if #aurasAdded > 0 then
@@ -771,10 +813,16 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 newEv:setUpdate()  -- this is an update event
             end
         else
-            -- concurrent buff/debuff evidence can also come from updates.
-            -- E.g., warrior thunder blast stacks: these can be farmed outside of Avatar
-            -- but are also awarded when pressing avatar.
-            char:trackAuraEvidence(unitTarget, auraInstanceId, now)
+            -- Skip the Blizzard unsecreted auras
+            local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unitTarget, auraInstanceId)
+            if issecretvalue(aura.spellId) then
+                -- concurrent buff/debuff evidence can also come from updates.
+                -- E.g., warrior thunder blast stacks: these can be farmed outside of Avatar
+                -- but are also awarded when pressing avatar.
+                char:trackAuraEvidence(unitTarget, auraInstanceId, now)
+            else
+                ns:playback('REJECT_NONSECRET_AURA(update)', v.auraInstanceID, v.spellId)
+            end
         end
     end
 
