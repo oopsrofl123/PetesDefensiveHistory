@@ -10,7 +10,7 @@ When identified, active cooldowns are glowed and cooldown timers are shown. Text
 
 PetesDefensiveHistory uses a flexible inference engine to identify abilities through several lines of evidence. Many abilities can be detected immediately on cast. In future versions, more abilities will be added.
 
-* Tracks 61 offensive and defensive cooldowns.
+* Tracks 76 offensive and defensive cooldowns.
 * Detects talents and hero specs.
 * Text-to-Speech (TTS) ability announcer.
 * Supports DandersFrames, EnhanceQoL, Grid2, VuhDo, ElvUI and Blizzard default frames.
