@@ -689,10 +689,15 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             end
         end
 
-        local isDebuff = ns:isDebuff(unitTarget, auraInstanceId)
-        debuffRemovedThisCall = debuffRemovedThisCall or isDebuff
-        if isDebuff then
-            char:trackEvidence('debuffRemoved', now)
+        local helpful, harmful, spellId = char:untrackAuraEvidence(auraInstanceId)
+        -- harmful=nil when the aura isn't tracked as evidence
+        if harmful then
+            debuffRemovedThisCall = debuffRemovedThisCall or harmful
+            -- enter each debuff into evidence, not just the summary of all debuffs
+            -- unsecreted debuffs are not of interest
+            if harmful and (issecretvalue(spellId) or unitTarget == 'player') then
+                char:trackEvidence('debuffRemoved', now)
+            end
         end
     end
 
@@ -767,21 +772,23 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             end
         else
             -- Skip the Blizzard unsecreted auras
-            if issecretvalue(v.spellId) then
+            if issecretvalue(v.spellId) or unitTarget == 'player' then
                 -- XXX: very carefully dip a toe into non-flagged auras
                 -- still set trackAuraEvidence below or else evidence could be lost
                 if debuffRemovedThisCall and char:getRaceId() == 3 and char:getSpec() ~= 268 then
                     local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
                     local ev = ns:trackAura("AURA(stoneform)", aura, debuffAddedThisCall)
                     ev:setStoneform()
-                    ns:playback("MAYBE_STONEFORM", unitTarget, v.auraInstanceID,
+                    ns:playback(now, "MAYBE_STONEFORM", unitTarget, v.auraInstanceID,
                         debuffRemovedThisCall, char:getRaceId(), char:getSpec())
                 end
 
                 -- The aura isn't flagged, but it could be concurrent evidence
-                char:trackAuraEvidence(unitTarget, v.auraInstanceID, now)
+                char:trackAuraEvidence(unitTarget, v.auraInstanceID, now,
+                    aura.HELPFUL, aura.HARMFUL, v.spellId)
             else
-                ns:playback('REJECT_NONSECRET_AURA(add)', v.auraInstanceID, v.spellId)
+                ns:playback(now, 'REJECT_NONSECRET_AURA(add)', v.auraInstanceID,
+                    aura.HELPFUL, aura.HARMFUL, v.spellId)
             end
         end
     end
@@ -814,14 +821,16 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             end
         else
             -- Skip the Blizzard unsecreted auras
-            local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unitTarget, auraInstanceId)
-            if issecretvalue(aura.spellId) then
+            local helpful, harmful, spellId = char:queryAuraEvidence(auraInstanceId)
+            if issecretvalue(spellId) or unitTarget == 'player' then
                 -- concurrent buff/debuff evidence can also come from updates.
                 -- E.g., warrior thunder blast stacks: these can be farmed outside of Avatar
                 -- but are also awarded when pressing avatar.
-                char:trackAuraEvidence(unitTarget, auraInstanceId, now)
+                char:trackAuraEvidence(unitTarget, auraInstanceId, now,
+                    helpful, harmful, spellId)
             else
-                ns:playback('REJECT_NONSECRET_AURA(update)', v.auraInstanceID, v.spellId)
+                ns:playback(now, 'REJECT_NONSECRET_AURA(update)',
+                    auraInstanceId, helpful, harmful, spellId)
             end
         end
     end
