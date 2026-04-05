@@ -1,37 +1,58 @@
-**NEW RELEASE: 0.9.7k**
+**NEW RELEASE: 0.9.7l**
 
 Available soon on CurseForge
 
-- **IMPORTANT:** Blizzard is still changing which buffs are reported by their
-  "IMPORTANT", "BIG DEFENSIVE" and "EXTERNAL" aura lists. If a particular ability always
-  gets sent to the history tray rather than being properly tracked, the most likely reason is
-  that Blizzard changed the flags. I will update these as often as I can.
+**Support for frames addons**
+- Cell support added
+- Native ElvUI skinning
 
-**Support for new frames addons**
-- Vuhdo support added
-- EnhanceQoL party frames support added
-
-**Improved accuracy**
-- Improve speed of paladin bubble detection
-- Better detection for party members deaths
-- Fix mis-identification of retribution paladin Divine Protection as Freedom
-
-**BUG FIXES**
-- Fix "'availableAt' (a nil value)" bug that was caused by BoP/Spellwarding shared cooldowns
-- Fix Fiery Brand always appearing in the history tray even though it is detected
-- Fix Obsidian scales often appearing in the history tray even though it is detected
-- The history tray now defaults to hiding icons once they pass the maximum possible cooldown.
-  Since icons are sent to the history tray when abilities cannot be identified, the maximum
-  possible is the max across all abilities available to that player.
+**New appearance features**
+- Support Masque icon styling
+- X/Y position sliders to move the whole tracker UI
+- Option to wrap rows (Max cooldown trackers per row)
+- Question mark cooldown for paladins (which actually tracks the Unbound Freedom buff) is now
+  hidden by default.
 
 **New tracked abilities!**
-- Support newly added Shaman abilities: Ascendance and Doom winds
-    - the free ascendance talents Deeply Rooted Elements (6s proc)
+- Experimental support for Stoneform (dwarf racial). This probably doesn't work well, please report your results (and hopefully your export strings with combat logs).
+    - **Stoneform can only be tracked when it dispels a debuff!** Other uses (e.g. for the 10% physical DR) will always be missed.
+    - Accuracy is likely better for healers/DPS and worse for tanks
+
+**Accuracy improvements**
+- Ignore healer auras that were un-secreted by Blizzard, since none are of interest.
+
+**BUG FIXES**
+- Do not announce hidden abilities with TTS.
+
+
+
+- make sure decoder ability list is updated
+
+RUN DUNGEON AS TANK TO SEE IF UN-SECRETED HEALER CASTS WORK
+
+
+
+1274.911 UNIT_AURA(party2,{b'addedAuras': [{b'auraInstanceID': 395, b'icon': 134400}], b'removedA
+uraInstanceIDs': [393], b'isFullUpdate': False},{395: [False, False, False, False, False, True, F
+alse, True, True, False, False, False]}), 'at', time)
+
+1282.915 UNIT_AURA(party2,{b'removedAuraInstanceIDs': [395], b'isFullUpdate': False},[])
 
 
 
 V1.0 RELEASE GOALS
 ===========================================================================
+- for stoneform: the accuracy might be really bad for tanks. not sure what
+  can be done about it since the debuffs they remove with stoneform are the
+  common types that are applied by mobs
+
+- would be nice if unsecreted auras had unsecreted casts so we could remove
+  those from the evidence trackers. would make chance overlaps rarer
+    - check data from version l+
+
+- add unsecreted shaman reincarn
+    - how to do that? is it a buff?
+
 - probably some weird stuff if someone uses a cooldown right before key start
     - see day 8 incarn on pull timer
     - guessing: CD is reset, addon doesn't know that
