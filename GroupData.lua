@@ -112,6 +112,7 @@ function ns:Character(slot)
     local possibleAbilities = {}
     local evidenceTracker = ns:makeEvidenceTracker()
     local hasLibSpec = false
+    local activeAuras = {}
 
 
     -- Unlike inference records/events, the amount of character data stored doesn't grow
@@ -293,12 +294,28 @@ function ns:Character(slot)
     -- annotations in this payload (which are secret anyway).
     -- If you think an aura should be present in the trackers but isn't, it likely
     -- is neither HELPFUL nor HARMFUL. Example: coagulating blood (id=463730)
-    function char:trackAuraEvidence(slot, auraInstanceId, now)
-        if ns:isBuff(slot, auraInstanceId) then
+    function char:trackAuraEvidence(slot, auraInstanceId, now, helpful, harmful, spellId)
+        if helpful then
             char:trackEvidence('buff', now)
-        elseif ns:isDebuff(slot, auraInstanceId) then
+        elseif harmful then
             char:trackEvidence('debuff', now)
         end
+        activeAuras[auraInstanceId] = { helpful, harmful, spellId }  -- likely secret
+    end
+
+    -- important auras are not aura evidence, so activesAuras[ID] will return nil
+    -- returns nil, nil in that case
+    function char:queryAuraEvidence(auraInstanceId)
+        local helpful, harmful, spellId = unpack(activeAuras[auraInstanceId] or {})
+        return helpful, harmful, spellId
+    end
+
+    -- important auras are not aura evidence, so activesAuras[ID] will return nil
+    -- returns nil, nil in that case
+    function char:untrackAuraEvidence(auraInstanceId)
+        local helpful, harmful, spellId = unpack(activeAuras[auraInstanceId] or {})
+        activeAuras[auraInstanceId] = nil
+        return helpful, harmful, spellId
     end
 
     function char:getEvidence(evidenceType)
