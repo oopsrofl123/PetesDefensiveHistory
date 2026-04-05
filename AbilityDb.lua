@@ -52,6 +52,7 @@ ns.AbilityDb = {
             requireCombatDrop=true,
             requireUnitFlags=true,
 		},
+    },
     ["Dwarf"] = {
 		{
 			name="Stoneform",
@@ -66,6 +67,7 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
             requireDebuffRemoved=true,
+            requireExpiring=true,
         },
     },
 
