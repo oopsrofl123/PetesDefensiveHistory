@@ -485,9 +485,19 @@ end
 
 
 local function logicLayerStoneform(event, ability)
-    return { pass=not (event:getStoneform() and ability.name ~= "Stoneform"), final=true }
+    if event:getStoneform() then
+        return { pass=ability.name == 'Stoneform', final=true }
+    else
+        return { pass=ability.name ~= 'Stoneform', final=true }
+    end
 end
 
+
+local function logicLayerExpiring(event, ability)
+    -- diff has no meaning
+    return { pass=true, final=event:isExpiring(), diff=0 },
+        { pass=event:isExpiring(), final=event:isExpiring(), diff=0 }
+end
 
 
 -- 1 letter aliases for compact log strings
@@ -509,6 +519,7 @@ ns.logicLayerAliases = {
     maybeFreedom='o',        -- maybe freed_o_m
     debuffRemoved='v',       -- v for debuff remo_v_ed
     stoneform='m',           -- m for stonefor_m_
+    expiring='x',            -- x for e_x_piring
 }
 
 
@@ -602,6 +613,10 @@ local function getPossibleSolutions(event, cdTracker)
         if ability.requireDebuffRemoved then
             logic['debuffRemoved'], reqs['debuffRemoved'] =
                 evidenceWitnessed(event, ability, "debuffRemoved", "target")
+        end
+        if ability.requireExpiring then
+            logic['expiring'], reqs['expiring'] =
+                logicLayerExpiring(event, ability)
         end
         -- Is this event part of a batch where the aura ID has already been inferred?
         if aura and aura.inferredId then
