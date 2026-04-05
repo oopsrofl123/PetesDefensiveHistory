@@ -52,6 +52,21 @@ ns.AbilityDb = {
             requireCombatDrop=true,
             requireUnitFlags=true,
 		},
+    ["Dwarf"] = {
+		{
+			name="Stoneform",
+			id=20594,
+            iconId=136225,
+			cooldown=120,
+			duration=8,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+            requireDebuffRemoved=true,
+        },
     },
 
     ["DEATHKNIGHT"] = {
@@ -775,6 +790,7 @@ ns.AbilityDb = {
 			name="Unbound Freedom",
             alias='U.Freedom',
 			id=305394,
+            hideAbility=true,
             iconId=134400,   -- the talent has no unique icon
 			cooldown=25,
 			duration=8,
