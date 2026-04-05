@@ -42,6 +42,8 @@ alse, True, True, False, False, False]}), 'at', time)
 
 V1.0 RELEASE GOALS
 ===========================================================================
+- replay analysis: stoneform not in truth set because there is no cast
+
 - for stoneform: the accuracy might be really bad for tanks. not sure what
   can be done about it since the debuffs they remove with stoneform are the
   common types that are applied by mobs
