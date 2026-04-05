@@ -65,6 +65,7 @@ function ns:Event(newTrace, newSource)
     local aura = nil
     local numUpdates = 0
     local debuffInSamePayload = false
+    local onlyStoneform = false
 
     function e:incrementInference() inference = inference + 1 end
 
@@ -107,6 +108,8 @@ function ns:Event(newTrace, newSource)
     function e:getTime() return time end
 
     function e:getBatchId() return batchId end
+
+    function e:getStoneform() return onlyStoneform end
 
     -- event IDs don't account for the source because event trackers are already
     -- keyed by source. maybe they shouldn't be?
@@ -171,6 +174,8 @@ function ns:Event(newTrace, newSource)
     function e:setAura(newAura) aura = newAura end
 
     function e:setMaxCD(newMaxCD) maxCD = newMaxCD end
+
+    function e:setStoneform() onlyStoneform = true end
         
     function e:isExpiring()
         return expiration and GetTime() >= expiration or false
@@ -226,6 +231,7 @@ function ns:Event(newTrace, newSource)
         prepareClosestEvents(evidenceTrackers, 'maybeFreedom')
         prepareClosestEvents(evidenceTrackers, 'freedom')
         prepareClosestEvents(evidenceTrackers, 'died')
+        prepareClosestEvents(evidenceTrackers, 'debuffRemoved')
     end
 
 

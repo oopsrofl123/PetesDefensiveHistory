@@ -36,6 +36,7 @@ function ns:makeEvidenceTracker()
         maybeFreedom=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         freedom=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         died=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        debuffRemoved=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
     }
 end        
 
@@ -147,6 +148,8 @@ function ns:Character(slot)
 
     -- Return the locale-independent class name, suitable as a key for tables
     function char:getClassFile() return classFile end
+
+    function char:getRaceId() return raceId end
 
     -- Return the class color for this character as a triplet (r,g,b)
     -- Suitable as direct input in: SetColor(getClassColor())
