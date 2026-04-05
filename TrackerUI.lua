@@ -51,19 +51,25 @@ local texturePool = CreateTexturePool(UIParent, 'ARTWORK', 0, nil,
     end)
 
 
-local function offsets(direction, amount)
+-- index i should be 0-based
+local function offsets(direction, i, amount)
     local xoffset = 0
     local yoffset = 0
+    local wrap = ns:GetOption('wrapIcons')
     if direction == "LEFT" then
-        xoffset = -amount
+        xoffset = -(i % wrap)
+        yoffset = -math.floor(i/wrap)
     elseif direction == "RIGHT" then
-        xoffset = amount
+        xoffset = (i % wrap)
+        yoffset = -math.floor(i/wrap)
     elseif direction == "UP" then
-        yoffset = amount
+        xoffset = math.floor(i/wrap)
+        yoffset = (i % wrap)
     else
-        yoffset = -amount
+        xoffset = math.floor(i/wrap)
+        yoffset = -(i % wrap)
     end
-    return xoffset, yoffset
+    return xoffset*amount, yoffset*amount
 end
 
 
@@ -461,16 +467,6 @@ local function updateStaticRow(slot)
     local dir = ns.growthDirections[ns:GetOption('growthDirection')]
     local antidir = ns.antiDirection[dir]
 
-    row:ClearAllPoints()
-    local offset = (iconSize + iconSpacing)/2
-    local xoff, yoff = 0, 0
-    if antidir == "LEFT" or antidir == "RIGHT" then
-        yoff = offset
-    else
-        xoff = -offset
-    end
-    row:SetPoint(antidir, tracker, antidir, xoff, yoff)
-
     -- Add a new frame for each tracked cooldown
     for _, ability in pairs(abilities) do
         if not row.items[ability.name] then
@@ -528,17 +524,24 @@ local function updateStaticRow(slot)
 
     -- Adjust layout based on the icons surviving the previous purge
     local i = 0
+    local wrap = ns:GetOption('wrapIcons')
     for name, item in pairs(row.items) do
-        local xoff, yoff = offsets(dir, i*(iconSize + iconSpacing))
+        local xoff, yoff = offsets(dir, i, (iconSize + iconSpacing))
         item:ClearAllPoints()
-        item:SetPoint(antidir, row, antidir, xoff, yoff)
+        if dir == 'LEFT' or dir == 'RIGHT' then
+            item:SetPoint('TOP'..antidir, row, 'TOP'..antidir, xoff, yoff)
+        elseif dir == 'UP' or dir == 'DOWN' then
+            item:SetPoint(antidir..'LEFT', row, antidir..'LEFT', xoff, yoff)
+        end
         if item:IsShown() then i = i + 1 end
     end
 
     if dir == "LEFT" or dir == "RIGHT" then
-        row:SetSize(i*(iconSize+iconSpacing) - iconSpacing, iconSize+2)
+        row:SetSize(math.min(i, wrap)*(iconSize+iconSpacing) - iconSpacing,
+            (math.floor((i-1)/wrap)+1) * (iconSize + iconSpacing))
     else
-        row:SetSize(iconSize+2, i*(iconSize+iconSpacing) - iconSpacing)
+        row:SetSize((math.floor((i-1)/wrap)+1) * (iconSize + iconSpacing),
+            math.min(i, wrap)*(iconSize+iconSpacing) - iconSpacing)
     end
 
     if ns:GetOption('disableInference') then
@@ -559,42 +562,40 @@ local function updateHistoryTray(slot)
     local dir = ns.growthDirections[ns:GetOption('growthDirection')]
     local antidir = ns.antiDirection[dir]
 
-    row:ClearAllPoints()
-    local offset = -(iconSize + iconSpacing)/2
-    local xoff, yoff = 0, 0
-    if antidir == "LEFT" or antidir == "RIGHT" then
-        yoff = offset
-    else
-        xoff = -offset
-    end
-    row:SetPoint(antidir, tracker, antidir, xoff, yoff)
-
     local maxHistory = ns:GetOption('maxHistoryTrayItems')
+    local wrap = ns:GetOption('wrapIcons')
     for i=1, math.max(maxHistory, #row.items) do
         local item = row.items[i]
         if i > maxHistory then   -- maxHistory was reduced by user options
             releaseHistoryItem(item)
             row.items[i] = nil
         else
-            if not item then     -- maxHistory was increased by the user (or is first call)
+            if not item then   -- maxHistory was increased by the user (or is first call)
                 row.items[i] = allocHistoryItem(tracker.historyTray, true)
                 item = row.items[i]
             end
             sizeHistoryItem(item)
             handleElvUI(item)
             -- item at index 1 is the oldest
-            local xoff, yoff = offsets(dir, (maxHistory - i)*(iconSize + iconSpacing))
+            local xoff, yoff = offsets(dir, (maxHistory - i), (iconSize + iconSpacing))
             item:ClearAllPoints()
-            item:SetPoint(antidir, row, antidir, xoff, yoff)
+            if dir == 'LEFT' or dir == 'RIGHT' then
+                item:SetPoint('TOP'..antidir, row, 'TOP'..antidir, xoff, yoff)
+            elseif dir == 'UP' or dir == 'DOWN' then
+                item:SetPoint(antidir..'LEFT', row, antidir..'LEFT', xoff, yoff)
+            end
+            --item:SetPoint(antidir, row, antidir, xoff, yoff)
             ns:showDebugVisual(item)
             ns:showDebugVisual(item.icon)
         end
     end
 
     if dir == "LEFT" or dir == "RIGHT" then
-        row:SetSize(maxHistory*(iconSize+iconSpacing) - iconSpacing, iconSize+2)
+        row:SetSize(math.min(maxHistory, wrap)*(iconSize+iconSpacing) - iconSpacing,
+            (math.floor((maxHistory-1)/wrap) + 1) * (iconSize+iconSpacing))
     else
-        row:SetSize(iconSize+2, maxHistory*(iconSize+iconSpacing) - iconSpacing)
+        row:SetSize((math.floor((maxHistory-1)/wrap) + 1) * (iconSize+iconSpacing),
+            math.min(maxHistory, wrap)*(iconSize+iconSpacing) - iconSpacing)
     end
 
     if ns:GetOption('disableHistoryTray') then
@@ -687,17 +688,40 @@ function ns:updateTrackerUIBySlot(slot)
 
     updateStaticRow(slot)
     updateHistoryTray(slot)
-    if Masque and masqueGroup then
-        masqueGroup:ReSkin(true)
-    end
 
+    -- Resize the whole tracker UI to fit the two new elements
     if dir == "LEFT" or dir == "RIGHT" then
         tracker:SetWidth(math.max(tracker.staticRow:GetWidth(), tracker.historyTray:GetWidth()) + iconSpacing)
         tracker:SetHeight(tracker.staticRow:GetHeight() + tracker.historyTray:GetHeight() + iconSpacing)
     else
         tracker:SetWidth(tracker.staticRow:GetWidth() + tracker.historyTray:GetWidth() + iconSpacing)
         tracker:SetHeight(math.max(tracker.staticRow:GetHeight(), tracker.historyTray:GetHeight()) + iconSpacing)
+
     end
+
+    -- Position the history tray relative to the static row
+    local dir = ns.growthDirections[ns:GetOption('growthDirection')]
+    local antidir = ns.antiDirection[dir]
+    tracker.staticRow:ClearAllPoints()
+    tracker.historyTray:ClearAllPoints()
+    if dir == "LEFT" then
+        tracker.staticRow:SetPoint('TOP'..antidir, tracker)
+        tracker.historyTray:SetPoint('TOPRIGHT', tracker.staticRow, 'BOTTOMRIGHT', 0, -iconSpacing)
+    elseif dir == "RIGHT" then
+        tracker.staticRow:SetPoint('TOP'..antidir, tracker)
+        tracker.historyTray:SetPoint('TOPLEFT', tracker.staticRow, 'BOTTOMLEFT', 0, -iconSpacing)
+    elseif dir == "UP" then
+        tracker.staticRow:SetPoint(antidir..'LEFT', tracker)
+        tracker.historyTray:SetPoint('BOTTOMLEFT', tracker.staticRow, 'BOTTOMRIGHT', iconSpacing, 0)
+    elseif dir == "DOWN" then
+        tracker.staticRow:SetPoint(antidir..'LEFT', tracker)
+        tracker.historyTray:SetPoint('TOPLEFT', tracker.staticRow, 'TOPRIGHT', iconSpacing, 0)
+    end
+
+    if Masque and masqueGroup then
+        masqueGroup:ReSkin(true)
+    end
+
 end
 
 

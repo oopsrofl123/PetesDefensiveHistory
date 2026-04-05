@@ -40,7 +40,7 @@ local optionsDefaults = {
     hideInaccurateBadges = false,
     iconSize = 32,
     iconSpacing = 3,
-    maxStaticIconsPerRow = 10,
+    wrapIcons = 10,
     maxHistoryTrayItems = 4,
     textSize = 15,
     textOutline = 3,
@@ -215,11 +215,10 @@ local function buildMainOptions()
     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
     Settings.CreateSlider(category, setting, options, "Spacing between tracker icons")
 
-    --setting = makeSetting(category, "maxStaticIconsPerRow", Settings.VarType.Number,
-        --"Max cooldown trackers per row")
-    --local options = Settings.CreateSliderOptions(1, 15, 1)
-    --options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
-    --Settings.CreateSlider(category, setting, options, "Wrap the cooldown tracker row at this many items. Does not affect the history tray.")
+    setting = makeSetting(category, "wrapIcons", Settings.VarType.Number, "Wrap icons at")
+    local options = Settings.CreateSliderOptions(1, 15, 1)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+    Settings.CreateSlider(category, setting, options, "Wrap cooldown tracker and history tray icons at this many items. Accounts for growth direction: wrapping create new row for left/right growth and new columns for up/down growth.")
 
     setting = makeSetting(category, "maxHistoryTrayItems", Settings.VarType.Number,
         "Max items in history tray")
