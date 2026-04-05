@@ -8,6 +8,8 @@ import zlib
 import cbor2
 import numpy as np
 import gzip
+from collections import defaultdict
+
 
 ascii_cyan = "\033[36m"
 ascii_purple = "\033[35m"
@@ -217,6 +219,7 @@ def read_export_data(f):
 # exported from AbilityDb.lua
 all_tracked_abilities = [
     "Shadowmeld",
+    "Stoneform",
     "Anti-Magic Shell",
     "Icebound Fortitude",
     "Vampiric Blood",
@@ -279,6 +282,8 @@ all_tracked_abilities = [
     "Shadow Dance",
     "Shadow Blades",
     "Astral Shift",
+    "Ascendance",
+    "Doom Winds",
     "Unending Resolve",
     "Die by the Sword",
     "Avatar",
@@ -294,6 +299,9 @@ if __name__ == "__main__":
 
     spells = read_spell_names(sys.argv[2])
 
+    buffs_by_player = defaultdict(list)
+    debuffs_by_player = defaultdict(list)
+    maybe_stoneform = defaultdict(dict)
     for rectype, time, record in sorted(playback + inferences, key=lambda x: x[1]):
         if rectype == "event":
             time, event = record[0:2]
@@ -314,6 +322,54 @@ if __name__ == "__main__":
                 character_abilities = get_character_abilities(characters)
             else:
                 actor = ""
+
+            # This processing does nothing, but is left as a framework to test ideas
+            if event == "UNIT_AURA":
+                time = round(time, 3)
+                slot, payload, raw_auras = record[2:]
+                if raw_auras and isinstance(raw_auras, list):
+                    # serializer encodes a list rather than dict if only one aura is present
+                    # overwrite with a dict that returns the one present aura data no matter
+                    # what key is used.
+                    auras = defaultdict(lambda: raw_auras[0][:])
+                else:
+                    auras = raw_auras
+
+                for aura in payload.get(b'addedAuras', []):
+                    aid = aura[b'auraInstanceID']
+                    if auras[aid][5]:
+                        buffs_by_player[slot].append(aid)
+                    if auras[aid][6]:
+                        debuffs_by_player[slot].append(aid)
+
+                remlist = payload.get(b'removedAuraInstanceIDs', [])
+                removed_debuffs = [ a for a in remlist if a in debuffs_by_player[slot] ]
+                added_buffs = [ a for a in payload.get(b'addedAuras', [])
+                    if a[b'auraInstanceID'] in buffs_by_player[slot] ]
+
+                if removed_debuffs and added_buffs:
+                    for aura in added_buffs:
+                        aid = aura[b'auraInstanceID']
+                        flags = auras[aid][0:5]
+                        if not any(flags):
+                            True or print('MAYBE STONEFORM', aid, slot, flags)
+                            maybe_stoneform[slot][aid] = time
+
+                for aid in remlist:
+                    if aid in buffs_by_player[slot]:
+                        if aid in maybe_stoneform[slot]:
+                            prevtime = maybe_stoneform[slot][aid]
+                            duration = time - prevtime
+                            True or print('removing MAYBE STONEFORM', aid, slot, maybe_stoneform[slot][aid], 'at', time)
+                            diff = round(abs(duration - 8), 3)
+                            if diff < 0.25:
+                                True or print(prevtime, time,'LIKELY STONEFORM', aid, slot, diff)
+                            else:
+                                True or print(prevtime, time,'REJECT STONEFORM', aid, slot, diff)
+                            del maybe_stoneform[slot][aid]
+                        buffs_by_player[slot].remove(aid)
+                    if aid in debuffs_by_player[slot]:
+                        debuffs_by_player[slot].remove(aid)
         elif rectype == "inf":
             inference_time, inference_trace, inference_attempt, \
                 event_time, event_trace, event_id, event_source, event_slot, batch_id, \
