@@ -40,12 +40,15 @@ local optionsDefaults = {
     hideInaccurateBadges = false,
     iconSize = 32,
     iconSpacing = 3,
+    maxStaticIconsPerRow = 10,
     maxHistoryTrayItems = 4,
     textSize = 15,
     textOutline = 3,
     anchorFrom = 3,         -- TOPRIGHT
     anchorTo = 1,           -- TOPLEFT
     growthDirection = 1,    -- LEFT
+    adjustX = -3,
+    adjustY = 0,
 
     enableMplusXalatathHack = true,
     disableInference = false,
@@ -212,8 +215,14 @@ local function buildMainOptions()
     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
     Settings.CreateSlider(category, setting, options, "Spacing between tracker icons")
 
+    --setting = makeSetting(category, "maxStaticIconsPerRow", Settings.VarType.Number,
+        --"Max cooldown trackers per row")
+    --local options = Settings.CreateSliderOptions(1, 15, 1)
+    --options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+    --Settings.CreateSlider(category, setting, options, "Wrap the cooldown tracker row at this many items. Does not affect the history tray.")
+
     setting = makeSetting(category, "maxHistoryTrayItems", Settings.VarType.Number,
-        "Max. items in history tray")
+        "Max items in history tray")
     local options = Settings.CreateSliderOptions(1, 10, 1)
     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
     Settings.CreateSlider(category, setting, options, "The history tray is like a GCD tracker for cooldowns that can't be identified. Show at most this many unidentified cooldowns in the history tray. To disable the history tray entirely, use Behavior > Disable history tray.")
@@ -227,6 +236,18 @@ local function buildMainOptions()
 
     setting = makeSetting(category, 'growthDirection', Settings.VarType.Number, 'Grow icons to the')
     Settings.CreateDropdown(category, setting, growthDirectionOptions)
+
+    setting = makeSetting(category, "adjustX", Settings.VarType.Number,
+        "Adjust X position")
+    local options = Settings.CreateSliderOptions(-100, 100, 1)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+    Settings.CreateSlider(category, setting, options, "Nudge each cooldown tracker cluster by this many pixels in the X direction")
+
+    setting = makeSetting(category, "adjustY", Settings.VarType.Number,
+        "Adjust Y position")
+    local options = Settings.CreateSliderOptions(-100, 100, 1)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+    Settings.CreateSlider(category, setting, options, "Nudge each cooldown tracker cluster by this many pixels in the Y direction")
 
 
     makeSectionHeader(layout, 'Behavior')

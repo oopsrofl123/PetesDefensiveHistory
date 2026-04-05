@@ -2,10 +2,19 @@
 local addonName, ns = ...
 local LibButtonGlow = LibStub("LibButtonGlowcustom")
 local GUIDToIndex = {}
-local SPACING_FROM_FRAMES = 2
 local DEFAULT_ICON = 134400    -- Question mark
 
 ns.trackerUI = {}  -- The UI elements next to the frames
+
+
+-- Try to support Masque
+local Masque = LibStub("Masque", true)
+local masqueGroup
+do
+    if Masque then
+        masqueGroup = Masque:Group(addonName)
+    end
+end
 
 
 -- XXX: TODO: These resetters should revert more of the :Set* calls used in the UI code
@@ -353,6 +362,24 @@ end
 
 
 
+
+local function handleElvUI(frame)
+    -- I think :CreateBackdrop() makes a frame, so don't call this more than once
+    if ElvUI and not Masque then  -- Masque overrides ElvUI
+        local E, L, V, P, G = unpack(ElvUI)
+        if not frame.backdrop then
+            -- Only strip once, or else the icon texture will always be stripped
+            frame:StripTextures()
+            frame:CreateBackdrop()
+        end
+        frame.backdrop:SetAllPoints()
+
+        frame.icon:SetInside(frame.backdrop)
+        frame.icon:SetTexCoord(unpack(E.TexCoords))
+    end
+end
+
+
 -- Allocate a blank history item and allocate all of its subcomponents. The
 -- history item and all subcomponents are :Hide()ed. Callers should :Show()
 -- desired elements based on whether the ability represented by this history
@@ -391,11 +418,19 @@ local function allocHistoryItem(parent, countUp)
         end)
     end
 
+    if Masque and masqueGroup and not f.masqueAdded then
+        masqueGroup:AddButton(f, { Icon=f.icon, Cooldown=f.swipeTexture }, "Aura")
+        f.masqueAdded = true
+    end
+
     return clearHistoryItem(f)
 end
 
 
 local function releaseHistoryItem(item)
+    if Masque and masqueGroup and f.masqueAdded then
+        masqueGroup:RemoveButton(f)
+    end
     texturePool:Release(item.icon)
     if item.countUp then
         gameFontNormalPool:Release(item.timer)
@@ -452,6 +487,7 @@ local function updateStaticRow(slot)
         item.spellId = ability.id
         if ability.iconId then
             item.icon:SetTexture(ability.iconId)
+            handleElvUI(item)
         end
         item.cooldown = ability.cooldown
         item.charges = ability.charges
@@ -545,6 +581,7 @@ local function updateHistoryTray(slot)
                 item = row.items[i]
             end
             sizeHistoryItem(item)
+            handleElvUI(item)
             -- item at index 1 is the oldest
             local xoff, yoff = offsets(dir, (maxHistory - i)*(iconSize + iconSpacing))
             item:ClearAllPoints()
@@ -623,7 +660,7 @@ function ns:updateTrackerUIBySlot(slot)
     -- Position UI next to frames
     local frame = ns:slotToFrame(slot)
     if frame then
-        local xspacing, yspacing = offsets(dir, SPACING_FROM_FRAMES)
+        local xspacing, yspacing = ns:GetOption("adjustX"), ns:GetOption("adjustY")
         tracker:ClearAllPoints()
         tracker:SetPoint(ns.anchorPoints[ns:GetOption('anchorFrom')],
             frame, ns.anchorPoints[ns:GetOption('anchorTo')],
@@ -650,6 +687,9 @@ function ns:updateTrackerUIBySlot(slot)
 
     updateStaticRow(slot)
     updateHistoryTray(slot)
+    if Masque and masqueGroup then
+        masqueGroup:ReSkin(true)
+    end
 
     if dir == "LEFT" or dir == "RIGHT" then
         tracker:SetWidth(math.max(tracker.staticRow:GetWidth(), tracker.historyTray:GetWidth()) + iconSpacing)
