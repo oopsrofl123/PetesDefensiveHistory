@@ -484,6 +484,11 @@ local function logicLayerAuraUpdateAllowed(event, ability)
 end
 
 
+local function logicLayerStoneform(event, ability)
+    return { pass=not (event:getStoneform() and ability.name ~= "Stoneform"), final=true }
+end
+
+
 
 -- 1 letter aliases for compact log strings
 ns.logicLayerAliases = {
@@ -502,6 +507,8 @@ ns.logicLayerAliases = {
     updateIsAbility='u',     -- u for _u_pdate is ability
     updateAllowed='w',       -- w for update allo_w_ed
     maybeFreedom='o',        -- maybe freed_o_m
+    debuffRemoved='v',       -- v for debuff remo_v_ed
+    stoneform='m',           -- m for stonefor_m_
 }
 
 
@@ -557,6 +564,7 @@ local function getPossibleSolutions(event, cdTracker)
         logic['flags'] = logicLayerAuraFlags(event, ability)
         logic['cooldown'] = logicLayerAbilityOffCooldown(event, ability, cdTracker)
         logic['duration'] = logicLayerDurationMatches(event, ability)
+        logic['stoneform'] = logicLayerStoneform(event, ability)
         if ability.requireBuff then
             logic['buff'], reqs['buff'] =
                 evidenceWitnessed(event, ability, "buff", "target")
@@ -590,6 +598,10 @@ local function getPossibleSolutions(event, cdTracker)
         if ability.requireMaybeFreedom then
             logic['maybeFreedom'], reqs['maybeFreedom'] =
                 evidenceWitnessed(event, ability, "maybeFreedom", "caster")
+        end
+        if ability.requireDebuffRemoved then
+            logic['debuffRemoved'], reqs['debuffRemoved'] =
+                evidenceWitnessed(event, ability, "debuffRemoved", "target")
         end
         -- Is this event part of a batch where the aura ID has already been inferred?
         if aura and aura.inferredId then
