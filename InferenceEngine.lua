@@ -852,23 +852,6 @@ local function confidenceLayerBubble(possibleSolutions)
 end
 
 
--- Ascendance applies Doom Winds, which retains its IMPORTANT flag. This confidence layer
--- 
---local function confidenceLayerAscendance(possibleSolutions)
-    --local numSolutions = #possibleSolutions
-    --if numSolutions == 2 then
-        --local a1, a2 = unpack(possibleSolutions)
-        --local ascend = (a1.name == 'Ascendance' and a1) or (a2.name == 'Ascendance' and a2) or nil
-        --local doom = (a1.name == 'Doom Winds' and a1) or (a2.name == 'Doom Winds' and a2) or nil
-        --if ascend and doom then
-            --return { 'ascendance', ascend.reqsMet and ascend, true, ascend.reqsMet }
-        --end
-        --return { 'ascendance', false, false, a1.name..' and '..a2.name }
-    --end
-    --return { 'ascendance', false, false, numSolutions }
---end
-
-
 
 ns.confidenceLayerAliases = {
     oneSolution='1',
