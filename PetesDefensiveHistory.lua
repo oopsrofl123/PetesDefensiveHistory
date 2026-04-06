@@ -776,7 +776,8 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             if issecretvalue(v.spellId) or unitTarget == 'player' then
                 -- XXX: very carefully dip a toe into non-flagged auras
                 -- still set trackAuraEvidence below or else evidence could be lost
-                if debuffRemovedThisCall and char:getRaceId() == 3 and char:getSpec() ~= 268 then
+                if debuffRemovedThisCall and char:getRaceId() == 3 and
+                   (char:getSpec() ~= 268 or ns:GetOption("allowBrewmasterStoneform")) then
                     local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
                     local ev = ns:trackAura("AURA(stoneform)", aura, debuffAddedThisCall)
                     ev:setStoneform()
