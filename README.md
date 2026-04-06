@@ -55,17 +55,18 @@ There are a few important things to understand about how this AddOn works and it
 ![](images/CDRBadge.png)
 
 
+# Why do abilities sometimes start glowing long after they're cast?
+* Some abilities are hard to distinguish from others. PetesDefensiveHistory continuously collects
+  data about each ability and only glows the cooldown when it has enough information to be
+  certain that its guess is correct.
+
+
 # Complicated things happen!
 * Players without LibSpecialization can cause unexpected things. For example, if someone without LibSpec uses an external defensive, an icon will be added to the **target's history tray**.
 
 ![](images/no_libspec_consequences.png)
 *Life Cocoon was cast on the Paladin by a Monk without LibSpec*
 
-
-# Why do abilities sometimes start glowing long after they're cast?
-* Some abilities are hard to distinguish from others. PetesDefensiveHistory continuously collects
-  data about each ability and only glows the cooldown when it has enough information to be
-  certain that its guess is correct.
 
 
 
