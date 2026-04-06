@@ -506,7 +506,9 @@ local function updateStaticRow(slot)
 
         sizeHistoryItem(item)
         -- Did the user opt in to showing this ability?
-        if not ns:GetOption("show_"..ability.id) or ability.hideAbility then
+        if not ns:GetOption("show_"..ability.id) or
+           ability.hideAbility or
+           (ability.name == 'Stoneform' and char:getSpec() == 268 and not ns:GetOption('allowBrewmasterStoneform')) then
             item:Hide()
         else
             item:Show()
