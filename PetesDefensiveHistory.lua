@@ -131,7 +131,8 @@ local function findFrameForSlot(slot, slotRoot)
                 return frame
             end
         end
-    elseif ElvUI then
+    -- Only prefer ElvUI frames if the user enabled them
+    elseif ElvUI and ElvUI[1].db and ElvUI[1].db.unitframe.units.party.enable then
         if ElvUI[1].db and ElvUI[1].db.unitframe.units.party.enable and ElvUF_Party then
             if slotRoot ~= "party" then
                 print("ERROR: raid frames are not supported for ElvUI at the moment, please leave a comment on the discord if you are interested in raid support.")
@@ -878,7 +879,7 @@ deathHandler:SetScript("OnEvent", function(self, event, unit)
     -- Seems that unlike all the other handlers, unit is always secret
     local now = GetTime()
     -- log the event regardless. want to see if it is ever non-secret
-    ns:playback(now, event, (issecretvalue(unit) and "secret") or unit)
+    ns:playback(now, 'UNIT_DIED', (issecretvalue(unit) and "secret") or unit)
     if issecretvalue(unit) then return end
     local guid, char = ns:getTrackedCharacterBySlot(unit)
     if not guid then return end
