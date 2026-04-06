@@ -9,6 +9,7 @@ local duration_variable = "duration_variable"
 local hasAbility = "hasAbility"
 local hideAbility = "hideAbility"
 local requireBuff = "requireBuff"
+local requireCasterBuff = "requireCasterBuff"
 local requireShield = "requireShield"
 local naturallyUpdates = "naturallyUpdates"
 local reset = "canReset"
@@ -522,6 +523,9 @@ ns.SpecTalentModifiers = {
     [1468] = {
         [357170] = {   -- time dilation
             { { id=357170, modifies=hasAbility, amount=true } },
+        },
+        [362874] = {   -- time dilation gives the caster a Temporal Compression stack
+            { { id=357170, modifies=requireCasterBuff, amount=true } },
         },
         [376204] = {
             { { id=357170, modifies=charges, amount=1 },
