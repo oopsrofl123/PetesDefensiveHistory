@@ -215,6 +215,11 @@ function ns:Event(newTrace, newSource)
                     string.format("updated closest evidenceType=[%s], actor=[%s], [%0.3f]->[%0.3f]",
                         evidenceType, ns:cosmeticOnlyMapGUIDToSlot(source), prevClosest, closest))
             end
+
+            local char = ns:getTrackedCharacterByGUID(guid)
+            if char:hasPerfectEvidence() then
+                closestEvidence[guid][evidenceType] = time
+            end
         end
     end
 

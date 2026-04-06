@@ -167,6 +167,12 @@ function ns:Character(slot)
 
     function char:hasLibSpec() return hasLibSpec end
 
+    -- For testing: ignore real evidence and always assign this character perfect
+    -- evidence.
+    function char:hasPerfectEvidence() return perfectEvidence end
+
+    function char:setPerfectEvidence() perfectEvidence = true end
+
     function char:setBasicInfo(slot)
         slot = slot or ns:cosmeticOnlyMapGUIDToSlot(GUID)
         name = UnitName(slot)
@@ -434,6 +440,18 @@ local function doLibSpecUpdate(specId, playerName, talentExportString, slot)
     -- affects the group solution UI.
     ns:zeroKnowledgeSolve()
 
+end
+
+
+-- For /run pdhInject(...) to force talents onto, e.g., followers
+function pdhInject(slot, specId, tstring)
+    doLibSpecUpdate(specId, 'injectDummy', tstring, slot)
+end
+
+
+function pdhPerfectEvidence(slot)
+    local guid, char = ns:getTrackedCharacterBySlot(slot)
+    char:setPerfectEvidence()
 end
 
 
