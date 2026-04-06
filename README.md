@@ -64,6 +64,8 @@ There are a few important things to understand about how this AddOn works and it
 * Some abilities are hard to distinguish from others. PetesDefensiveHistory continuously collects
   data about each ability and only glows the cooldown when it has enough information to be
   certain that its guess is correct.
+* When cooldowns are predicted more than 1.5s from the time they were used, Text-to-speech does
+  not announce the cooldown.
 
 
 # Complicated things happen!
