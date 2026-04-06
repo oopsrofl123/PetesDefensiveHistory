@@ -22,9 +22,9 @@ PetesDefensiveHistory uses a flexible inference engine to identify abilities thr
 ![](images/PDH1.gif)
 
 # Frequently asked questions
-There are a few important things to understand about how this AddOn works and its limitations!
+PetesDefensiveHistory might look like OmniCD, but Blizzard's addon restrictions make detecting cooldowns a messy process. There are a few important things to understand about how this AddOn works and its limitations!
 
-# Why do some players have no cooldown trackers?
+# 1. Why do some players have no cooldown trackers?
 * This AddOn uses LibSpecialization to retrieve the talents of your teammates. Players without LibSpecialization will not have a cooldown tracker. Talents can change the cooldown timers by several minutes!
 * LibSpecialization communicates your talents to your groupmates. Many players have it installed without knowing - for example, BigWigs (and PetesDefensiveHistory!) both bundle it.
 * Talents are necessary to know (a) what abilities someone has and (b) what their cooldowns are.
@@ -34,7 +34,7 @@ There are a few important things to understand about how this AddOn works and it
 *The mage does not have LibSpecialization*
 
 
-# What is the second row of icons?
+# 2. What is the second row of icons?
 * The second row of icons contains cooldowns **that could not be guessed by the addon**.
 * The second row is called the **history tray** and is like a GCD tracker for unidentified cooldowns.
 * The history tray **counts up** from the time the buff was applied. If you know the cooldown of the ability, then you can know when it is available even when the AddOn fails.
@@ -46,7 +46,7 @@ There are a few important things to understand about how this AddOn works and it
 
 ![](images/DisableHistoryTray.png)
 
-# Why is there a (!) on my cooldown tracker?
+# 3. Why is there a (!) on my cooldown tracker?
 * Dynamic cooldown reduction (like *the cooldown of Shield Wall is reduced by 6s when you
   use Shield Slam*) cannot be detected with Blizzard's new restrictions.
 * (!) badges mark the cooldown trackers that are affected by dynamic cooldown reduction and
@@ -60,7 +60,7 @@ There are a few important things to understand about how this AddOn works and it
 
 
 
-# Why do abilities sometimes start glowing long after they're cast?
+# 4. Why do abilities sometimes start glowing long after they're cast?
 * Some abilities are hard to distinguish from others. PetesDefensiveHistory continuously collects
   data about each ability and only glows the cooldown when it has enough information to be
   certain that its guess is correct.
@@ -68,7 +68,7 @@ There are a few important things to understand about how this AddOn works and it
   not announce the cooldown.
 
 
-# Complicated things happen!
+# 5. Complicated things happen!
 * Players without LibSpecialization can cause unexpected things. For example, if someone without LibSpec uses an external defensive, an icon will be added to the **target's history tray**.
 
 ![](images/no_libspec_consequences.png)
