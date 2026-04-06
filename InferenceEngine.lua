@@ -503,6 +503,7 @@ end
 -- 1 letter aliases for compact log strings
 ns.logicLayerAliases = {
     buff='B',
+    casterBuff='t',          -- t for cas_t_er buff
     cast='P',                -- p for button _p_ress
     combatDrop='C',
     notGroupCombatDrop='g',  -- g for not_G_roupCombatDrop
@@ -579,6 +580,11 @@ local function getPossibleSolutions(event, cdTracker)
         if ability.requireBuff then
             logic['buff'], reqs['buff'] =
                 evidenceWitnessed(event, ability, "buff", "target")
+        end
+        if ability.requireCasterBuff then
+            logic['casterBuff'], reqs['casterBuff'] =
+                -- the evidence tracker is still buff, just look at caster rather than target
+                evidenceWitnessed(event, ability, "buff", "caster")
         end
         if ability.requireDebuff then
             logic['debuff'], reqs['debuff'] =
