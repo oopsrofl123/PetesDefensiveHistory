@@ -34,7 +34,7 @@ There are a few important things to understand about how this AddOn works and it
 *The mage does not have LibSpecialization*
 
 
-# What is this second row of icons?
+# What is the second row of icons?
 * The second row of icons contains cooldowns **that could not be guessed by the addon**.
 * The second row is called the **history tray** and is like a GCD tracker for unidentified cooldowns.
 * The history tray **counts up** from the time the buff was applied. If you know the cooldown of the ability, then you can know when it is available even when the AddOn fails.
@@ -53,6 +53,11 @@ There are a few important things to understand about how this AddOn works and it
   thus will be inaccurate. Those trackers instead reflect the **longest possible cooldown**.
 
 ![](images/CDRBadge.png)
+*Guardian of Ancient Kings has dynamic cooldown reduction, and is therefore inaccurate*
+
+* Turn off the badges with this option:
+![](images/DisableBadges.png)
+
 
 
 # Why do abilities sometimes start glowing long after they're cast?
