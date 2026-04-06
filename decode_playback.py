@@ -326,7 +326,11 @@ if __name__ == "__main__":
             # This processing does nothing, but is left as a framework to test ideas
             if event == "UNIT_AURA":
                 time = round(time, 3)
-                slot, payload, raw_auras, _ = record[2:]
+                if len(record) == 5:
+                    slot, payload, raw_auras = record[2:]
+                else:
+                    slot, payload, raw_auras, _ = record[2:]
+
                 if raw_auras and isinstance(raw_auras, list):
                     # serializer encodes a list rather than dict if only one aura is present
                     # overwrite with a dict that returns the one present aura data no matter
