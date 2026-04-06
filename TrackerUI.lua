@@ -251,11 +251,15 @@ local function sizeHistoryItem(item)
     local iconSize = ns:GetOption('iconSize')
     local textSize = ns:GetOption('textSize')
     local textOutline = ns.textOutlines[ns:GetOption("textOutline")]
-    item:SetSize(iconSize, iconSize)
 
     if item.countUp then
+        local historyTrayScale = ns:GetOption("historyTrayScale")
+        iconSize = iconSize * historyTrayScale
+        textSize = textSize * historyTrayScale
+        item:SetSize(iconSize, iconSize)
         item.timer:SetFont(item.timer:GetFont(), textSize, textOutline)
     else
+        item:SetSize(iconSize, iconSize)
         item.swipeTexture.timer:SetFont(item.swipeTexture.timer:GetFont(), textSize, textOutline)
         item.swipeTexture.chargeLabel:SetFont(item.swipeTexture.chargeLabel:GetFont(), textSize, textOutline)
         item.warningbg:SetSize(iconSize/2, iconSize/2)
@@ -558,8 +562,9 @@ end
 local function updateHistoryTray(slot)
     local tracker = ns.trackerUI[slot]
     local row = tracker.historyTray
-    local iconSize = ns:GetOption('iconSize')
-    local textSize = ns:GetOption('textSize')
+    local historyTrayScale = ns:GetOption('historyTrayScale')
+    local iconSize = ns:GetOption('iconSize')*historyTrayScale
+    local textSize = ns:GetOption('textSize')*historyTrayScale
     local iconSpacing = ns:GetOption('iconSpacing')
     local dir = ns.growthDirections[ns:GetOption('growthDirection')]
     local antidir = ns.antiDirection[dir]
@@ -704,26 +709,30 @@ function ns:updateTrackerUIBySlot(slot)
     -- Position the history tray relative to the static row
     local dir = ns.growthDirections[ns:GetOption('growthDirection')]
     local antidir = ns.antiDirection[dir]
+    local historyTrayScale = ns:GetOption('historyTrayScale')
     tracker.staticRow:ClearAllPoints()
     tracker.historyTray:ClearAllPoints()
     if dir == "LEFT" then
         tracker.staticRow:SetPoint('TOP'..antidir, tracker)
-        tracker.historyTray:SetPoint('TOPRIGHT', tracker.staticRow, 'BOTTOMRIGHT', 0, -iconSpacing)
+        tracker.historyTray:SetPoint('TOPRIGHT', tracker.staticRow, 'BOTTOMRIGHT',
+            0, -iconSpacing*historyTrayScale)
     elseif dir == "RIGHT" then
         tracker.staticRow:SetPoint('TOP'..antidir, tracker)
-        tracker.historyTray:SetPoint('TOPLEFT', tracker.staticRow, 'BOTTOMLEFT', 0, -iconSpacing)
+        tracker.historyTray:SetPoint('TOPLEFT', tracker.staticRow,
+            'BOTTOMLEFT', 0, -iconSpacing*historyTrayScale)
     elseif dir == "UP" then
         tracker.staticRow:SetPoint(antidir..'LEFT', tracker)
-        tracker.historyTray:SetPoint('BOTTOMLEFT', tracker.staticRow, 'BOTTOMRIGHT', iconSpacing, 0)
+        tracker.historyTray:SetPoint('BOTTOMLEFT', tracker.staticRow, 'BOTTOMRIGHT',
+            iconSpacing*historyTrayScale, 0)
     elseif dir == "DOWN" then
         tracker.staticRow:SetPoint(antidir..'LEFT', tracker)
-        tracker.historyTray:SetPoint('TOPLEFT', tracker.staticRow, 'TOPRIGHT', iconSpacing, 0)
+        tracker.historyTray:SetPoint('TOPLEFT', tracker.staticRow, 'TOPRIGHT',
+            iconSpacing*historyTrayScale, 0)
     end
 
     if Masque and masqueGroup then
         masqueGroup:ReSkin(true)
     end
-
 end
 
 

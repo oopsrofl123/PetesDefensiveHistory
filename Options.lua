@@ -39,6 +39,7 @@ local optionsDefaults = {
     hidePersonalCDs = false,
     hideInaccurateBadges = false,
     iconSize = 32,
+    historyTrayScale = 0.75,
     iconSpacing = 3,
     wrapIcons = 10,
     maxHistoryTrayItems = 4,
@@ -196,7 +197,7 @@ local function buildMainOptions()
         "When an ability's cooldown timer is very hard to guess, a small |cFFFF0000(!)|r badge is placed on its top left corner. This usually only happens for abilities with dynamic cooldown reduction (e.g., Avatar's cooldown is reduced for every 20 rage spent). Check this option to hide the |cFFFF0000(!)|r badges.")
 
     -- Set tracker icon size
-    setting = makeSetting(category, 'iconSize', Settings.VarType.Number, 'Icon size')
+    setting = makeSetting(category, 'iconSize', Settings.VarType.Number, 'Cooldown icon size')
     local options = Settings.CreateSliderOptions(8, 64, 1)
     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right) --, FormatPercentage)
     Settings.CreateSlider(category, setting, options, "Size of tracker icons")
@@ -206,6 +207,12 @@ local function buildMainOptions()
     local options = Settings.CreateSliderOptions(4, 32, 1)
     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
     Settings.CreateSlider(category, setting, options, "Text size for cooldown timers")
+
+    -- History tray scale
+    setting = makeSetting(category, 'historyTrayScale', Settings.VarType.Number, 'History tray scale')
+    local options = Settings.CreateSliderOptions(0, 1, 0.01)
+    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, FormatPercentage)
+    Settings.CreateSlider(category, setting, options, "Scale the history tray icons and text")
 
     -- Timer text outline/shadow
     setting = makeSetting(category, 'textOutline', Settings.VarType.Number,
