@@ -77,6 +77,9 @@ local optionsDefaults = {
     debugLoggingTypeSimulation = false,
     debugLoggingTypeExport = false,
     runGC = false,
+
+    -- Overrides
+    allowBrewmasterStoneform = false,
 }
 
 PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or optionsDefaults
@@ -347,6 +350,11 @@ local function buildDeveloperOptions(topCategory)
     -- Run garbage collection when enabling or disabling the addon
     makeCheckbox(category, "runGC", "Run additional GCs",
         "Run garbage collection when tearing down/setting up the UI. Helps to find memory leaks.")
+
+    -- Allow users to override some decisions made by developers
+    makeSectionHeader(layout, 'Overrides')
+    makeCheckbox(category, "allowBrewmasterStoneform", "Allow Stoneform on Brewmasters",
+        "Stoneform inference is disabled for Brewmasters because of a high number of false positives related to stagger. Check this box to enable Stoneform on Brewmasters.")
 
     Settings.RegisterAddOnCategory(category)
 end
