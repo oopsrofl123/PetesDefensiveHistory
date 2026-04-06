@@ -52,7 +52,7 @@ There are a few important things to understand about how this AddOn works and it
 * (!) badges mark the cooldown trackers that are affected by dynamic cooldown reduction and
   thus will be inaccurate. Those trackers instead reflect the **longest possible cooldown**.
 
-![](images/CDRBadges.png)
+![](images/CDRBadge.png)
 
 
 # Complicated things happen!
