@@ -586,6 +586,7 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
+            requireCastFailedQuiet=true,
 		},
 		{
 			name="Alter Time",
