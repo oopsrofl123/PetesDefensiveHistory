@@ -606,19 +606,15 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
     local inCombat = UnitAffectingCombat(target)
     local isFeign = UnitIsFeignDeath(target)
 
-    ns:playback(now, "UNIT_FLAGS", target, inCombat)
 
-    -- flag change for any reason. always better if we know exactly what flag to check,
-    -- but can't figure out why some abilities UNIT_FLAGS.
-    char:trackEvidence('unitFlags', now)
 
-    traceHandler("FLAGS", target, "inCombat=[%s], isFeign=[%s]", tostring(inCombat), tostring(isFeign))
 
     -- Check previously witnessed inCombat state. Did target leave combat?
     local lastInCombat = char:getEvidence('combatStatus'):head()
     char:trackEvidence('combatStatus', inCombat)
 
-    if lastInCombat == true and inCombat == false then
+    local combatDrop = lastInCombat == true and inCombat == false
+    if combatDrop then
         char:trackEvidence('combatDrop', now)
 
         local ev = ns:Event("FLAGS(combatDrop)", guid)
@@ -626,24 +622,34 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
         ev:track()
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
             "+++ track(FLAGS(combatDrop)): source=[%s], flagChange=[%s], eventId=[%s/%d]",
-            ev:getTime(), ns:cosmeticOnlyMapGUIDToSlot(ev:getSource()),
+            ns:cosmeticOnlyMapGUIDToSlot(ev:getSource()),
             tostring(lastInCombat)..">"..tostring(inCombat),
             ev:getId(), ev:getBatchId()))
     end
 
     local lastIsFeign = char:getEvidence('feignStatus'):head() or false
     char:trackEvidence('feignStatus', isFeign)
-    if lastIsFeign == false and isFeign == true then
+    local feign = lastIsFeign == false and isFeign == true
+    if feign then
         char:trackEvidence('feign', now)
         local ev = ns:Event("FLAGS(feign)", guid)
         ev:setExpiration(now + expireNonAuraEventsAfter)  -- Non-aura events need explicit expiration
         ev:track()
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
             "+++ track(FLAGS(feign)): source=[%s], flagChange=[%s], eventId=[%s/%d]",
-            ev:getTime(), ns:cosmeticOnlyMapGUIDToSlot(ev:getSource()),
+            ns:cosmeticOnlyMapGUIDToSlot(ev:getSource()),
             tostring(lastIsFeign)..">"..tostring(isFeign),
             ev:getId(), ev:getBatchId()))
     end
+
+    -- flag change for any reason other than combat or feign
+    if not combatDrop and not feign then
+        char:trackEvidence('unitFlags', now)
+    end
+
+    traceHandler("FLAGS", target, "inCombat=[%s], combatDrop=[%s], isFeign=[%s], feign=[%s]",
+        tostring(inCombat), tostring(combatDrop), tostring(isFeign), tostring(feign))
+    ns:playback(now, "UNIT_FLAGS", target, inCombat, combatDrop, isFeign, feign)
 
     ns:manageEvents("FLAGS", guid, now)
 end)
@@ -829,7 +835,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             -- XXX: this won't work for charge abilities since 'ev' will always refer only
             -- to the batch head. need a formal batch container rather than special treatment
             -- of the head event.
-            ev:addUpdate()
+            ev:handleUpdate()
 
             -- aurasAddedThisCall: solve one odd corner case: Survival of the Fittest for the
             -- Dark Ranger hero spec. The talent that causes SotF to apply exhiliration causes

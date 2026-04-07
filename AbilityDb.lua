@@ -50,7 +50,6 @@ ns.AbilityDb = {
             requireButtonPress=true,
             requireBuff=true,  -- adds the shadowmeld buff
             requireCombatDrop=true,
-            requireUnitFlags=true,
 		},
     },
     ["Dwarf"] = {
@@ -495,7 +494,6 @@ ns.AbilityDb = {
             IMPORTANT=false, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            requireUnitFlags=true,
             requireFeign=true,
 		},
 		{
@@ -642,7 +640,6 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
             requireCombatDrop=true,
-            requireUnitFlags=true,
 		},
 	},
 
@@ -1037,7 +1034,6 @@ ns.AbilityDb = {
             requireButtonPress=true,
             requireBuff=true,         -- the vanish aura is on top of stealth
             requireCombatDrop=true,
-            requireUnitFlags=true,
 		},
 		{
 			name="Cloak of Shadows",
