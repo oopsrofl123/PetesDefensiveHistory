@@ -839,23 +839,53 @@ local function confidenceLayerUnboundFreedom(possibleSolutions, event)
 end
 
 
--- Bubble and AD have identical flags and durations, making them tough to distinguish.
--- However, bubble has many alternative forms of evidence that are not individually
--- convincing, but if all are present, then the ability is almost certainly bubble.
-local function confidenceLayerBubble(possibleSolutions)
-    local numSolutions = #possibleSolutions
-    if numSolutions == 2 then
-        local a1, a2 = unpack(possibleSolutions)
-        local bubble = (a1.name == 'Divine Shield' and a1) or (a2.name == 'Divine Shield' and a2) or nil
-        local ardent = (a1.name == 'Ardent Defender' and a1) or (a2.name == 'Ardent Defender' and a2) or nil
-        if ardent and bubble then
-            return { 'bubble', bubble.reqsMet and bubble, true, bubble.reqsMet }
-        end
-        return { 'bubble', false, false, a1.name..' and '..a2.name }
+-- Not uncommon: a specific set of solutions is possible, and one among them has evidence that
+-- is rare enough that it should be accepted if the requirements have been met.
+local function confidenceLayerPrefer(layerName, preferredAbility, otherAbilities)
+    local numRequired = 1 + #otherAbilities
+    local otherHash = {}
+    for _, abilityName in pairs(otherAbilities) do
+        otherHash[abilityName] = true
     end
-    return { 'bubble', false, false, numSolutions }
+    return function(possibleSolutions)
+        local numSolutions = #possibleSolutions
+        if numSolutions == numRequired then
+            local pref
+            local found = 1
+            for _, ability in pairs(possibleSolutions) do
+                if ability.name == preferredAbility then
+                    pref = ability
+                else
+                    if otherHash[ability.name] then
+                        found = found + 1
+                    else
+                        -- ability not in the allowed list, we're done
+                        break
+                    end
+                end
+            end
+            if pref and found == numSolutions then
+                return { layerName, pref.reqsMet and pref, true, pref.reqsMet }
+            end
+            return { layerName, false, false, found }
+        end
+        return { layerName, false, false, numSolutions }
+    end
 end
 
+
+local confidenceLayerBubble =
+    confidenceLayerPrefer('bubble', 'Divine Shield', { 'Ardent Defender' })
+
+local confidenceLayerTurtle =
+    confidenceLayerPrefer('turtle', 'Aspect of the Turtle', { 'Survival of the Fittest' })
+
+-- Handle the Dark Ranger talent that attaches Exhilaration to SoTF
+local confidenceLayerTurtle2 =
+    confidenceLayerPrefer('turtle2', 'Aspect of the Turtle', { 'Survival of the Fittest', 'Exhilaration' })
+
+local confidenceLayerDispersion =
+    confidenceLayerPrefer('dispersion', 'Dispersion', { 'Desperate Prayer' })
 
 
 ns.confidenceLayerAliases = {
@@ -865,6 +895,9 @@ ns.confidenceLayerAliases = {
     uncertainSameAura='u',
     unboundFreedom='o',
     bubble='b',
+    turtle='T',
+    turtle2='t',
+    dispersion='d',
 }
 
 -- Given a list of possible abilities that could have produced event, determine:
@@ -895,6 +928,9 @@ local function getConfidentMatch(possibleSolutions, event)
         confidenceLayerAbilitiesApplySameAura(possibleSolutions),
         confidenceLayerUnboundFreedom(possibleSolutions, event),
         confidenceLayerBubble(possibleSolutions),
+        confidenceLayerTurtle(possibleSolutions),
+        confidenceLayerTurtle2(possibleSolutions),
+        confidenceLayerDispersion(possibleSolutions),
     }
 
     -- XXX: TODO: first match wins. maybe better strategy in the future
