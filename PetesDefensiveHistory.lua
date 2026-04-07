@@ -567,7 +567,6 @@ castFailedQuietHandler:SetScript("OnEvent", function(self, event, caster, castGU
     traceHandler("SPELLCAST_FAILED_QUIET", caster, "%s, %s",
         tostring(ns:maskSecret(spellID)), tostring(ns:maskSecret(castBarID)))
 
-print('castFailedQuiet')
     char:trackEvidence('castFailedQuiet', now)
 end)
 
