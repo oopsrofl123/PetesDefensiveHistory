@@ -302,6 +302,7 @@ if __name__ == "__main__":
     buffs_by_player = defaultdict(list)
     debuffs_by_player = defaultdict(list)
     maybe_stoneform = defaultdict(dict)
+    update_count_per_aura = defaultdict(lambda: defaultdict(int))
     for rectype, time, record in sorted(playback + inferences, key=lambda x: x[1]):
         if rectype == "event":
             time, event = record[0:2]
@@ -347,7 +348,9 @@ if __name__ == "__main__":
                         debuffs_by_player[slot].append(aid)
 
                 remlist = payload.get(b'removedAuraInstanceIDs', [])
+                uplist = payload.get(b'updatedAuraInstanceIDs', [])
                 removed_debuffs = [ a for a in remlist if a in debuffs_by_player[slot] ]
+                updated_debuffs = [ a for a in uplist if a in debuffs_by_player[slot] ]
                 added_buffs = [ a for a in payload.get(b'addedAuras', [])
                     if a[b'auraInstanceID'] in buffs_by_player[slot] ]
 
@@ -374,6 +377,10 @@ if __name__ == "__main__":
                         buffs_by_player[slot].remove(aid)
                     if aid in debuffs_by_player[slot]:
                         debuffs_by_player[slot].remove(aid)
+
+                for aid in uplist:
+                    if aid in debuffs_by_player[slot]:
+                        update_count_per_aura[slot][aid] += 1
         elif rectype == "inf":
             inference_time, inference_trace, inference_attempt, \
                 event_time, event_trace, event_id, event_source, event_slot, batch_id, \
@@ -384,3 +391,7 @@ if __name__ == "__main__":
             print("FAIL:", logic_string(logic, event_source, False))
             print("CONF:", confidence_string(conf) + " " + reqs_string(reqs))
             print(decision_string(record, spells))
+
+for slot, upcounts in update_count_per_aura.items():
+    for aid, count in sorted(upcounts.items(), key=lambda x: x[1], reverse=True): #[:10]:
+        print(slot, aid, count)
