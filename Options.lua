@@ -216,7 +216,7 @@ local function buildMainOptions()
 
     -- Timer text outline/shadow
     setting = makeSetting(category, 'textOutline', Settings.VarType.Number,
-        'Outlines for cooldown timers')
+        'Timer text outline')
     Settings.CreateDropdown(category, setting, textOutlineOptions)
 
     -- Set spacing between tracker items
