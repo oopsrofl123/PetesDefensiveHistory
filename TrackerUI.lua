@@ -178,8 +178,10 @@ function ns:startGlow(ability, duration, initGlow)
     -- how long the aura will last. this can be updated (e.g., fiery
     -- brand's duration is updated each time it spreads to another enemy).
     if duration then
-        cd.activeDuration:SetCooldownFromDurationObject(duration)
-        cd.activeDuration:Show() 
+        if ns:GetOption('showActiveDuration') then
+            -- auto-:Show()s itself
+            cd.activeDuration:SetCooldownFromDurationObject(duration)
+        end
         if cd.chargeLabel:IsShown() then
             cd.chargeLabel:Hide()
         end

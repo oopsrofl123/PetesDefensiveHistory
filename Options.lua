@@ -50,6 +50,7 @@ local optionsDefaults = {
     growthDirection = 1,    -- LEFT
     adjustX = -3,
     adjustY = 0,
+    showActiveDuration = true,
 
     enableMplusXalatathHack = true,
     disableInference = false,
@@ -258,6 +259,8 @@ local function buildMainOptions()
     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
     Settings.CreateSlider(category, setting, options, "Nudge each cooldown tracker cluster by this many pixels in the Y direction")
 
+    makeCheckbox(category, "showActiveDuration", "Show active duration swipe",
+        "When an ability is active, show a cooldown swipe indicating when the ability will end, similar to what is shown on Blizzard's Center Big Defensives icon.")
 
     makeSectionHeader(layout, 'Behavior')
 
