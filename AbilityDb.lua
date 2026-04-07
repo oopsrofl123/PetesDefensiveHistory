@@ -125,6 +125,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Pillar of Frost",
+            offensive=true,
             alias='Pillar',
 			id=51271,
             iconId=458718,
@@ -245,6 +246,7 @@ ns.AbilityDb = {
 		{
 			name="Celestial Alignment",
             alias='C.Alignment',
+            offensive=true,
 			--id=383410,  -- the celestial alignment buff in-game
             id=194223,
             iconId=136060,
@@ -260,6 +262,7 @@ ns.AbilityDb = {
 		{
 			name="Incarnation: Chosen of Elune",
             alias='Incarn:Elune',
+            offensive=true,
 			id=102560,
             --id=390414   -- this is the in-game incarn buff spell ID
             iconId=571586,
@@ -276,6 +279,7 @@ ns.AbilityDb = {
 		{
 			name="Berserk",
             id=106951,
+            offensive=true,
             iconId=236149,
 			cooldown=180,
 			duration=15,
@@ -289,6 +293,7 @@ ns.AbilityDb = {
 		{
 			name="Incarnation: Avatar of Ashamane",
             alias='Incarn:Ashamane',
+            offensive=true,
 			id=102543,
             iconId=571586,
 			cooldown=180,
@@ -363,6 +368,7 @@ ns.AbilityDb = {
     ["EVOKER"] = {
 		{
 			name="Dragonrage",
+            offensive=true,
 			id=375087,
             iconId=4622452,
 			cooldown=120,
@@ -448,6 +454,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Trueshot",
+            offensive=true,
 			id=288613,
             iconId=132329,
 			cooldown=120,
@@ -490,6 +497,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Takedown",
+            offensive=true,
 			id=1250646,
             iconId=7439201,
 			cooldown=90,
@@ -531,6 +539,7 @@ ns.AbilityDb = {
 		{
 			name="Arcane Surge",
             alias='A.Surge',
+            offensive=true,
 			id=365350,
             iconId=4667417,
 			cooldown=90,
@@ -604,6 +613,7 @@ ns.AbilityDb = {
 		{
 			name="Combustion",
             alias='Bust',
+            offensive=true,
 			id=190319,
             iconId=135824,
 			cooldown=120,
@@ -811,6 +821,7 @@ ns.AbilityDb = {
         -- buff given is the avenging wrath buff, so copy its flags.
         {
             name='Wake of Ashes',
+            offensive=true,
 			id=255937,
             iconId=1112939,
 			cooldown=30,
@@ -825,6 +836,7 @@ ns.AbilityDb = {
         {
             name='Avenging Crusader',
             alias='Av.Crusader',
+            offensive=true,
 			id=216331,
             iconId=589117,
 			cooldown=60,
@@ -839,6 +851,7 @@ ns.AbilityDb = {
 		{
 			name="Avenging Wrath",
             alias='Av.Wrath',
+            offensive=true,
 			id=31884,
             iconId=135875,
 			cooldown=120,
@@ -898,6 +911,7 @@ ns.AbilityDb = {
 		{
 			name="Sentinel",
 			id=389539,
+            offensive=true,
             iconId=135922,
 			cooldown=120,
 			duration=16,
@@ -989,6 +1003,7 @@ ns.AbilityDb = {
 		},
 		{
 			name="Voidform",
+            offensive=true,
 			id=228260,
             iconId=1386548,
 			cooldown=120,
@@ -1055,6 +1070,7 @@ ns.AbilityDb = {
 		{
 			name="Adrenaline Rush",
             alias='A.Rush',
+            offensive=true,
 			id=13750,
             iconId=136206,
 			cooldown=180,
@@ -1075,6 +1091,7 @@ ns.AbilityDb = {
 		{
 			name="Shadow Dance",
             alias='S.Dance',
+            offensive=true,
 			id=185313,
             iconId=236279,
 			cooldown=20,
@@ -1091,6 +1108,7 @@ ns.AbilityDb = {
 		{
 			name="Shadow Blades",
             alias='S.Blades',
+            offensive=true,
 			id=121471,
             iconId=376022,
 			cooldown=90,
@@ -1126,6 +1144,7 @@ ns.AbilityDb = {
            -- appliesOtherAura directive to work
 			name="Ascendance",
             alias='Ascend',
+            offensive=true,
 			id=114052,
             iconId=135791,
 			cooldown=180,
@@ -1140,6 +1159,7 @@ ns.AbilityDb = {
         {   -- enhance ascendance
 			name="Ascendance",
             alias='Ascend',
+            offensive=true,
 			id=114051,
             iconId=135791,
 			cooldown=180,
@@ -1169,6 +1189,7 @@ ns.AbilityDb = {
 		{
 			name="Doom Winds",
             alias='D.Winds',
+            offensive=true,
 			id=384352,
             iconId=1035054,
 			cooldown=60,
@@ -1186,6 +1207,7 @@ ns.AbilityDb = {
 		{
 			name="Doom Winds from Ascendance",
             alias='D.Winds(asc)',
+            offensive=true,
 			id=38435200,          -- make up a new, very unlikely to ever exist ID
             hideAbility=true,
             appliesOtherAura=114051,   -- enhance ascend
@@ -1202,6 +1224,7 @@ ns.AbilityDb = {
         {   -- ele ascendance
 			name="Ascendance",
             alias='Ascend',
+            offensive=true,
 			id=114050,
             iconId=135791,
 			cooldown=180,
@@ -1286,6 +1309,7 @@ ns.AbilityDb = {
         -- enraged regen
 		{
 			name="Avatar",
+            offensive=true,
 			id=107574,
             iconId=613534,
 			cooldown=90,
