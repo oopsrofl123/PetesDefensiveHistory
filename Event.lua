@@ -161,7 +161,10 @@ function ns:Event(newTrace, newSource)
 
     function e:setBlocked() blocked = true end
 
-    function e:addUpdate() numUpdates = numUpdates + 1 end
+    function e:handleUpdate()
+        numUpdates = numUpdates + 1
+        self:updateTrackerUI(false)
+    end
 
     function e:numUpdates() return numUpdates end
 
@@ -352,10 +355,21 @@ function ns:Event(newTrace, newSource)
 
             -- UI feedback. Don't re-glow the icon if we are just finalizing a previous
             -- uncertain inference.
-            if ability and not self:isExpiring() and
-                (not prevAbility or ability.id ~= prevAbility.id) then
-                ns:startGlow(self:getAuraAbility())
+            self:updateTrackerUI(not prevAbility or ability.id ~= prevAbility.id)
+        end
+    end
+
+
+    function e:updateTrackerUI(initGlow)
+        if ability and not self:isExpiring() then --and
+            --(not prevAbility or ability.id ~= prevAbility.id) then
+            local duration
+            local aura = self:getAura()
+            if aura then
+                duration = C_UnitAuras.GetAuraDuration(ns:cosmeticOnlyMapGUIDToSlot(source),
+                    aura.auraInstanceId)
             end
+            ns:startGlow(self:getAuraAbility(), duration, initGlow)
         end
     end
     
