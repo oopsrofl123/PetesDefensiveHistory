@@ -123,6 +123,10 @@ ns.ClassTalentModifiers = {
             { { id=186265, modifies=cooldown, amount=-15 } },   -- rank 1
             { { id=186265, modifies=cooldown, amount=-30 } },   -- rank 2
         },
+        [1258486] = {  -- feign death cooldown reduction
+            { { id=5384, modifies=cooldown, amount=-5 } },   -- rank 1
+            { { id=5384, modifies=cooldown, amount=-10 } },   -- rank 2
+        },
         [430709] = {   -- HoT on exhil
             { { id=109304, modifies=requireBuff, amount=true } },
         },
