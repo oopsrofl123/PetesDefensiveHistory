@@ -550,6 +550,29 @@ end)
 
 
 --------------------------------------------------------------------------------------
+-- Special handler for an event used in rare cases to create secondary effects: UNIT_SPELLCAST_FAILED_QUIET
+--------------------------------------------------------------------------------------
+
+local castFailedQuietHandler = CreateFrame("Frame", addonName .. "CastFailedQuietHandler")
+castFailedQuietHandler:SetScript("OnEvent", function(self, event, caster, castGUID, spellID, castBarID)
+    -- Only track casts from tracked characters
+    local guid, char = ns:getTrackedCharacterBySlot(caster)
+    if not guid then return end
+    local now = GetTime()
+
+    -- the maybe secrets probably aren't useful
+    ns:playback(now, "UNIT_SPELLCAST_FAILED_QUIET", caster, ns:maskSecret(spellID),
+        ns:maskSecret(castGUID), ns:maskSecret(castBarId))
+
+    traceHandler("SPELLCAST_FAILED_QUIET", caster, "%s, %s",
+        tostring(ns:maskSecret(spellID)), tostring(ns:maskSecret(castBarID)))
+
+print('castFailedQuiet')
+    char:trackEvidence('castFailedQuiet', now)
+end)
+
+
+--------------------------------------------------------------------------------------
 -- Track when absorb shields are applied
 --------------------------------------------------------------------------------------
 local absorbHandler = CreateFrame("Frame", addonName .. "AbsorbHandler")
@@ -622,7 +645,6 @@ flagsHandler:SetScript("OnEvent", function(self, event, target)
             tostring(lastIsFeign)..">"..tostring(isFeign),
             ev:getId(), ev:getBatchId()))
     end
-
 
     ns:manageEvents("FLAGS", guid, now)
 end)
@@ -1076,6 +1098,7 @@ function ns:enableAddon()
     ns:printMemUsage("enableAddon: before constructing UI")
     auraHandler:RegisterEvent("UNIT_AURA")
     castHandler:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+    castFailedQuietHandler:RegisterEvent("UNIT_SPELLCAST_FAILED_QUIET")
     absorbHandler:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
     flagsHandler:RegisterEvent("UNIT_FLAGS")
     encounterHandler:RegisterEvent("ENCOUNTER_START")
@@ -1105,6 +1128,7 @@ function ns:disableAddon()
     -- user prefers.
     auraHandler:UnregisterEvent("UNIT_AURA")
     castHandler:UnregisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+    castFailedQuietHandler:UnregisterEvent("UNIT_SPELLCAST_FAILED_QUIET")
     absorbHandler:UnregisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
     flagsHandler:UnregisterEvent("UNIT_FLAGS")
     encounterHandler:UnregisterEvent("ENCOUNTER_START")

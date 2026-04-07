@@ -25,6 +25,7 @@ function ns:makeEvidenceTracker()
         buff=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         debuff=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         cast=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
+        castFailedQuiet=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         shield=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),
         -- Booleans of the last observed combat status (no time associated)
         combatStatus=ns:fixedFIFO(EVIDENCE_HISTORY_SIZE),

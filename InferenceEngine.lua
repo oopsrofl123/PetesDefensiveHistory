@@ -505,6 +505,7 @@ ns.logicLayerAliases = {
     buff='B',
     casterBuff='t',          -- t for cas_t_er buff
     cast='P',                -- p for button _p_ress
+    castFailedQuiet='q',                -- q for castFailed_Q_uiet
     combatDrop='C',
     notGroupCombatDrop='g',  -- g for not_G_roupCombatDrop
     cooldown='d',            -- d for cool_d_own
@@ -611,6 +612,10 @@ local function getPossibleSolutions(event, cdTracker)
         if ability.requireButtonPress then
             logic['cast'], reqs['cast'] =
                 evidenceWitnessed(event, ability, "cast", "caster")
+        end
+        if ability.requireCastFailedQuiet then
+            logic['castFailedQuiet'], reqs['castFailedQuiet'] =
+                evidenceWitnessed(event, ability, "castFailedQuiet", "caster")
         end
         if ability.requireMaybeFreedom then
             logic['maybeFreedom'], reqs['maybeFreedom'] =
