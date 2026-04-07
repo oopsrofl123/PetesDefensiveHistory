@@ -162,6 +162,7 @@ ns.AbilityDb = {
 		{
 			name="Metamorphosis",
             alias='Meta',
+            offensive=true,
 			id=187827,
             iconId=1247263,
 			cooldown=120,
@@ -308,6 +309,7 @@ ns.AbilityDb = {
         -- Guardian berserk
 		{
 			name="Berserk",
+            offensive=true,
             id=50334,
             iconId=236149,
 			cooldown=180,
@@ -322,6 +324,7 @@ ns.AbilityDb = {
 		{
 			name="Incarnation: Guardian of Ursoc",
             alias='Incarn:Ursoc',
+            offensive=true,
 			id=102558,
             iconId=571586,
 			cooldown=180,
