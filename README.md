@@ -103,8 +103,12 @@ PetesDefensiveHistory might look like OmniCD, but Blizzard's addon restrictions 
   multiple charges are especially inaccurate since the second charge can only begin
   cooling down once the first charge completes. These ability trackers are displayed with
   a (!) badge and can be disabled if desired.
-* **Shadowmeld tracking does not work on target dummies** if the player is too close to
-  the dummy. Dummies prevent you from dropping combat when too close.
+* **Shadowmeld, Vanish and Greater Invis are only detectable when dropping combat!** 
+  If used, e.g., when standing in a city, the ability will not be detected.
+  * **Combat drops also do not work on target dummies** Dummies prevent combat drops when
+    too close (~10 yards).  Walk 20-30yd from the dummy to avoid this.
+* **Stoneform is only detectable when it dispels a debuff!** If used only for the physical
+  damage reduction, it will **not** be detected.
 
 
 # Known bugs
