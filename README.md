@@ -13,9 +13,17 @@ PetesDefensiveHistory uses a flexible inference engine to identify abilities thr
 * Tracks 76 offensive and defensive cooldowns.
 * Detects talents and hero specs.
 * Text-to-Speech (TTS) ability announcer.
-* Supports DandersFrames, EnhanceQoL, Grid2, VuhDo, ElvUI and Blizzard default frames.
+* Supports icon skinning with **Masque**.
 * Data exporter and log analyzer to measure inference accuracy using combat logs as a truth source.
 * Designed for Mythic+ but future updates will add support for raids and allies in arena.
+* Supports the following group frames:
+  * Blizzard default frames
+  * Cell
+  * DandersFrames
+  * ElvUI
+  * EnhanceQoL
+  * Grid2
+  * VuhDo
 
 **Would love to integrate the inference engine with a UI-focused addon. Please contact me if interested!**
 
@@ -43,7 +51,6 @@ PetesDefensiveHistory might look like OmniCD, but Blizzard's addon restrictions 
 *Freedom could not be guessed on the druid*
 
 * Turn off the history tray with this option:
-
 ![](images/DisableHistoryTray.png)
 
 # 3. Why is there a (!) on my cooldown tracker?
