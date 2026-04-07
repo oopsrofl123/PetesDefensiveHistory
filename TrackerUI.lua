@@ -90,7 +90,8 @@ local function clearHistoryItem(item)
         item.timer:SetText("")
         item.timer:Hide()
     else
-        item.swipeTexture:Hide()
+        item.cooldown:Hide()
+        item.activeDuration:Hide()
     end
 
     ns:showDebugVisual(item)
@@ -158,16 +159,39 @@ end
 
 
 
+-- Some notes on current usage of these icon functions:
+--      1. startGlow in :infer()
+--      2. stopGlow -> queueCooldown in :expire()
+-- :expire() is only circumvented in the numPossibleSolutions=0 case, in which the
+-- event did not interact with a glow/cooldown swipe.
+--
 -- Glow an item in the static cooldown tracker. Abilities have known casters
-function ns:startGlow(ability)
+function ns:startGlow(ability, duration, initGlow)
     local slot = ns:cosmeticOnlyMapGUIDToSlot(ability.caster)
     local cd = ns.trackerUI[slot].staticRow.items[ability.name]
 
     -- The cooldown swipe could be active, e.g. for abilities with charges,
     -- CDR abilities, or redirected buffs like VDH meta, which can be applied
     -- by several other abilities.
-    cd.swipeTexture:Hide()
-    LibButtonGlow.ShowOverlayGlow(cd)
+
+    -- duration: if the ability creates an aura, duration holds secret data about
+    -- how long the aura will last. this can be updated (e.g., fiery
+    -- brand's duration is updated each time it spreads to another enemy).
+    if duration then
+        cd.activeDuration:SetCooldownFromDurationObject(duration)
+        cd.activeDuration:Show() 
+        if cd.chargeLabel:IsShown() then
+            cd.chargeLabel:Hide()
+        end
+    end
+
+    -- Always hide the cooldown swipe widget when the ability is active.
+    cd.cooldown:Hide()
+
+    -- initGlow=false for updates, e.g.
+    if initGlow then
+        LibButtonGlow.ShowOverlayGlow(cd)
+    end
 end
 
 
@@ -176,12 +200,21 @@ end
 function ns:stopGlow(ability)
     local slot = ns:cosmeticOnlyMapGUIDToSlot(ability.caster)
     local cd = ns.trackerUI[slot].staticRow.items[ability.name]
+
     LibButtonGlow.HideOverlayGlow(cd)
-    -- The cooldown swipe could be active, e.g. for abilities with charges,
-    -- CDR abilities, or redirected buffs like VDH meta, which can be applied
-    -- by several other abilities.
+    if cd.charges > 1 then
+        cd.chargeLabel:Show()
+    end
+
+    -- the active duration cooldown swipe doesn't update if the aura ends early (e.g.,
+    -- the user clicks it off). Need to clear to ensure it's gone.
+    cd.activeDuration:Clear()
+
+    -- Handle the case where there was a cooldown swipe/timer running before the
+    -- ability was activated -- e.g., using the second charge of an ability while its
+    -- first charge cooldown was already animating.
     if cd.numQueued > 0 then
-        cd.swipeTexture:Show()
+        cd.cooldown:Show()
     end
 end
 
@@ -233,16 +266,16 @@ function ns:queueCooldown(ability, availableAt)
     -- the cdfifo. this hack solution ensures the younger charge controls the swipe.
     if cd.charges == 1 or cd.numQueued == 0 or startTime < cd.startTime then
         cd.startTime = startTime
-        cd.swipeTexture:SetCooldown(startTime, ability.cooldown)
+        cd.cooldown:SetCooldown(startTime, ability.cooldown)
     end
-        
+
     -- CDR abilities will appear to queue a cooldown when they're used before
     -- their base CD is up.
     cd.numQueued = math.min(cd.numQueued + 1, ability.charges)
     -- If this was the last charge, then draw the dark cooldown swipe.
     -- Otherwise just show the edge.
-    cd.swipeTexture:SetDrawSwipe(cd.numQueued == ability.charges)
-    cd.swipeTexture:Show()
+    cd.cooldown:SetDrawSwipe(cd.numQueued == ability.charges)
+    cd.cooldown:Show()
 end
 
 
@@ -260,8 +293,8 @@ local function sizeHistoryItem(item)
         item.timer:SetFont(item.timer:GetFont(), textSize, textOutline)
     else
         item:SetSize(iconSize, iconSize)
-        item.swipeTexture.timer:SetFont(item.swipeTexture.timer:GetFont(), textSize, textOutline)
-        item.swipeTexture.chargeLabel:SetFont(item.swipeTexture.chargeLabel:GetFont(), textSize, textOutline)
+        item.cooldown.timer:SetFont(item.cooldown.timer:GetFont(), textSize, textOutline)
+        item.chargeLabel:SetFont(item.chargeLabel:GetFont(), textSize, textOutline)
         item.warningbg:SetSize(iconSize/2, iconSize/2)
         item.warning:SetSize(iconSize/2, iconSize/2)
     end
@@ -302,28 +335,35 @@ end
 -- alloc* functions must not depend on any runtime data
 local function allocCountDownTimer(parent)
     local textSize = ns:GetOption('textSize')
-    local swipeTexture = cooldownFramePool:Acquire()
 
-    swipeTexture:SetParent(parent)
-    swipeTexture:SetAllPoints()
+    local cooldown = cooldownFramePool:Acquire()
+    cooldown:SetParent(parent)
+    cooldown:SetAllPoints()
     -- hide blizzard's countdown text so we can control the size
-    swipeTexture:SetHideCountdownNumbers(true)
+    cooldown:SetHideCountdownNumbers(true)
 
-    swipeTexture.timer = gameFontNormalPool:Acquire()
-    swipeTexture.timer:SetParent(swipeTexture)
-    swipeTexture.timer:SetDrawLayer('OVERLAY')
-    
-    swipeTexture.timer:SetTextColor(1,1,1)
-    swipeTexture.timer:SetPoint("CENTER", parent, 0, 0)
-    swipeTexture.timer:SetFont(swipeTexture.timer:GetFont(), textSize, textOutline)
+    cooldown.timer = gameFontNormalPool:Acquire()
+    cooldown.timer:SetParent(cooldown)
+    cooldown.timer:SetDrawLayer('OVERLAY')
+    cooldown.timer:SetTextColor(1,1,1)
+    cooldown.timer:SetPoint("CENTER", parent, 0, 0)
+    cooldown.timer:SetFont(cooldown.timer:GetFont(), textSize, textOutline)
 
-    swipeTexture.chargeLabel = numberFontNormalSmallPool:Acquire()
-    swipeTexture.chargeLabel:SetParent(swipeTexture)
-    swipeTexture.chargeLabel:SetDrawLayer('OVERLAY')
+    local activeDuration = cooldownFramePool:Acquire()
+    activeDuration:SetParent(parent)
+    activeDuration:SetAllPoints()
+    activeDuration:SetHideCountdownNumbers(true)  -- no timer text on active aura
+    -- active duration is a reverse swipe
+    activeDuration:SetReverse(true)
+    activeDuration:SetDrawSwipe(true)
+
+    parent.chargeLabel = numberFontNormalSmallPool:Acquire()
+    parent.chargeLabel:SetParent(parent)
+    parent.chargeLabel:SetDrawLayer('OVERLAY')
     
-    swipeTexture.chargeLabel:SetTextColor(1,1,1)
-    swipeTexture.chargeLabel:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -1, 0)
-    swipeTexture.chargeLabel:SetFont(swipeTexture.chargeLabel:GetFont(), textSize, textOutline)
+    parent.chargeLabel:SetTextColor(1,1,1)
+    parent.chargeLabel:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -1, 0)
+    parent.chargeLabel:SetFont(parent.chargeLabel:GetFont(), textSize, textOutline)
 
     local warningbg = texturePool:Acquire()
     warningbg:SetParent(parent)
@@ -350,24 +390,24 @@ local function allocCountDownTimer(parent)
     parent:SetScript("OnUpdate", function(self)
         local now = GetTime()
         if self.numQueued > 0 then
-            local untilAvailable = self.startTime + self.cooldown - now
+            local untilAvailable = self.startTime + self.cooldownInSeconds - now
             if untilAvailable > 0 then
-                swipeTexture.timer:SetFormattedText("%.0f", untilAvailable)
+                cooldown.timer:SetFormattedText("%.0f", untilAvailable)
             else
-                swipeTexture:SetDrawSwipe(false)
+                cooldown:SetDrawSwipe(false)
                 self.numQueued = self.numQueued - 1
                 if self.numQueued > 0 then
                     self.startTime = now
-                    swipeTexture:SetCooldown(now, self.cooldown)
+                    cooldown:SetCooldown(now, self.cooldownInSeconds)
                 end
             end
-            swipeTexture.chargeLabel:SetText(self.charges - self.numQueued)
+            self.chargeLabel:SetText(self.charges - self.numQueued)
         else
-            swipeTexture.timer:SetText("")
+            cooldown.timer:SetText("")
         end
     end)
 
-    return swipeTexture, warningbg, warning
+    return cooldown, activeDuration, warningbg, warning
 end
 
 
@@ -412,7 +452,7 @@ local function allocHistoryItem(parent, countUp)
     if countUp then
         f.timer = allocCountUpTimer(f)
     else
-        f.swipeTexture, f.warningbg, f.warning = allocCountDownTimer(f)
+        f.cooldown, f.activeDuration, f.warningbg, f.warning = allocCountDownTimer(f)
         -- Show a spell tooltip on the history item
         f:SetScript("OnEnter", function(self)
             if ns:GetOption('showTooltips') then
@@ -429,7 +469,7 @@ local function allocHistoryItem(parent, countUp)
     end
 
     if Masque and masqueGroup and not f.masqueAdded then
-        masqueGroup:AddButton(f, { Icon=f.icon, Cooldown=f.swipeTexture }, "Aura")
+        masqueGroup:AddButton(f, { Icon=f.icon, Cooldown=f.cooldown }, "Aura")
         f.masqueAdded = true
     end
 
@@ -445,11 +485,12 @@ local function releaseHistoryItem(item)
     if item.countUp then
         gameFontNormalPool:Release(item.timer)
     else
-        gameFontNormalPool:Release(item.swipeTexture.timer)
-        numberFontNormalSmallPool:Release(item.swipeTexture.chargeLabel)
+        gameFontNormalPool:Release(item.cooldown.timer)
+        numberFontNormalSmallPool:Release(item.chargeLabel)
         texturePool:Release(item.warningbg)
         texturePool:Release(item.warning)
-        cooldownFramePool:Release(item.swipeTexture)
+        cooldownFramePool:Release(item.cooldown)
+        cooldownFramePool:Release(item.activeDuration)
     end
     item:ClearAllPoints()
     item:Hide()
@@ -489,14 +530,13 @@ local function updateStaticRow(slot)
             item.icon:SetTexture(ability.iconId)
             handleElvUI(item)
         end
-        item.cooldown = ability.cooldown
+        item.cooldownInSeconds = ability.cooldown
         item.charges = ability.charges
         if item.charges > 1 then
-            -- XXX: TODO: doesn't show when not on cooldown
-            item.swipeTexture.chargeLabel:Show()
-            item.swipeTexture.chargeLabel:SetText(item.charges)
+            item.chargeLabel:Show()
+            item.chargeLabel:SetText(item.charges)
         else
-            item.swipeTexture.chargeLabel:Hide()
+            item.chargeLabel:Hide()
         end
 
         if ability.cdr and not ns:GetOption("hideInaccurateBadges") then
