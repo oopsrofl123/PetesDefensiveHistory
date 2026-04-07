@@ -1,48 +1,65 @@
-**NEW RELEASE: 0.9.7l**
+**NEW RELEASE: 0.9.7o**
 
 Available soon on CurseForge
 
-**Support for frames addons**
-- Cell support added
-- Native ElvUI skinning
-
-**New appearance features**
-- Support Masque icon styling
-- X/Y position sliders to move the whole tracker UI
-- Option to wrap rows (Max cooldown trackers per row)
-- Question mark cooldown for paladins (which actually tracks the Unbound Freedom buff) is now
-  hidden by default.
-
-**New tracked abilities!**
-- Experimental support for Stoneform (dwarf racial). This probably doesn't work well, please report your results (and hopefully your export strings with combat logs).
-    - **Stoneform can only be tracked when it dispels a debuff!** Other uses (e.g. for the 10% physical DR) will always be missed.
-    - Accuracy is likely better for healers/DPS and worse for tanks
-
-**Accuracy improvements**
-- Ignore healer auras that were un-secreted by Blizzard, since none are of interest.
-
-**BUG FIXES**
-- Do not announce hidden abilities with TTS.
+**More ability support**
+- Arcane Surge is no longer disabled by default
+- Mirror images, Arcane Surge and Combustion are now all instantly detectable
 
 
 
-- make sure decoder ability list is updated
-
-RUN DUNGEON AS TANK TO SEE IF UN-SECRETED HEALER CASTS WORK
 
 
 
-1274.911 UNIT_AURA(party2,{b'addedAuras': [{b'auraInstanceID': 395, b'icon': 134400}], b'removedA
-uraInstanceIDs': [393], b'isFullUpdate': False},{395: [False, False, False, False, False, True, F
-alse, True, True, False, False, False]}), 'at', time)
 
-1282.915 UNIT_AURA(party2,{b'removedAuraInstanceIDs': [395], b'isFullUpdate': False},[])
+
+
+- EXPORT DATA FROM TANK KEY - want to see if healer casts are unsecret
+
+- tuning parameters:
+    - figure out if combat log and exports agree on, e.g., cast time and aura application time
+    - if so, then data can be mined from combat logs rather than exports, greatly increasing
+      the available training data
+    - closer cast time confidence layer can never fire, i think. the difference in cast times
+      is greater than the cast time evidence
+
+- yodatv stream: dps evoker, pres healer, ret paladin
+    - TONS of unassigned time dilations and sacs
+    REASON (not sure this is true) sac and time dilation are equally flagged and differ by duration
+        * HOWEVER, sac is DURATION_LTE because of the max hp effect, meaning that time dilation's
+          10.4s duration is a valid one for sac.
+        * SO: the only differentiators are:
+            1. the ret paladin didn't cast a spell in the evidence window
+            2. maybe duration goodness-of-fit?
+    IDEAS
+        1. talent puts a buff on the pres evoker that casts time dilation. check for this now
+        2. tighter duration confidence difference? i don't understand how the current system
+           wouldn't choose time dilation since the durations are 10.4 and 12, meaning the
+           duration of a TD would have to be >10.95s for the confidence layer to not elect TD.
+                10.4: TD=0, BoS=1.6 -> 1.6-0 = 1.6 > 0.5
+                10.5: TD=0.1, BoS=1.5 -> 1.5-0.1 = 1.4 > 0.5
+                ...
+                10.95: TD=0.55, BoS=1.05 -> 1.05-0.55 = 0.5 /> 0.5
+    - might need a confidence layer that chooses the best fit if the possible spells are the same
+      but have different casters
+        - this could be better than declining to detect the spell
+    - still obsidian scales failures?
+        - scales was missed on the PRES EVOKER, not the aug. what?
+    - definitely motivates a separate slider for the history tray, it can get pretty hard to tell where
+      the real cooldowns are
 
 
 
 V1.0 RELEASE GOALS
 ===========================================================================
-- replay analysis: stoneform not in truth set because there is no cast
+**Appearance**
+- New option to separate offensive cooldowns. Currently not very configurable: the offensive tracker
+  group is sent to the opposite side of your party frames from your defensive group. I.e., if your
+  defensives are on the left of your frames, offensives will appear on the right.
+
+- replay analysis: stoneform not in truth set because there is no cast event
+    - have to use the AURA_APPLIED instead, shoe-horn the record into spell cast format and
+      rename it to a cast
 
 - for stoneform: the accuracy might be really bad for tanks. not sure what
   can be done about it since the debuffs they remove with stoneform are the
@@ -51,178 +68,62 @@ V1.0 RELEASE GOALS
 - would be nice if unsecreted auras had unsecreted casts so we could remove
   those from the evidence trackers. would make chance overlaps rarer
     - check data from version l+
+    - answer appears to be no, but need to run a tank key to get healer casts
 
 - add unsecreted shaman reincarn
     - how to do that? is it a buff?
 
-- probably some weird stuff if someone uses a cooldown right before key start
-    - see day 8 incarn on pull timer
-    - guessing: CD is reset, addon doesn't know that
-    - buff is refreshed so the aura glow continues
-    - but the second cast is denied because it should still be on CD
-
-- add masque support
-
-- testing doom winds: had a case where the cast was 0.117s away from the aura
-    - see latedoomwindsaura export
-
-- day7: 1605.6: unbound freedom lemnos -> cptgrumpus failed by o
-    - freedom was still on cooldown for lemnos, preventing the required matched freedom
-    - this is the ret BIG DP bug -> DP was mis-IDed as freedom, so it thought it was on cd.
-
-- fort brew too... why? maybe an old version?
-
-- ElvUI icon skins
-
-- Separate history tray icon size slider (maybe make smaller by default too)
-
-- Update READMEs
-
-- day 7 logs still have some data to mine, esp combat drop FNs
-    - some paladin FNs
+- reset cooldowns > 2 min on encounter start
+    - not sure if the rule is 2 min or 3 min..
+    - probably some weird stuff if someone uses a cooldown right before key start
+        - see day 8 incarn on pull timer
+        - guessing: CD is reset, addon doesn't know that
+        - buff is refreshed so the aura glow continues
+        - but the second cast is denied because it should still be on CD
+    - mirror image FN because CHALLENGE_MODE_START reset the cd
 
 - reminder: do something with new ev:debuffInSamePayload()
+    - confidence layer for the abilities i want to use it for
+    - bubble and ice block/cold?
 
 - hide old history tray items hides everything?
+    - it hid everything when it was checked on, not while in use
     - not sure why, the code looks correct
     - a better maxCD estimate can be taken from possibleSolutions now. maybe
       getPossibleSolutions() doesn't need to calculate it at all
 
-- use unbound freedom to diff DP and freedom for ret
-
-- The addon now notifies the user when a group member doesn't have LibSpec
+- notify the user when a group member doesn't have LibSpec
 
 - Improve accuracy for augmentation evokers due to their mastery that increases buff durations.
 
-- mirror image FN because CHALLENGE_MODE_START reset the cd
-
-- arcane surge is never IDable because of mirror images
+- use unbound freedom to diff DP and freedom for ret
 
 - combat drops are FNing like crazy. what happened?
 
-- ice cold was FPed as alter time because of a death
-    - use new died in duration to force duration_variable=LTE
-    - in that case, would be a FN since the two couldn't be distinguished
-    - addedinsameframe could maybe save some?
-    - does the "summon" event that occurs in the combat log have some in-game trigger?
-
-- need to use party member death in duration logic layer
-    - currently just tracking it to see how it works
-
-- [maybe] add debuffAddedInSameFrame evidence
-    - when a possible ability requires a debuff AND the buff/debuff arrive in the same UNIT_AURA
-      payload, that's pretty convincing (though not definitive) evidence that the two are related
-    - maybe use this to break ties?
-
-- Maybe default talents. Detect content type, use most popular build from data sites.
-    PROS:
-        - there's no harm in having every ability listed as possible
-    CONS:
-        - since talents affect durations and timers, it may make the addon look inaccurate
-
-
-- aug mastery increases duration of helpful auras by X%
+- use party member death in duration logic layer
+    - tracking works, unit is a player GUID when a player dies otherwise secret
+    - problem is events are :untrack()ed once they expire, so cannot wait for TOLERANCE seconds to
+      collect the UNIT_DIED events.
+        - requires a rethinking of the end of life processing for events
+        - might be a good chance to prevent all of the orphaned event handling
+    EXAMPLE:
+    - ice cold was FPed as alter time because of a death
+        - use new died in duration to force duration_variable=LTE
+        - in that case, would be a FN since the two couldn't be distinguished
+        - addedinsameframe could maybe save some?
+        - does the "summon" event that occurs in the combat log have some in-game trigger?
 
 - need to add note about exhil only working for dark ranger hero spec or else people will bug report it
-
-- [IS THIS TRUE?] ironbark can't be distinguished from sac
-    - this might have been the Voidbinding cooldown bug
-    - look into more other event types?
-    - what about cast time evidence? from replays it seems the cast time is always extremely close
-      to unit aura.
-    - get data CASTTIME_CONFIDENT_DIFFERENCE. is the current 0.15 too lax?
-        - confidence layers don't record the diffs in best vs. 2nd best cast times
-        - need to add them to replays and collect data
-
-DAY 4 LOGS
-
-- o.scales false negs for glizard
-    - real cast at 4097.831, aura=611
-    - buff removed and reapplied (see log) at 4105.057 as aura=623
-    - same tick removed and reapplied fury of the aspects
-    - isFullUpdate=false
-    - cast seq was
-        4104.401 fire breath (empower end)
-        4104.994 hover
-        4105.355 eruption (start)
-    - lust was cast at 3771.366, 4480.904, 5222.971
-    - breath cast at 4090.921, so fury was running at 4105
-        - removed 4105.043 (the tick in question)
-        - removed 4107.872
-    - could this have something to do with aug mastery?
-
-- g.invis. false negs for arcani
-
-- d.prot false negs for roren
-    - another case where this paladin's divine protection has the wrong flags. just like the
-      xorteaa situation where GoAK didn't have the correct flags. so weird.
-
-- alter time false negs for zuwu
-
-
-
-- add UNIT_COMBAT handler with HEAL event detection for, e.g., exhil. maybe others.
-    - this might require a different way of tracking evidence since these events are so frequent
+    - maybe just a custom tooltip? most users likely won't find it no matter where it's documented
 
 - dump nonhelpful spells. see the PvPCallOuts addon - has more abilities than i thought.
     - e.g., dancing rune weapon. why does that work? it did not create an IMPORTANT buff for me.
       maybe it was a non-helpful aura? Xuen? Storm earth and fire?
 
-- maybe useful? when leaving a follower dungeon, a UNIT_AURA with isFullUpdate=true is fired
-    - also when entering follower dungeon
-
-- nouguetz error: lots of failures to ID obsidian scales, 1 failure to ID fort brew. why? those are
-  easy IDs.
-
-
-1. ACCURACY
-    - as quantified by logs
-2. STABILITY
-    - dump on other computer: pdh_bug5: nil availableAt
-3. MINIMAL FEATURES
-    - ensure tracing with no replay does not use much memory
-    - update READMEs. main page is a mess now
-        - broken discord link
-        - use header sections for
-            1. history tray explanation
-            2. no libspec example
-            3. abilities do not always ID instantly. need to gather data to guess, sometimes takes several sec
-                - TTS announcer will only play if within 1.5s of abil use
-            4. explain the (!) badges
-        - put everything else much later
-
-- add this debug line back to find elusive bug
-    print('source=', tostring(source), 'getid=', tostring(self:getId()), 'batchid=', tostring(self:getBatchId()), 'list[id]=', tostring(eventList[self:getId()]), 'list[id][batch]=', tostring(eventList[self:getId()][self:getBatchId()]))
-
 - improve AMS detection from riders
     - King Thoras Trollbane is the caster, casts AMS
-
-- is it possible feign death is not logged?
-    - ziiroe had 2 FLAGS(feign) events and 2 inferences but logs contain zero feign evidence
-    - not just no feign casts, grepping for -i feign returns nothing
-    - draykoh did not feign death on rokh'zal's ritual sacrifice. i can't identify anything in the log
-    that broke him out in ~1s.
-    - appears feign was never cast.
-        - all 3 IDs were FPs
-        - can't look into these because of the FINALIZED bug in decode. fix it.
-
-TODO TESTING
-    - DISABLE TRACING
-        - run dungeon without tracing, ensure reasonable memory usage for normal users
-    - RUN MORE KEYS WITH REPLAYS
-        - use new encounter_start/encounter_end replay events to better separate ability usage.
-          need to determine if the current log parser is really getting all of the relevant events
-          and thus accurately assessing FNs.
-        - version info
-
-BUGS
-    - O.Scales: in replay, first scales button press is 0.689s from aura application and marked
-      as pass. either the replay is wrong or the logic is bugged.
-        - didn't have time to figure out the issue. pit of saron is somehow missing from combat log
-        - i think it was an orphan bug because the cooldown faded before it was re-applied. the weird
-          part is that the replay shows two distinct aura IDs 2s apart each with the correct flag set
-            - on second thought, maybe he really did double cast it by accident here. this doesn't
-              happen for every o.scales cast.
+    - do we detect this at all? wouldn't that conflict with the cooldown tracker?
+    - wouldn't the button press not occur either? the rider pet would have the cast
 
 
 
@@ -344,6 +245,28 @@ NOTES ON COMPLEX CASES ---------------------------------------------------------
           and naturallyUpdates=true. which is another way of saying updates aren't of interest.
         - just need to prevent this from filling up the history tray. not a complex ability
     ----------------------------------------------------------------------------
+
+- is it possible to figure out which debuffs are stagger since they last for so long and
+  are applied/updated in specific chains? e.g. when light > medium stagger occurs, it's
+  many frequent updates as light stagger > removal/application single payload > many more
+  frequent updates as medium stagger
+
+- Default talents? Detect content type, use most popular build from data sites.
+    PROS:
+        - there's no harm in having every ability listed as possible
+    CONS:
+        - since talents affect durations and timers, it may make the addon look inaccurate
+        - maybe put a hard red border around the talents if we don't have talent data?
+
+- maybe useful? when leaving a follower dungeon, a UNIT_AURA with isFullUpdate=true is fired
+    - also when entering follower dungeon
+- add UNIT_COMBAT handler with HEAL event detection for, e.g., exhil. maybe others.
+    - this might require a different way of tracking evidence since these events are so frequent
+
+- testing doom winds: had a case where the cast was 0.117s away from the aura
+    - see latedoomwindsaura export
+    - this happened when doom winds was the first button pressed after being AFK
+        - maybe somehow related?
 
 - group solution UI limit of 12 (now 20) can actually be exceeded
 
@@ -882,6 +805,95 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- arcane surge is never IDable because of mirror images
+
+- Separate history tray icon size slider (maybe make smaller by default too)
+    - i think most people just hide it anyway..
+
+- devel option: enable stoneform for brewmaster
+
+- FOR README: explain these points
+    3. abilities do not always ID instantly. need to gather data to guess, sometimes takes several sec
+        - TTS announcer will only play if within 1.5s of abil use
+    4. explain the (!) badges
+
+- [FIXED: wrong flags] kira stream: vdh, mistweaver, bm hunter, no-libspec lock/dh
+    life cocoon (the ONLY external) not IDed on kira?
+
+- elvui user that disables elv frames and uses default gets the elvui detected but party frames not found error
+
+- [FIXED - ret BIG DP mis-flagging] day7: 1605.6: unbound freedom lemnos -> cptgrumpus failed by o
+    - freedom was still on cooldown for lemnos, preventing the required matched freedom
+    - this is the ret BIG DP bug -> DP was mis-IDed as freedom, so it thought it was on cd.
+
+- [CANT CONFIRM] fort brew in history tray on some streams
+    - might've been an old version pre-CDR fix
+
+TODO TESTING
+    - DISABLE TRACING
+        - run dungeon without tracing, ensure reasonable memory usage for normal users
+    - RUN MORE KEYS WITH REPLAYS
+        - use new encounter_start/encounter_end replay events to better separate ability usage.
+          need to determine if the current log parser is really getting all of the relevant events
+          and thus accurately assessing FNs.
+        - version info
+
+- [FIXED] O.Scales: first scales button press is 0.689s from aura application and marked
+  as pass. either the replay is wrong or the logic is bugged.
+    - didn't have time to figure out the issue. pit of saron is somehow missing from combat log
+    - i think it was an orphan bug because the cooldown faded before it was re-applied. the weird
+      part is that the replay shows two distinct aura IDs 2s apart each with the correct flag set
+        - on second thought, maybe he really did double cast it by accident here. this doesn't
+          happen for every o.scales cast.
+
+- [CONFIRMED - feign death is not in combat logs] is it possible feign death is not logged?
+    - ziiroe had 2 FLAGS(feign) events and 2 inferences but logs contain zero feign evidence
+    - not just no feign casts, grepping for -i feign returns nothing
+    - draykoh did not feign death on rokh'zal's ritual sacrifice. i can't identify anything in the log
+    that broke him out in ~1s.
+    - appears feign was never cast.
+        - all 3 IDs were FPs
+        - can't look into these because of the FINALIZED bug in decode. fix it.
+
+1. ACCURACY
+    - as quantified by logs
+2. STABILITY
+    - dump on other computer: pdh_bug5: nil availableAt
+3. MINIMAL FEATURES
+    - ensure tracing with no replay does not use much memory
+    - update READMEs. main page is a mess now
+        - broken discord link
+        - use header sections for
+            1. history tray explanation
+            2. no libspec example
+        - put everything else much later
+
+- [FIXED: bop/spellward] add this debug line back to find elusive bug
+    print('source=', tostring(source), 'getid=', tostring(self:getId()), 'batchid=', tostring(self:getBatchId()), 'list[id]=', tostring(eventList[self:getId()]), 'list[id][batch]=', tostring(eventList[self:getId()][self:getBatchId()]))
+
+- [LIKELY FIXED: DP was mis-flagged as BIG for ret] d.prot false negs for roren
+    - another case where this paladin's divine protection has the wrong flags. just like the
+      xorteaa situation where GoAK didn't have the correct flags. so weird.
+
+- [LIKELY FIXED: the o.scales strange remove/re-add behavior] o.scales false negs for glizard
+    - real cast at 4097.831, aura=611
+    - buff removed and reapplied (see log) at 4105.057 as aura=623
+    - same tick removed and reapplied fury of the aspects
+    - isFullUpdate=false
+    - cast seq was
+        4104.401 fire breath (empower end)
+        4104.994 hover
+        4105.355 eruption (start)
+    - lust was cast at 3771.366, 4480.904, 5222.971
+    - breath cast at 4090.921, so fury was running at 4105
+        - removed 4105.043 (the tick in question)
+        - removed 4107.872
+    - could this have something to do with aug mastery?
+
+- Update READMEs
+- ElvUI icon skins
+- add masque support
+
 - fiery brand bug: see discord, brand is lit up but put into history tray. why?
     - two bugs:
     1. new batchId code did not work, always assigned batchId=1. probably broke many charged abilities
