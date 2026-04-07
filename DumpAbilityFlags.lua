@@ -4,6 +4,7 @@ for i = 0, 1000000 do
    local a = ""
    local matched = false
    local helpful = C_Spell.IsSpellHelpful(i)
+   local harmful = C_Spell.IsSpellHarmful(i)
    if C_Spell.IsSpellImportant(i) then 
    matched = true
    a = a .. "1," 
@@ -23,6 +24,7 @@ for i = 0, 1000000 do
    a = a .. "0,"  
    end
    if helpful and matched then
+   --if harmful and matched then
       local info = C_Spell.GetSpellInfo(i)
       local name = info and info.name
       output = output .. i .. ",\"" .. name .. "\"," .. a .. "\n"
