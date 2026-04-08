@@ -489,8 +489,6 @@ function ns:manageEvents(updateTrace, guid, now)
             -- XXX: below should no longer be true since expiry is handled in a separate loop
             -- N.B. do not :block() if the event batch is expiring, evBatch[1] may already
             -- be nil.
-            --
-            -- XXX: TODO: blocks Avatar incorrectly
             if not evBatch[1]:isBlocked() and ev:hasPossibleSolutions() then
                 shouldBlock = true
                 for _, ability in pairs(ev:getPossibleSolutions()) do
