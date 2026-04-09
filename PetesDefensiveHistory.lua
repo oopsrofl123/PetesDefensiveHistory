@@ -658,10 +658,33 @@ end)
 --------------------------------------------------------------------------------------
 -- Track when auras are applied, updated or removed
 --------------------------------------------------------------------------------------
+local function testhandle(event, unitTarget, updateInfo)
+    local aurasAdded = updateInfo['addedAuras'] or {}
+    local aurasRemoved = updateInfo['removedAuraInstanceIDs'] or {}
+    local aurasUpdated = updateInfo['updatedAuraInstanceIDs'] or {}
+    local now = GetTime()
+
+    traceHandler("AURA_NPC", unitTarget, "added=[%d], updated=[%d], removed=[%d]",
+        #aurasAdded, #aurasUpdated, #aurasRemoved)
+
+    for _, v in pairs(aurasAdded) do
+        local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
+        ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
+                '+++ npcAura: auraStart=[%0.3f] ID=[%d], target=[%s], flags=[%s %d%d CN: %d NP: %d%d CC: %d%d]',
+                aura.startTime % 10000, aura.auraInstanceId, aura.target,  
+                aura.flags,
+                ns:boolstr(aura.HELPFUL), ns:boolstr(aura.HARMFUL), ns:boolstr(aura.CANCELABLE),
+                ns:boolstr(aura.HELPNAMEPLATE), ns:boolstr(aura.NAMEPLATE),
+                ns:boolstr(aura.HARMCC), ns:boolstr(aura.CC)))
+    end
+end
+
+
 local auraHandler = CreateFrame("Frame", addonName .. "AuraHandler")
 auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
     -- Ensure unitTarget is a recognized slot. This event is called for nameplates and others
     local guid, char = ns:getTrackedCharacterBySlot(unitTarget)
+    --if guid == nil and unitTarget:sub(1,9) == 'nameplate' then testhandle(event, unitTarget, updateInfo) end --guid = UnitGUID(unitTarget) end
     if not guid then return end
     -- XXX: TODO: later release to track CCs
     --if guid == nil and unitTarget:sub(1,9) == 'nameplate' then guid = UnitGUID(unitTarget) end
@@ -803,9 +826,9 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             if issecretvalue(v.spellId) or unitTarget == 'player' then
                 -- XXX: very carefully dip a toe into non-flagged auras
                 -- still set trackAuraEvidence below or else evidence could be lost
-                if debuffRemovedThisCall and char:getRaceId() == 3 and
+                if debuffRemovedThisCall and aura.HELPFUL and
+                   char:getRaceId() == 3 and
                    (char:getSpec() ~= 268 or ns:GetOption("allowBrewmasterStoneform")) then
-                    local aura = makeAura(now, unitTarget, v.auraInstanceID, v.icon)
                     local ev = ns:trackAura("AURA(stoneform)", aura, debuffAddedThisCall)
                     ev:setStoneform()
                     ns:playback(now, "MAYBE_STONEFORM", unitTarget, v.auraInstanceID,
@@ -908,6 +931,7 @@ deathHandler:SetScript("OnEvent", function(self, event, unit)
     local now = GetTime()
     -- log the event regardless. want to see if it is ever non-secret
     ns:playback(now, 'UNIT_DIED', (issecretvalue(unit) and "secret") or unit)
+    traceHandler("UNIT_DIED", (issecretvalue(unit) and "secret") or unit)
     if issecretvalue(unit) then return end
     local guid, char = ns:getTrackedCharacterBySlot(unit)
     if not guid then return end
@@ -921,14 +945,18 @@ end)
 
 local testHandler = CreateFrame("Frame", addonName .. "TestHandler")
 testHandler:SetScript("OnEvent", function(self, event, unit)
-    local guid, char = ns:getTrackedCharacterBySlot(unit)
-    if not guid then return end
+    if not issecretvalue(unit) then
+        local guid, char = ns:getTrackedCharacterBySlot(unit)
+        if not guid then return end
+    else
+        unit = "secret"
+    end
     ns:playback(GetTime(), event, unit)
 end)
 
 
 --------------------------------------------------------------------------------------
--- Test some events I don't currently use.
+-- Log when keystones start and enable some hacks for M+ buffs < key level 12
 --------------------------------------------------------------------------------------
 
 ns.activeKeystoneLevel = nil
@@ -1111,6 +1139,8 @@ function ns:enableAddon()
     deathHandler:RegisterEvent("UNIT_DIED")
     testHandler:RegisterEvent("UNIT_SPELL_HASTE")
     testHandler:RegisterEvent("UNIT_ATTACK_SPEED")
+    testHandler:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE")
+    testHandler:RegisterEvent("UNIT_THREAT_LIST_UPDATE")
     --poller:Invoke()
 
     ns:respondToRosterUpdate('enableAddon')
@@ -1141,6 +1171,8 @@ function ns:disableAddon()
     deathHandler:UnregisterEvent("UNIT_DIED")
     testHandler:UnregisterEvent("UNIT_SPELL_HASTE")
     testHandler:UnregisterEvent("UNIT_ATTACK_SPEED")
+    testHandler:UnregisterEvent("UNIT_THREAT_SITUATION_UPDATE")
+    testHandler:UnregisterEvent("UNIT_THREAT_LIST_UPDATE")
     --poller:Cancel()
 
     ns:respondToRosterUpdate('disableAddon')
