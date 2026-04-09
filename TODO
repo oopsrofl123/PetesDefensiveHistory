@@ -1,14 +1,119 @@
-**NEW RELEASE: 0.9.7o**
+**NEW RELEASE: 0.9.7p**
 
 Available soon on CurseForge
 
+**Appearance**
+- The duration of an active (glowing ability is now shown as a cooldown swipe on the ability.
+    - This new behavior can be disabled by unchecking "Show active duration swipe"
+- Charge labels now show when abilities are at full stacks
+
 **More ability support**
-- Arcane Surge is no longer disabled by default
-- Mirror images, Arcane Surge and Combustion are now all instantly detectable
+- Faster detection of
+    - Aspect of the Turtle
+    - Dispersion
+- Improve accuracy of Stoneform detection (but it still is only detectable if used to dispel a debuff).
+
+**Bug fixes**
+- Feign Death: support -5/-10s cooldown reduction talents
+- Seemingly random non-important aura icons will no longer appear in the history tray.
+- Experimental fix for cooldown icons that glow forever
 
 
+- ADD IN isTanking, status, scaledPercentage, rawPercentage, rawThreat = UnitDetailedThreatSituation(unit, mobGUID)
+- maybe make abilities table non-keyed since the keys are never used? would make order stable
+
+NEXT RELEASE
+- Avatar is no longer disabled by default and should track accurately
+
+TODO:
+    - fix unbound freedom non-ID when happens before the freedom ID
+    - [maybe] abilities that don't stop glowing
+        - how would those survive the orphan check? weird
+        - [vod: 1:28:52-1:29:42] mac meld glows and never stops
+        1:38:11 - MC+16 start, 3639+10=3649 -> 3090
+        1:32:14 - firebrannd joins =  ~3289.489
+        - there are no inference records, so i don't believe an inference occurred
+        - instead, it a cluster of group roster updates happened
+            - matt/mac passing leader back and forth
+        - maybe some reallocating of UI elements picked one out of the pool with a glow?
+        2:32:27 - after MC+14 timed - lemnos ret DP lights up in the same frame as all of the icons
+        shuffle around
+        = end of MC+14 = 6789.747 = 2:30:33 -> +114s = 6903
+        - tons of GROUP_ROSTER_UPDATES all the time. hard to see why.
+        - what would prompt a re-sorting of lemnos' icons?
+            - must be a re-cache with different order?
+
+    - [maybe] shadowmeld FNs
+        - when fighting a boss, meld does not drop combat unless the rest of the group is dead to
+          end the encounter.
+        - could give the MAYBE_STONEFORM treatment to detect, e.g., 3rd boss of seat
+            - but unlike stoneform there is no buff to track, losing an extra layer of confidence
+        - [ADVANCED, FOR LATER] could UnitDetailedThreatSituation be used to detect the threat drop?
+            - would need to have a mob GUID to check - not sure how easy this is to get
+
+- ironbark FN: sac and ironbark available and valid, same flags
+    - spellcast for the ironbark caster at diff=0
+    - spellcast for the sac caster at diff=0.099
+    - confidence layer requires the better cast to be 0.15s closer to the event than the alternative
+        - not even close to useful
+    - maybe need to give extra confidence if one of the two possibilities has diff=0?
+    [NEXT RELEASE]: try adding a special diff=0 case in the duration confidence layer that kicks in only
+    if the diff < the usual tolerance
 
 
+----- DAY 10 BUGS
+vod: 6:08 start
+log: 589.330/599.330 (?) start
+FIRST PULL
+    - unbound freedom not IDed because it was second in the event queue behind freedom, causing #solns=0
+
+    - [6:48/0:41/639.221] [maybe_stoneform] feign death IDed but still in the history tray?
+        - N.B. feign fires UNIT_DIED with unsecreted player GUID
+        - but not when the player casts it, so hard to test
+
+    - [7:15/1:08/~667] ironbark FN: cast time diff for sac and bark is 0.09
+        - but bark had a diff=0, so maybe this can be rescued
+
+    - meld FP on mac at start of 2nd pull
+        - dropped combat while casting this
+        [(652.198, 'Void Ray', 'SPELL_CAST_SUCCESS', 'Player-60-0F4512A2'), (651.784, 'Glide', 'SPELL_CAST_SUCCESS', 'Player-60-0F4512A2'), (652.858, 'Soul Fragment', 'SPELL_CAST_SUCCESS', 'Player-60-0F4512A2'), (652.949, 'Soul Fragment', 'SPELL_CAST_SUCCESS', 'Player-60-0F4512A2'), (653.135, 'Soul Fragment', 'SPELL_CAST_SUCCESS', 'Player-60-0F4512A2')]
+
+    - [7:50/1:43/700.437] weird icon in tray: next maybe_stoneform puts vanguard on lemnos' history tray
+
+    - [13:02/7:10=6:55/~415+599=1014] GoAK FN was caused by supposedly being on cooldown
+        - very odd since:
+        1. goak is CDR=true
+        2. a charge was available on the tracker UI
+
+    - [18:20/12:28-15/732+599=1331] FN of sac lemnos > grump
+        - cast time diff=0.086
+        - again, actual caster time was diff=0
+
+    - [22:21/16:29-15/974+599=1573] weird debuff in history tray
+        - debuff had 8s timer, so happened more like 1565
+        - MAYBE_STONEFORM at 1563
+    - MELD FNS ON 3rd BOSS
+        - 1828.84, 1959.068 (grump), 1894.239 (mac)
+        
+        
+
+
+vvvvvvvvvv DON'T GET INTO THIS STUFF UNTIL 7p IS RELEASED vvvvvvvvv
+near term:
+    - probably button groups. new Tracker Appearance options page with "add group", a button
+      that appends a SectionHeadered list of options corresponding to groupN. options are the
+      same as currently on the main page except need to add a "no anchor" option eventually
+      to allow free movement.
+
+- "take over blizzard center big defensives
+    - Hide (or move?) Blizzard Center Big Defensives when PetesDefensiveHistory successfully
+      identifies the ability.
+        - but also need to preserve the duration info that CBD provides
+        - not trivial to do - e.g., duration extensions. can we get the duration object for the AID?
+
+
+- feign death still counts cooldown from the wrong time (because cooldown doesn't start until
+  after breaking it).
 
 
 
@@ -52,6 +157,15 @@ Available soon on CurseForge
 
 V1.0 RELEASE GOALS
 ===========================================================================
+- things that still can't be instant IDed:
+    - AMS/IBF/(vamp blood?)
+    - Ice cold/Alter time
+    - turtle? (unit flags is not decisive, but maybe it should be if only SoTF and turtle are in consideration)
+    - DP/freedom for ret only (DP is BIG-flagged for holy)
+    -
+
+- button groups
+
 **Appearance**
 - New option to separate offensive cooldowns. Currently not very configurable: the offensive tracker
   group is sent to the opposite side of your party frames from your defensive group. I.e., if your
@@ -245,6 +359,8 @@ NOTES ON COMPLEX CASES ---------------------------------------------------------
           and naturallyUpdates=true. which is another way of saying updates aren't of interest.
         - just need to prevent this from filling up the history tray. not a complex ability
     ----------------------------------------------------------------------------
+
+- remember the Xal'atath CDR hack is still enabled for keys below 12
 
 - is it possible to figure out which debuffs are stagger since they last for so long and
   are applied/updated in specific chains? e.g. when light > medium stagger occurs, it's
@@ -805,6 +921,10 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- new prefer confidence layer could cause FPs for hunter turtle if SotF -> feign death
+    - could prevent this by differentiating unitFlags that don't coincide with a combat change
+    - ..though could also use the feign data
+
 - arcane surge is never IDable because of mirror images
 
 - Separate history tray icon size slider (maybe make smaller by default too)
