@@ -390,7 +390,7 @@ function ns:Event(newTrace, newSource)
         local ability, certain = self:getAbility()
         if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
             ns:queueCooldown(ability, abilityOffCooldown)
-        elseif not self:isNonAuraEvent() then
+        elseif not self:isNonAuraEvent() and not self:getStoneform() then
             -- Can't add non-aura events for two reasons: (1) they don't have a texture to show,
             -- (2) many aren't interesting. E.g., every time anyone leaves combat or dismounts
             -- is a non-aura event. Some of those are vanishes and shadowmelds but most are
