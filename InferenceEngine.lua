@@ -514,6 +514,7 @@ ns.logicLayerAliases = {
     flags='F',               -- aura flags, i.e. IMPORTANT/HELPFUL/HARMFUL
     unitFlags='L',           -- unit f_L_ags
     feign='f',               -- feign death
+    died='i',                -- i for d_i_ed
     shield='S',
     appliesInferredAura='A',
     updateIsAbility='u',     -- u for _u_pdate is ability
@@ -608,6 +609,10 @@ local function getPossibleSolutions(event, cdTracker)
         if ability.requireFeign then
             logic['feign'], reqs['feign'] =
                 evidenceWitnessed(event, ability, "feign", "target")
+        end
+        if ability.requireDied then
+            logic['died'], reqs['died'] =
+                evidenceWitnessed(event, ability, "died", "target")
         end
         if ability.requireButtonPress then
             logic['cast'], reqs['cast'] =
