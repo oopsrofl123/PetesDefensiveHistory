@@ -495,6 +495,7 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
             requireFeign=true,
+            --requireDied=true,
 		},
 		{
 			name="Takedown",
