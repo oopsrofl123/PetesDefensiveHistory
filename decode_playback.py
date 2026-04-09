@@ -51,6 +51,10 @@ def event_type_match(combatlog, playback):
         return combatlog == "SPELL_AURA_REFRESH" or combatlog == "SPELL_AURA_REMOVED_DOSE"
     elif playback == "FLAGS(combatDrop)":
         return combatlog == "SPELL_CAST_SUCCESS"
+    elif playback == "FLAGS(feign)":
+        return combatlog == "SPELL_CAST_SUCCESS"
+    elif playback == "UNIT_SPELLCAST_SUCCEEDED":
+        return combatlog == "SPELL_CAST_SUCCESS"
     else:
         return False
 
@@ -79,7 +83,7 @@ def one_logic_string(ability, source, caster, layers):
     return string
 
 
-def logic_string(logic, source, pass_type):
+def logic_string(logic, source, pass_type, character_abilities):
     string = ""
     for logic_summary in logic:
         caster, ability_id, passes, layers = logic_summary
@@ -180,38 +184,43 @@ def get_character_abilities(characters):
     return character_abilities
 
 
-def read_export_data(f):
+def read_export_data(f, quiet=False):
     data = decode_export_blob(f.read())
 
     addon_version = data.get(b'addonVersion', b'not encoded').decode()
-    print('ADDON VERSION -------------------------------------------------------------------')
-    print(addon_version)
+    if not quiet:
+        print('ADDON VERSION -------------------------------------------------------------------')
+        print(addon_version)
 
     metadata_updates = data[b'metadataUpdates'] or {}
-    print('METADATA ------------------------------------------------------------------------')
-    print('got', len(metadata_updates), 'metadata updates')
+    if not quiet:
+        print('METADATA ------------------------------------------------------------------------')
+        print('got', len(metadata_updates), 'metadata updates')
 
 
     character_updates = data[b'characterUpdates'] or {}
     character_abilities = {}
-    print('CHARACTERS ----------------------------------------------------------------------')
-    print('got', len(character_updates), 'character updates')
+    if not quiet:
+        print('CHARACTERS ----------------------------------------------------------------------')
+        print('got', len(character_updates), 'character updates')
     for index, update in character_updates.items():
         time, trace, characters = update
-        print('    index=%d, time=[%0.3f] responded to [%s]: character data:' % \
-            (index, time, trace.decode()))
+        if not quiet:
+            print('    index=%d, time=[%0.3f] responded to [%s]: character data:' % \
+                (index, time, trace.decode()))
 
     start_time = data[b'playback'][0][0]
     playback = [ ('event', e[0] - start_time, [e[0]-start_time] + [ d(x) for x in e[1:] ]) for e in data[b'playback'] ]
-    print('PLAYBACK ------------------------------------------------------------------------')
-    print('got', len(playback), 'events')
+    if not quiet:
+        print('PLAYBACK ------------------------------------------------------------------------')
+        print('got', len(playback), 'events')
 
 
-    print('INFERENCE -----------------------------------------------------------------------')
+    if not quiet: print('INFERENCE -----------------------------------------------------------------------')
     inferences = data[b'inference']
     # Remove simulation inferences from zero knowledge solves
     inferences = [ ('inf', inf[0] - start_time, [inf[0]-start_time] + [ d(x) for x in inf[1:] ]) for inf in inferences if not inf[4].decode().startswith("SIMULATE(") ]
-    print('found', len(inferences), 'inference records')
+    if not quiet: print('found', len(inferences), 'inference records')
 
     return addon_version, metadata_updates, character_updates, playback, inferences
 
@@ -243,6 +252,7 @@ all_tracked_abilities = [
     "Survival of the Fittest",
     "Trueshot",
     "Aspect of the Turtle",
+    "Exhilaration",
     "Feign Death",
     "Takedown",
     "Arcane Surge",
@@ -299,6 +309,7 @@ if __name__ == "__main__":
 
     spells = read_spell_names(sys.argv[2])
 
+    confp = defaultdict(float)
     buffs_by_player = defaultdict(list)
     debuffs_by_player = defaultdict(list)
     maybe_stoneform = defaultdict(dict)
@@ -387,11 +398,19 @@ if __name__ == "__main__":
                 ability_id, certain, ability_caster, \
                 logic, conf, reqs = record
             print(infer_string(record))
-            print("PASS:", logic_string(logic, event_source, True))
-            print("FAIL:", logic_string(logic, event_source, False))
+            print("PASS:", logic_string(logic, event_source, True, character_abilities))
+            print("FAIL:", logic_string(logic, event_source, False, character_abilities))
             print("CONF:", confidence_string(conf) + " " + reqs_string(reqs))
             print(decision_string(record, spells))
+            if conf[2] > 1:
+                press = conf[3][b'P']
+                if press[2] > 0:
+                    confp[(event_id, event_slot)] = press[2]
 
-for slot, upcounts in update_count_per_aura.items():
-    for aid, count in sorted(upcounts.items(), key=lambda x: x[1], reverse=True): #[:10]:
-        print(slot, aid, count)
+    for slot, upcounts in update_count_per_aura.items():
+        for aid, count in sorted(upcounts.items(), key=lambda x: x[1], reverse=True): #[:10]:
+            print(slot, aid, count)
+
+    for event_data, diff in confp.items():
+        if diff < 0.15:
+            print('CONFP', event_data, diff)
