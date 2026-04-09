@@ -438,6 +438,10 @@ for rec in full_combatlog:
         if ability_name == "Takedown":
             if 'nil' == rec[7]:
                 continue
+        # this applies avenging wrath, which is what we really score. wake of ashes is not
+        # a buff.
+        if ability_name == 'Wake of Ashes':
+            continue
         if time >= time_start and time <= time_end and ability_name in all_tracked_abilities:
             combatlog_truthset.append(('combatlog', time, rec))
 
@@ -511,16 +515,22 @@ for rectype, time, record in sorted(playback + unique_inferences + combatlog_tru
                 # the true caster and spell ID could be derived.
                 actor = inferred_caster_guid
 
+                effective_event_trace = event_trace
                 effective_ability = spells[inferred_ability_id]
                 if effective_ability == 'Wake of Ashes':
                     # There is no wake of ashes aura, the attached Avenging Wrath is the
                     # tracked aura.
                     effective_ability = "Avenging Wrath"
+                # Exhil is detected as a 3s SotF, so during a UNIT_AURA event. But there is
+                # no Exhil aura so only a cast will be in the log.
+                if effective_ability == 'Exhilaration':
+                    # there's no aura for exhil, but it's inferred during UNIT_AURA
+                    effective_event_trace = "UNIT_SPELLCAST_SUCCEEDED"
                 # Does the combat log indicate that this ability was cast near the event time?
                 matches = [ rec for rec in log_records
                     if spells[rec['ability_id']] == effective_ability and
                         rec['caster_guid'] == inferred_caster_guid and
-                        event_type_match(rec['event'], event_trace)]
+                        event_type_match(rec['event'], effective_event_trace)]
 
                 scores[(actor, specmap[actor])].add_inference(inferred_ability_id, matches, log_records, event_time)
             else:
