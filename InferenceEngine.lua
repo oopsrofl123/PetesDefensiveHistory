@@ -379,7 +379,12 @@ local function evidenceWitnessed(event, ability, evidenceType, evidenceActor)
 
     local closest, diff = event:timeSinceClosest(evidenceType, evidenceActor)
     -- Have we waited long enough to finalize our decision?
-    local final = event:timeSince() > ns.CONCURRENT_EVENT_TOLERANCE
+    local tol = ns.CONCURRENT_EVENT_TOLERANCE
+    -- Unbound freedom must be inferred after freedom, so give it slightly longer
+    if ability.name == 'Unbound Freedom' then
+        tol = tol*1.1
+    end
+    local final = event:timeSince() > tol
 
     -- permissive: pass=true if evidence *could be* satisified in the future
     local permissive = { pass=true, final=final, diff=diff }
@@ -389,7 +394,7 @@ local function evidenceWitnessed(event, ability, evidenceType, evidenceActor)
     -- Tolerate at most CONCURRENT_EVENT_TOLERANCE seconds between the event and the
     -- required concurrent evidence. But until that much time passes, it is unknown whether
     -- the required concurrent evidence will pop up. So wait that long before rejecting.
-    if diff > ns.CONCURRENT_EVENT_TOLERANCE then
+    if diff > tol then
         strict = { pass=false, final=true, diff=diff }
         traceLogic(event, ability,
             "excluded(STRICT): actor=[%s], closest [%s]=%0.3f, applied=%0.3f (diff=%0.3f)",
@@ -742,8 +747,11 @@ local function confidenceLayerCastTime(possibleSolutions)
         { name='dummy', castTimeDiff=ns.INFINITY },
         function(a, b) return a.castTimeDiff < b.castTimeDiff end)
 
+    -- In the special case where the best fit cast is in the same frame as the aura,
+    -- elect the better fit even if the second best is closer than the normal tolerance.
     local diff = second.castTimeDiff - best.castTimeDiff
-    if diff >= CASTTIME_CONFIDENT_DIFFERENCE then
+    if diff >= CASTTIME_CONFIDENT_DIFFERENCE or
+       (best.castTimeDiff == 0 and second.castTimeDiff > 0) then
         return { "castTime", best, true, diff }
     else
         traceConfidence('castTime', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
