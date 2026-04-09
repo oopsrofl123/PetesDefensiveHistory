@@ -496,6 +496,8 @@ local function releaseHistoryItem(item)
     end
     item:ClearAllPoints()
     item:Hide()
+    -- When not visible, HideOverlayGlow also releases to its internal pool
+    LibButtonGlow.HideOverlayGlow(item)
     framePool:Release(item)
 end
 
