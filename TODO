@@ -18,6 +18,8 @@ Available soon on CurseForge
 - Seemingly random non-important aura icons will no longer appear in the history tray.
 - Experimental fix for cooldown icons that glow forever
 
+FIX:
+- mirror image doesn't work, check FAILED_QUIET on non-player units
 
 - ADD IN isTanking, status, scaledPercentage, rawPercentage, rawThreat = UnitDetailedThreatSituation(unit, mobGUID)
 - maybe make abilities table non-keyed since the keys are never used? would make order stable
@@ -114,9 +116,6 @@ near term:
 
 - feign death still counts cooldown from the wrong time (because cooldown doesn't start until
   after breaking it).
-
-
-
 
 
 - EXPORT DATA FROM TANK KEY - want to see if healer casts are unsecret
