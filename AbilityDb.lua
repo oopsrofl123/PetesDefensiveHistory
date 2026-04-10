@@ -596,7 +596,7 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
-            requireCastFailedQuiet=true,
+            --requireCastFailedQuiet=true,  -- XXX: doesn't seem to fire for group members while in combat (?)
 		},
 		{
 			name="Alter Time",
