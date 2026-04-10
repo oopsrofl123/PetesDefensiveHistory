@@ -12,14 +12,23 @@ Available soon on CurseForge
     - Aspect of the Turtle
     - Dispersion
 - Improve accuracy of Stoneform detection (but it still is only detectable if used to dispel a debuff).
+- Better detection of the Unbound Freedom talent.
+- Experimental method to better choose between multiple possible external defensives when
+  they are available (e.g., for groups with both Blessing of Sacrifice and Ironbark)
 
 **Bug fixes**
 - Feign Death: support -5/-10s cooldown reduction talents
 - Seemingly random non-important aura icons will no longer appear in the history tray.
 - Experimental fix for cooldown icons that glow forever
+- Mirror image will now be detected again, but Arcane Surge is again disabled by default.
 
-FIX:
-- mirror image doesn't work, check FAILED_QUIET on non-player units
+**Limitation notes**
+- Shadowmeld is not detectable when fighting bosses because combat does not drop while a
+  boss encounter is in progress.
+- Stoneform is not detectable unless used to dispel a debuff.
+
+
+
 
 - ADD IN isTanking, status, scaledPercentage, rawPercentage, rawThreat = UnitDetailedThreatSituation(unit, mobGUID)
 - maybe make abilities table non-keyed since the keys are never used? would make order stable
@@ -161,7 +170,7 @@ V1.0 RELEASE GOALS
     - Ice cold/Alter time
     - turtle? (unit flags is not decisive, but maybe it should be if only SoTF and turtle are in consideration)
     - DP/freedom for ret only (DP is BIG-flagged for holy)
-    -
+    - arcane surge/mirror images/combust?
 
 - button groups
 
