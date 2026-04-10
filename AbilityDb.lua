@@ -553,6 +553,7 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
             requireBuff=true,             -- Base line: "Generates Clearcasting"
+            developerDisable=true,
 		},
         -- XXX: use cancellation to help detect?
 		{
