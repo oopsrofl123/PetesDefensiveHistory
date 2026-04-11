@@ -480,8 +480,8 @@ end
 
 
 local function releaseHistoryItem(item)
-    if Masque and masqueGroup and f.masqueAdded then
-        masqueGroup:RemoveButton(f)
+    if Masque and masqueGroup and item.masqueAdded then
+        masqueGroup:RemoveButton(item)
     end
     texturePool:Release(item.icon)
     if item.countUp then
