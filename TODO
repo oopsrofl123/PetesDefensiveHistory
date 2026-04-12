@@ -12,6 +12,9 @@ Available soon on CurseForge
   how long the ability lasts will be shown.
 - New option to desaturate cooldown icons when on cooldown.
 
+**Accuracy**
+- Shadow Dance/Shadow Blades: should now be more accurate
+
 **Debugging**
 - Now stores a tiny amount of metadata to help future bug reporting. The metadata can be
   exported by shift+left clicking the PetesDefensiveHistory minimap icon or clicking the
@@ -19,7 +22,6 @@ Available soon on CurseForge
 
 
 
-CHECK PRINTS
 
 
 TODO: some way to share settings between characters
@@ -377,6 +379,12 @@ NOTES ON COMPLEX CASES ---------------------------------------------------------
           and naturallyUpdates=true. which is another way of saying updates aren't of interest.
         - just need to prevent this from filling up the history tray. not a complex ability
     ----------------------------------------------------------------------------
+
+- sub rogue:
+    - shadow dance duration varies by a lot (+3s after being OOC for 6s, +150% of haste stat),
+      but is just modeled as GTE.
+    - shadow blades +4s duration from 4pc bonus is baked in to AbilityDb but should be a mod.
+      need to figure out how to detect 4pc, if it's possible at all.
 
 - remember the Xal'atath CDR hack is still enabled for keys below 12
 
