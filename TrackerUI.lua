@@ -191,8 +191,12 @@ function ns:startGlow(ability, duration, initGlow)
     cd.cooldown:Hide()
 
     -- initGlow=false for updates, e.g.
-    if initGlow then
+    if initGlow and not ns:GetOption('disableActiveGlow') then
         LibButtonGlow.ShowOverlayGlow(cd)
+    end
+
+    if ns:GetOption('desaturateOnCooldown') then
+        cd.icon:SetDesaturated(false)
     end
 end
 
@@ -203,7 +207,9 @@ function ns:stopGlow(ability)
     local slot = ns:cosmeticOnlyMapGUIDToSlot(ability.caster)
     local cd = ns.trackerUI[slot].staticRow.items[ability.name]
 
-    LibButtonGlow.HideOverlayGlow(cd)
+    if not ns:GetOption('disableActiveGlow') then
+        LibButtonGlow.HideOverlayGlow(cd)
+    end
     if cd.charges > 1 then
         cd.chargeLabel:Show()
     end
@@ -278,6 +284,10 @@ function ns:queueCooldown(ability, availableAt)
     -- Otherwise just show the edge.
     cd.cooldown:SetDrawSwipe(cd.numQueued == ability.charges)
     cd.cooldown:Show()
+    -- Whether beginning a new swipe or not, desaturate the icon if opted in.
+    if cd.numQueued == ability.charges and ns:GetOption('desaturateOnCooldown') then
+        cd.icon:SetDesaturated(true)
+    end
 end
 
 
@@ -398,6 +408,10 @@ local function allocCountDownTimer(parent)
             else
                 cooldown:SetDrawSwipe(false)
                 self.numQueued = self.numQueued - 1
+                -- Resaturate the icon as soon as any charges are available
+                if ns:GetOption('desaturateOnCooldown') and parent.icon:IsDesaturated() then
+                    parent.icon:SetDesaturated(false)
+                end
                 if self.numQueued > 0 then
                     self.startTime = now
                     cooldown:SetCooldown(now, self.cooldownInSeconds)
@@ -566,7 +580,9 @@ local function updateStaticRow(slot)
     -- If there are any abilities tracked that are no longer trackable (e.g.,
     -- the player changed spec, group changed, new external interferes, etc.)
     for name, item in pairs(row.items) do
+print('checking ability', name)
         if not abilities[name] then
+print('releasing ability', name)
             releaseHistoryItem(item)
             row.items[name] = nil
         end
