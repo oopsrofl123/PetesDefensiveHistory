@@ -245,7 +245,9 @@ function ns:getMetadataUpdatesData()
 end
 
 local function recordMetadataUpdate(trace)
-    if not ns:GetOption('enableReplays') then return end
+    -- XXX: store this metadata regardless
+    -- maybe re-enable in the future
+    --if not ns:GetOption('enableReplays') then return end
 
     local slotToFrameName = {}
     for slot, frame in pairs(slotToFrame) do
@@ -295,6 +297,33 @@ local function updateCharacterData(trace)
         -- abilities are only added in response to LibSpec.
         char:cachePossibleAbilities()
     end 
+
+    -- Update the CD trackers. This can need updating if the character is newly tracked or
+    -- if their spec has changed.
+    -- XXX: this should live in Character(), not here.
+    for guid, char in pairs(ns:getTrackedCharacters()) do
+        if not ns.cdTracker[guid] then
+            ns.cdTracker[guid] = {}
+        end
+        for _, ability in pairs(char:getAbilities()) do
+            -- When changing specs, abilities usually remain on cooldown, so don't overwrite.
+            -- XXX: When just the number of charges changes for an ability, we will incorrectly
+            -- zero out the previous CD timers. While unfortunate, this is the more conservative
+            -- approach, and won't cause FNs due to the ability being thought to be on CD.
+            local prevTracker = ns.cdTracker[guid][ability.name]
+            local prevSize = not prevTracker and 0 or prevTracker:size()
+            if not prevTracker or prevSize ~= ability.charges then
+                ns:printDebug(string.format(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
+                    "cdTracker: adding slot=[%s], ability=[%s], charges=[%d]",
+                    guid, ability.name, ability.charges))
+                local fifo = ns:fixedFIFO(ability.charges)
+                for i=1, ability.charges do
+                    fifo:push(0)
+                end 
+                ns.cdTracker[guid][ability.name] = fifo
+            end
+        end
+    end
 
     -- Track for exporting
     recordMetadataUpdate(trace)
@@ -510,7 +539,16 @@ local eventPlaybackList = {}
 
 -- Record WoW API events for export. Very memory intensive, only meant for developers.
 function ns:playback(now, event, ...)
-    if not ns:GetOption('enableReplays') then return end
+    if not ns:GetOption('enableReplays') and
+        -- XXX: short term: record these even if enableReplays is disabled
+        event ~= 'CHARACTER_DATA_UPDATE' and
+        event ~= 'LIB_SPEC_RESPONSE' and
+        event ~= 'METADATA_DATA_UPDATE' and
+        event ~= 'CHALLENGE_MODE_START' and
+        event ~= 'ENCOUNTER_START' and
+        event ~= 'ENCOUNTER_END' then
+        return
+    end
     local record = { now, event, ... }
     table.insert(eventPlaybackList, record)
 end
