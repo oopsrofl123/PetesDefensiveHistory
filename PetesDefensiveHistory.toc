@@ -2,7 +2,7 @@
 ## Title: PetesDefensiveHistory
 ## Notes: Midnight tracker for big defensives. Shows persistent timer icons next to party frames allowing the player to judge whether a cooldown is available.
 ## Author: Pete, clearly
-## Version: 0.9.7p
+## Version: 0.9.7q
 ## AddonCompartmentFunc: PetesDefensiveHistory_OnAddonCompartmentClick
 ## SavedVariablesPerCharacter: PetesDefensiveHistoryOptionsDb
 
