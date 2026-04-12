@@ -59,7 +59,9 @@ local characterUpdatesData = {}
 
 
 function ns:recordCharacterDataUpdate(trace)
-    if not ns:GetOption('enableReplays') then return end
+    -- XXX: store this metadata regardless. maybe re-enable in the future
+    --if not ns:GetOption('enableReplays') then return end
+
     local characters = {}
     for _, char in pairs(ns:getTrackedCharacters()) do
         table.insert(characters, char:export())
@@ -434,13 +436,9 @@ local function doLibSpecUpdate(specId, playerName, talentExportString, slot)
     char:setSpecAndTalents(specId, talentExportString)
     ns:respondToRosterUpdate('doLibSpecUpdate('..playerName..')')
 
-    -- XXX: TODO: not correct - needs to live in Character objects.
-    ns.cdTracker = ns:initCDTracker()
-
     -- Solve unique solutions group-wide. This is completely cosmetic: it only
     -- affects the group solution UI.
     ns:zeroKnowledgeSolve()
-
 end
 
 
