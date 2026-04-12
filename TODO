@@ -1,34 +1,44 @@
-**NEW RELEASE: 0.9.7p**
+**NEW RELEASE: 0.9.7q**
 
 Available soon on CurseForge
 
+**BUG FIXES**
+- Masque users: fix constant error that could occur when players leave/join the group.
+- Fix an unusual case where the addon could continuously generate errors due to a missed
+  group member update.
+
 **Appearance**
-- The duration of an active (glowing ability is now shown as a cooldown swipe on the ability.
-    - This new behavior can be disabled by unchecking "Show active duration swipe"
-- Charge labels now show when abilities are at full stacks
+- New option to disable cooldown glows when an ability is active. Only the swipe indicating
+  how long the ability lasts will be shown.
+- New option to desaturate cooldown icons when on cooldown.
 
-**More ability support**
-- Faster detection of
-    - Aspect of the Turtle
-    - Dispersion
-- Improve accuracy of Stoneform detection (but it still is only detectable if used to dispel a debuff).
-- Better detection of the Unbound Freedom talent.
-- Experimental method to better choose between multiple possible external defensives when
-  they are available (e.g., for groups with both Blessing of Sacrifice and Ironbark)
-
-**Bug fixes**
-- Feign Death: support -5/-10s cooldown reduction talents
-- Seemingly random non-important aura icons will no longer appear in the history tray.
-- Experimental fix for cooldown icons that glow forever
-- Mirror image will now be detected again, but Arcane Surge is again disabled by default.
-
-**Limitation notes**
-- Shadowmeld is not detectable when fighting bosses because combat does not drop while a
-  boss encounter is in progress.
-- Stoneform is not detectable unless used to dispel a debuff.
+**Debugging**
+- Now stores a tiny amount of metadata to help future bug reporting. The metadata can be
+  exported by shift+left clicking the PetesDefensiveHistory minimap icon or clicking the
+  addon compartment button.
 
 
 
+CHECK PRINTS
+
+
+TODO: some way to share settings between characters
+    - easiest: "character specific settings"
+        * when unclicked, saves the same settings to a different non-per-char table
+        * need some way to show a popup confirming this choice when people uncheck
+          "character specific settings" because it will clobber their account wide
+          settings
+            - or maybe not? when unchecking char-specific, could just repopulate all
+              of the settings with the account-wide (defaults) and have the player
+              re-do them all. that might be safer than autoclobbering even if it is
+              a little more frustrating the first time
+    - also easy: settings export string
+        - just need an export/import tab in options and to use the already existing
+          code to export just the pdhoptionsdb table and read it in
+
+- features:
+    - disable glow when ability active
+    - desaturate icon when on cooldown
 
 - ADD IN isTanking, status, scaledPercentage, rawPercentage, rawThreat = UnitDetailedThreatSituation(unit, mobGUID)
 - maybe make abilities table non-keyed since the keys are never used? would make order stable
