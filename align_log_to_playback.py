@@ -290,6 +290,12 @@ class InferenceScore:
     def talents_known(self):
         return 'talentExportString' in self.data
 
+    def talent_string(self):
+        if self.talents_known():
+            return self.data['talentExportString']
+        else:
+            return "no talent data"
+
     # Records from the aligned combat log are the ground truth set
     def add_truth(self, record):
         # XXX: the true caster may not be the inferred player. deal with this later
@@ -542,6 +548,7 @@ for rectype, time, record in sorted(playback + unique_inferences + combatlog_tru
 for char_tup, score in scores.items():
     if not score.isempty():
         print(score.player_label(), '-----------------------------------')
+        print('Talents:', score.talent_string())
         print(score)
         print("    False positives:")
         score.print_false_positives()
