@@ -1056,10 +1056,17 @@ function ns:zeroKnowledgeSolve()
     for guid, char in pairs(ns:getTrackedCharacters()) do
         local tracker = ns:makeEvidenceTracker()
         tracker.buff:push(now)
-        tracker.cast:push(now)
-        tracker.shield:push(now)
         tracker.debuff:push(now)
+        tracker.cast:push(now)
+        tracker.castFailedQuiet:push(now)
+        tracker.shield:push(now)
         tracker.combatDrop:push(now)
+        tracker.unitFlags:push(now)
+        tracker.feign:push(now)
+        tracker.maybeFreedom:push(now)
+        tracker.freedom:push(now)
+        tracker.died:push(now)
+        tracker.debuffRemoved:push(now)
         idealEventTrackers[guid] = tracker
     end
 
