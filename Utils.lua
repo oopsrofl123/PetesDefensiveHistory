@@ -23,6 +23,8 @@ function ns:fixedFIFO(size)
     local n = 0 -- number of items in queue
     local t = {} -- the internal array
 
+    function q:size() return size end
+
     function q:push(v)
         -- size limit reached, get rid of oldest item
         if n >= size then
