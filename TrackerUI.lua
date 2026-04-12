@@ -580,9 +580,7 @@ local function updateStaticRow(slot)
     -- If there are any abilities tracked that are no longer trackable (e.g.,
     -- the player changed spec, group changed, new external interferes, etc.)
     for name, item in pairs(row.items) do
-print('checking ability', name)
         if not abilities[name] then
-print('releasing ability', name)
             releaseHistoryItem(item)
             row.items[name] = nil
         end
