@@ -51,6 +51,8 @@ local optionsDefaults = {
     adjustX = -3,
     adjustY = 0,
     showActiveDuration = true,
+    disableActiveGlow = false,
+    desaturateOnCooldown = false,
 
     enableMplusXalatathHack = true,
     disableInference = false,
@@ -261,6 +263,12 @@ local function buildMainOptions()
 
     makeCheckbox(category, "showActiveDuration", "Show active duration swipe",
         "When an ability is active, show a cooldown swipe indicating when the ability will end, similar to what is shown on Blizzard's Center Big Defensives icon.")
+
+    makeCheckbox(category, "disableActiveGlow", "Disable active glow",
+        "Do not glow icons when its ability is active.")
+
+    makeCheckbox(category, "desaturateOnCooldown", "Desaturate icons on cooldown",
+        "Desaturate cooldown tracker icons while the ability is on cooldown.")
 
     makeSectionHeader(layout, 'Behavior')
 
