@@ -429,6 +429,9 @@ end
 
 
 
+-- XXX: Ideally this would be called in allocHistoryItem(), but the ElvUI global
+-- variable does not exist when the history tray items are allocated (since they do
+-- not have to wait for a LibSpec response), leaving them unskinned.
 local function handleElvUI(frame)
     -- I think :CreateBackdrop() makes a frame, so don't call this more than once
     if ElvUI and not Masque then  -- Masque overrides ElvUI
@@ -545,8 +548,9 @@ local function updateStaticRow(slot)
         -- Always update static ability data. spec could have changed
         item.spellId = ability.id
         if ability.iconId then
-            item.icon:SetTexture(ability.iconId)
+            -- creates a backdrop when first called, must call before :SetTexture()
             handleElvUI(item)
+            item.icon:SetTexture(ability.iconId)
         end
         item.cooldownInSeconds = ability.cooldown
         item.charges = ability.charges
@@ -649,7 +653,6 @@ local function updateHistoryTray(slot)
             elseif dir == 'UP' or dir == 'DOWN' then
                 item:SetPoint(antidir..'LEFT', row, antidir..'LEFT', xoff, yoff)
             end
-            --item:SetPoint(antidir, row, antidir, xoff, yoff)
             ns:showDebugVisual(item)
             ns:showDebugVisual(item.icon)
         end
