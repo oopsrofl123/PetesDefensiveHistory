@@ -54,8 +54,15 @@ ns.ldbObject = ldb:NewDataObject(addonName, {
             if hasLibSpec then
                 r, g, b = char:getClassColor()
             end
+            local iconString = ''
+            for _, a in pairs(char:getAbilities()) do
+                if not a.hideAbility then
+                    iconString = iconString .. "|T" .. a.iconId .. ':0|t'
+                end
+            end
             tooltip:AddDoubleLine('    ' .. char:getName(),
-                hasLibSpec and char:getSpecString() or "no LibSpec",
+                --hasLibSpec and char:getSpecString() or "no LibSpec",
+                hasLibSpec and iconString or "no LibSpec",
                 r, g, b, r, g, b)
         end
         tooltip:AddLine(" ")
