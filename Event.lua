@@ -386,11 +386,16 @@ function ns:Event(newTrace, newSource)
             ns:stopGlow(self:getAuraAbility())
         end
 
-        -- More visual feedback
-        local ability, certain = self:getAbility()
+        -- When thunder blast extends Avatar, it creates an event attached
+        -- to the Avatar aura. But since Avatar of the Storm can be extended by pressing
+        -- the real Avatar button, these events can't be discarded up front. As a bandaid
+        -- fix, don't put avatarExtensions into the history tray.
+        local avatarExtension = ability and batchId > 1 and
+                (ability.name == 'Avatar' or ability.name == 'Avatar of the Storm')
+
         if ability and certain and not (ability.cdr and ns:GetOption('disableCDRTrackers')) then
             ns:queueCooldown(ability, abilityOffCooldown)
-        elseif not self:isNonAuraEvent() and not self:getStoneform() then
+        elseif not self:isNonAuraEvent() and not self:getStoneform() and not avatarExtension then
             -- Can't add non-aura events for two reasons: (1) they don't have a texture to show,
             -- (2) many aren't interesting. E.g., every time anyone leaves combat or dismounts
             -- is a non-aura event. Some of those are vanishes and shadowmelds but most are
