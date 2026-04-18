@@ -604,6 +604,8 @@ local function updateStaticRow(slot)
         if item:IsShown() then i = i + 1 end
     end
 
+    -- If there are no icons, size as if there were 1 to give a proper row or column
+    if i == 0 then i = 1 end
     if dir == "LEFT" or dir == "RIGHT" then
         row:SetSize(math.min(i, wrap)*(iconSize+iconSpacing) - iconSpacing,
             (math.floor((i-1)/wrap)+1) * (iconSize + iconSpacing))
