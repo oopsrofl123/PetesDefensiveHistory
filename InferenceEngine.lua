@@ -619,7 +619,7 @@ local function getPossibleSolutions(event, cdTracker)
             logic['died'], reqs['died'] =
                 evidenceWitnessed(event, ability, "died", "target")
         end
-        if ability.requireButtonPress then
+        if ability.requireButtonPress and not ns:GetOption('disableCastEvidence') then
             logic['cast'], reqs['cast'] =
                 evidenceWitnessed(event, ability, "cast", "caster")
         end

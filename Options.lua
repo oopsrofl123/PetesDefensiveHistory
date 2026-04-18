@@ -68,6 +68,7 @@ local optionsDefaults = {
     TTSnoUntracked = false,
     TTSnoSelfCasts = false,
 
+    disableCastEvidence = true,
     inferWithoutTalentData = false,
     enableReplays = false,
 	debugVisuals = false,
@@ -331,6 +332,9 @@ local function buildDeveloperOptions(topCategory)
         'Did an ability get mis-identified? Logic traces and event replays are the way to debug the complex scenarios this addon must handle. Enabling this option will record all relevant events and metadata to export a replay that can be aligned against a WoW combat log to check for errors. To export a replay, click the addon compartment button (top right of the screen in the default Blizzard UI) and copy the string in the pop-up window. Share your exports and combat logs on our Discord at |cFF00FFFFdiscord.gg/gVCtQrvpxt|r! |cFFFF0000Enabling this option will consume a large amount of memory, possibly ~100 Mb per 30 minute dungeon. Use /reload to clear it.|r')
 
     makeSectionHeader(layout, 'Debugging')
+    makeCheckbox(category, 'disableCastEvidence', 'Disable cast evidence',
+        'Simulate a change in the upcoming 12.0.5 patch to test accuracy. Will be deleted in the near future.')
+
     makeCheckbox(category, 'inferWithoutTalentData', 'Infer without talent data',
         'Without talent data, it is difficult to know what abilities a player has and what their cooldowns are. When unchecked (the default), do not infer abilities on players without talent data unless it is an external cooldown cast by another player with talent data. By checking this box, the addon will infer all abilities on players without talent data, which can cause many strange false calls and interactions.')
 
