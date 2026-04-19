@@ -41,6 +41,9 @@ PetesDefensiveHistory might look like OmniCD, but Blizzard's addon restrictions 
 ![](images/NoLibSpec2.png)
 *The mage does not have LibSpecialization*
 
+* Mouseover the Minimap icon to see which players do not have LibSpecialization
+![](images/MinimapShowNoLibspec.png)
+*Players with LibSpecialization will show a row of tracked abilities.*
 
 # 2. What is the second row of icons?
 * The second row of icons contains cooldowns **that could not be guessed by the addon**.
