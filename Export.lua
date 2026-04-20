@@ -85,7 +85,6 @@ end
 
 
 local function allocExportFrame()
-    -- Create a simple frame with an editbox
     local f = CreateFrame("Frame", addonName .. "ExportFrame", UIParent, "BackdropTemplate")
 
     -- XXX: TODO: terrible idea for the long term. just for early devel
@@ -125,5 +124,4 @@ end
 
 do
     exportFrame = allocExportFrame()
-    ns:updateExportString()
 end
