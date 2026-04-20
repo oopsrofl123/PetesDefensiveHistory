@@ -62,11 +62,12 @@ local optionsDefaults = {
     hideHistoryItemsAtMaxCd = true,
     showTooltips = true,
     hideWelcomeMessage = false,
-    
 
     enableTTS = false,
     TTSnoUntracked = false,
     TTSnoSelfCasts = false,
+
+    charSpecificSettings = true,
 
     disableCastEvidence = true,
     inferWithoutTalentData = false,
@@ -87,14 +88,62 @@ local optionsDefaults = {
     allowBrewmasterStoneform = false,
 }
 
-PetesDefensiveHistoryOptionsDb = PetesDefensiveHistoryOptionsDb or optionsDefaults
-
 ns.hideWelcomeMessage = nil
+ns.optionsProfile = nil
+ns.optionsDb = nil
+ns.optionsCharKey = nil
+
+
+local function useProfile()
+    -- always use the character-specific settings database for charSpecificSettings
+    ns.optionsProfile = PetesDefensiveHistoryOptionsDb.charSpecificSettings and ns.optionsCharKey or 'Shared'
+    ns.optionsDb = PetesDefensiveHistoryGlobalOptionsDb.profiles[ns.optionsProfile]
+end
+
+
+-- Called by ADDON_LOADED. Must set up profiles/options so that GetOption() can be called.
+function ns:initOptions()
+    if not PetesDefensiveHistoryGlobalOptionsDb then
+        PetesDefensiveHistoryGlobalOptionsDb = {}
+        PetesDefensiveHistoryGlobalOptionsDb.profiles = {}
+    end
+
+    if not PetesDefensiveHistoryGlobalOptionsDb.profiles['Shared'] then
+        PetesDefensiveHistoryGlobalOptionsDb.profiles['Shared'] = CopyTable(optionsDefaults)
+    end
+
+    -- realm=nil until PLAYER_LOGIN. this is why nothing can be done at ADDON_LOADED
+    local name, _ = UnitNameUnmodified('player')
+    local _, realm = UnitFullName('player')
+    ns.optionsCharKey = name .. "-" .. realm
+    if not PetesDefensiveHistoryGlobalOptionsDb.profiles[ns.optionsCharKey] then
+        PetesDefensiveHistoryGlobalOptionsDb.profiles[ns.optionsCharKey] =
+            CopyTable(optionsDefaults)
+
+        -- Check for the legacy pre-global/profiles options database. If this is the first login
+        -- of this character using the new profiles system, copy over their old settings.
+        if PetesDefensiveHistoryOptionsDb then
+            PetesDefensiveHistoryOptionsDb.charSpecificSettings = true
+            for k, v in pairs(PetesDefensiveHistoryOptionsDb) do
+                PetesDefensiveHistoryGlobalOptionsDb.profiles[ns.optionsCharKey][k] = v
+            end
+        end
+    end
+
+    useProfile()
+end
+
 
 -- Universal getter. Use this to access settings, not direct keying
 -- into the settings table. No idea why I capitalized this.
 function ns:GetOption(opt)
-    local val = PetesDefensiveHistoryOptionsDb[opt]
+    local val
+    -- always use the character-specific settings database for charSpecificSettings
+    if opt == 'charSpecificSettings' then
+        val = PetesDefensiveHistoryOptionsDb.charSpecificSettings
+    else
+        val = ns.optionsDb[opt]
+    end
     if val == nil then
         return optionsDefaults[opt]
     end
@@ -114,7 +163,13 @@ local function makeSetting(category, optName, settingType, label)
         optionsDefaults[optName],
         function() return ns:GetOption(optName) end,
         function(value)
-            PetesDefensiveHistoryOptionsDb[optName] = value
+            -- always use the character-specific settings database for charSpecificSettings
+            if optName == 'charSpecificSettings' then
+                PetesDefensiveHistoryOptionsDb.charSpecificSettings = value
+                useProfile()
+            else
+                ns.optionsDb[optName] = value
+            end
             ns:handleAddonActiveStateChange()
             ns:handleReplayStateChange()
             ns:updateTrackerUI()
@@ -183,9 +238,11 @@ local function buildMainOptions()
     setting = Settings.RegisterProxySetting(
         category, 'minimap.hide', Settings.VarType.Boolean, "Hide minimap button",
         optionsDefaults.minimap.hide,
-        function() return PetesDefensiveHistoryOptionsDb.minimap.hide end,
+        --function() return PetesDefensiveHistoryOptionsDb.minimap.hide end,
+        function() return ns.optionsDb.minimap.hide end,
         function(value)
-            PetesDefensiveHistoryOptionsDb.minimap.hide = value
+            --PetesDefensiveHistoryOptionsDb.minimap.hide = value
+            ns.optionsDb.minimap.hide = value
             if value then
                 ns.ldbicon:Hide('PetesDefensiveHistory')
             else
@@ -450,11 +507,98 @@ local function buildTrackedSpells(topCategory)
 end
 
 
+StaticPopupDialogs["PDH_CONFIRM_IMPORT_SETTINGS"] = {
+    text="Are you sure you want to overwrite your settings for "..addonName.."? This will permanently delete your current layout.",
+    button1="Delete",
+    button2="Cancel",
+    timeout=0,
+    whileDead=true,
+    hideOnEscape=true,
+    preferredIndex=3,
+    OnAccept=function(self)  end, -- XXX: do something
+    OnCancel=function(self) return true end,
+}
+
+local function allocSettingsExportPopup()
+    local f = CreateFrame("Frame", addonName .. "SettingsExportPopup", UIParent, "BackdropTemplate")
+
+    f:SetPoint("CENTER")
+    f:SetSize(600, 250)
+    f:SetBackdrop({
+        bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+        edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 }
+    })
+    f:SetBackdropColor(0, 0, 0, 0.9)
+    f:SetFrameStrata('TOOLTIP')
+
+    f.uiTitle = f:CreateFontString(nil, 'OVERLAY', 'GameFontNormalLarge')
+    f.uiTitle:SetText("Settings export string")
+    f.uiTitle:SetPoint("TOP", f, "TOP", 0, -10)
+
+    f.scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+    f.scroll:SetPoint("TOPLEFT", 8, -34)
+    f.scroll:SetPoint("BOTTOMRIGHT", -30, 36)
+
+    f.edit = CreateFrame("EditBox", nil, f.scroll)
+    f.edit:SetMultiLine(true)
+    f.edit:SetFontObject('GameFontWhiteSmall')
+    f.edit:SetWidth(540)
+    f.edit:SetAutoFocus(true)
+    f.edit:EnableMouse(true)
+
+    f.scroll:SetScrollChild(f.edit)
+    f.edit:SetScript("OnEscapePressed", function() f:Hide() end)
+
+    -- Make a close button since some won't figure out the escape button
+    local b = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    b:SetSize(120, 25)
+    b:SetPoint("BOTTOM", f, 'BOTTOM', 0, 8)
+    b:SetText("Close")
+    b:SetScript("OnClick", function(self, button, down) f:Hide() end)
+
+    -- Don't show until the user clicks the compartment button
+    f:Hide()
+
+    return f
+end
+
+local settingsExportPopup = allocSettingsExportPopup()
+
+local function buildProfiles(topCategory)
+    local category, layout =
+        Settings.RegisterVerticalLayoutSubcategory(topCategory, "Profiles")
+
+    makeCheckbox(category, "charSpecificSettings", "Character-specific settings",
+        "Only apply settings to this character")
+
+    layout:AddInitializer(CreateSettingsButtonInitializer(
+        "Share settings", "Export settings",
+        function()
+            local data = { C_AddOns.GetAddOnMetadata(addonName, 'Version'), ns.optionsDb }
+            local serializedData = C_EncodingUtil.SerializeCBOR(data)
+            local compressedString = C_EncodingUtil.CompressString(serializedData)
+            local finalString = C_EncodingUtil.EncodeBase64(compressedString)
+            settingsExportPopup.edit:SetText(finalString)
+            settingsExportPopup:Show()
+        end,
+        "Create a string containing your current settings that can be input to the |cFFFFFFImport settings|r button.", true, nil, nil))
+
+    layout:AddInitializer(CreateSettingsButtonInitializer(
+        "Use settings", "Import settings",
+        function()
+            StaticPopup_Show('PDH_CONFIRM_EXPORT_DELETE_DIALOG')
+        end,
+        "Paste a settings string here to quickly set up your UI. |cFF0000This will overwrite (delete) all of your current settings!|r", true, nil, nil))
+end
+
 
 do
     ns.optionsCategory = buildMainOptions()
     buildTrackedSpells(ns.optionsCategory)
+    buildProfiles(ns.optionsCategory)
     buildDeveloperOptions(ns.optionsCategory)
 
-    Settings.RegisterAddOnCategory(ns.optionsCategory, "PetesDefensiveHistoryOptionsDb")
+    Settings.RegisterAddOnCategory(ns.optionsCategory)
 end
