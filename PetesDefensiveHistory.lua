@@ -263,10 +263,10 @@ local function recordMetadataUpdate(trace)
         playerNameToSlot=playerNameToSlot,
         slotToFrame=slotToFrameName,
         GUIDToSlot=GUIDToSlot,
-        PetesDefensiveHistoryOptionsDb=PetesDefensiveHistoryOptionsDb,
+        optionsDb=ns.optionsDb,
     }
     metadataUpdatesData[metadataUpdatesIndex] = record
-    ns:playback(now, 'METADATA_DATA_UPDATE', metadataUpdatesIndex, trace)
+    ns:playback(now, 'METADATA_UPDATE', metadataUpdatesIndex, trace)
     metadataUpdatesIndex = metadataUpdatesIndex + 1
 end
 
@@ -543,7 +543,7 @@ function ns:playback(now, event, ...)
         -- XXX: short term: record these even if enableReplays is disabled
         event ~= 'CHARACTER_DATA_UPDATE' and
         event ~= 'LIB_SPEC_RESPONSE' and
-        event ~= 'METADATA_DATA_UPDATE' and
+        event ~= 'METADATA_UPDATE' and
         event ~= 'CHALLENGE_MODE_START' and
         event ~= 'ENCOUNTER_START' and
         event ~= 'ENCOUNTER_END' then
@@ -1101,8 +1101,7 @@ end
 local loader = CreateFrame("Frame", addonName .. "Loader")
 
 local function initAddon()
-    -- Prevent this from happening again
-    loader:UnregisterEvent("ADDON_LOADED")
+    ns:initOptions()
 
     ns:printDebug(ns.LOGTYPE.UI, ns.LOGLEVEL.Normal,
         "Initializing "..addonName..", addonIsActive()=" ..
@@ -1128,11 +1127,7 @@ local function initAddon()
     ns.groupSolutionUI = ns:allocGroupSolutionUI()
     ns.groupSolutionUI:Hide()
 
-    -- For the minimap button
-    if not PetesDefensiveHistoryOptionsDb.minimap then
-        PetesDefensiveHistoryOptionsDb.minimap = { hide=false }
-    end
-    ns.ldbicon:Register(addonName, ns.ldbObject, PetesDefensiveHistoryOptionsDb.minimap)
+    ns.ldbicon:Register(addonName, ns.ldbObject, ns:GetOption('minimap'))
     if not ns:GetOption("minimap").hide then
         ns.ldbicon:Show('PetesDefensiveHistory')
     else
@@ -1155,6 +1150,8 @@ local function initAddon()
     C_Timer.After(0, function()
         ns:respondToRosterUpdate('GRID2_SPECIAL_CALLBACK')
     end)
+
+    ns.addonInitialized = true
 end
 
 
@@ -1163,7 +1160,6 @@ end
 -- Do not unregister the main `loader` handler's events. It needs to remain registered
 -- to detect later changes in group/instance state to auto-en/disable the addon as the
 -- user prefers.
-loader:RegisterEvent("ADDON_LOADED")
 loader:RegisterEvent("PLAYER_LOGIN")
 loader:RegisterEvent("PLAYER_ENTERING_WORLD")
 loader:RegisterEvent("GROUP_ROSTER_UPDATE")
@@ -1176,7 +1172,7 @@ loader:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 --loader:RegisterEvent("ARENA_PREP_OPPONENT_SPECIALIZATIONS")
 local loadNum = 1
 loader:SetScript("OnEvent", function(self, event, ...)
-    if event == "ADDON_LOADED" then
+    if event == "PLAYER_LOGIN" then
         initAddon()
     end
 
