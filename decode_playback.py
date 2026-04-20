@@ -319,7 +319,7 @@ if __name__ == "__main__":
             time, event = record[0:2]
             print("%s%0.3f %s(%s)%s" % \
                 (ascii_purple, time, event, ",".join([ str(x) for x in record[2:] ]), ascii_reset))
-            if event == "METADATA_DATA_UPDATE":
+            if event == "METADATA_UPDATE":
                 print("updating metadata")
                 update_index = record[2]
                 metadata = get_metadata(metadata_updates, update_index)
