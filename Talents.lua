@@ -155,8 +155,6 @@ local function buildTalentToSpellMap(specId)
         end
     end
 
---collectgarbage('collect')
-
     return talentmap 
 end
 
