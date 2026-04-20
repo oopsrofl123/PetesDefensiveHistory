@@ -61,7 +61,6 @@ ns.ldbObject = ldb:NewDataObject(addonName, {
                 end
             end
             tooltip:AddDoubleLine('    ' .. char:getName(),
-                --hasLibSpec and char:getSpecString() or "no LibSpec",
                 hasLibSpec and iconString or "no LibSpec",
                 r, g, b, r, g, b)
         end
