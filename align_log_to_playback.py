@@ -59,7 +59,10 @@ def read_addon_export(filename):
         data = decode_export_blob(f.read())
         addon_version = data.get(b'addonVersion', b'not encoded').decode()
         metadata_updates = data[b'metadataUpdates']
-        player_guid = metadata_updates[0][b'myGUID'].decode()
+        player_guid = "unkonwn"
+        for update_id, update_data in metadata_updates.items():
+            player_guid = update_data[b'myGUID'].decode()
+            break
         print('ADDON VERSION:', addon_version)
         print('Exporter:', player_guid)
 
@@ -459,7 +462,7 @@ for rectype, time, record in sorted(playback + unique_inferences + combatlog_tru
 
         # These fake metadata "events" allow us to update slot <-> guid mappings and the
         # abilities of present characters.
-        if event == "METADATA_DATA_UPDATE":
+        if event == "METADATA_UPDATE":
             if not quiet: print("updating metadata")
             update_index = record[2]
             metadata = get_metadata(metadata_updates, update_index)
