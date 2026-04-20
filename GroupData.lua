@@ -457,6 +457,9 @@ end
 local internalGroupSpecs = {}    -- internal use by LibSpecialization
 LibSpecialization.RegisterGroup(internalGroupSpecs, 
     function(specId, role, position, playerName, talentExportString)
+        -- LibSpec fires for the player on ADDON_LOAD and PLAYER_LOGIN. Ignore the ADDON_LOAD message.
+        if not ns.addonInitialized then return end
+
         if not ns:addonIsActive() then
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
                 "Ignoring LibSpecialization callback, addon is disabled")
