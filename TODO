@@ -1,27 +1,43 @@
-**NEW RELEASE: 0.9.7q**
+**NEW RELEASE: 0.9.7s**
 
 Available soon on CurseForge
 
-**BUG FIXES**
-- Masque users: fix constant error that could occur when players leave/join the group.
-- Fix an unusual case where the addon could continuously generate errors due to a missed
-  group member update.
+**Updates for 12.0.5**
+- **YOU MUST UPDATE TO THIS VERSION!** Blizzard changed the way some events are reported. If you do
+  not update to this version, all cooldown tracking will fail.
+- Blizzard has hidden one line of evidence used to identify abilities, reducing accuracy for certain
+  group comps - mostly groups with paladins. There will be a fix soon to restore most of the lost
+  accuracy.
 
-**Appearance**
-- New option to disable cooldown glows when an ability is active. Only the swipe indicating
-  how long the ability lasts will be shown.
-- New option to desaturate cooldown icons when on cooldown.
+**Better settings**
+- There is a new options page: `Profiles`! As the name implies, profile support is coming soon.
+For now:
+- Settings can now be shared across your characters by unchecking `Profiles > Character-specific settings`
+- Settings can be exported as an export string to share with others. See `Profiles > Export settings`.
+- If you have an exported settings string, you can import it via `Profiles > Import settings`. Be careful!
+  Importing settings will overwrite all of your settings (either your character's if
+  `Character-specific settings` is selected or your global settings)!
+- Did this update accidentally delete your settings? Use `Profiles > Recover legacy settings` to
+  rescue your old set up. This will work for all characters that used PetesDefensiveHistory before
+  version `0.9.7s`. You can recover your legacy settings as many times as you like, they will never be
+  overwritten by the new settings system.
 
-**Accuracy**
-- Shadow Dance/Shadow Blades: should now be more accurate
-
-**Debugging**
-- Now stores a tiny amount of metadata to help future bug reporting. The metadata can be
-  exported by shift+left clicking the PetesDefensiveHistory minimap icon or clicking the
-  addon compartment button.
 
 
+- implement "recover my old settings" button
+    - either export them as a string
+    - or just apply them
+        - problem with this is applying them is destructive. exporting a string is not
 
+- next version: unbound freedom has become much more important because of the loss of button press
+  evidence.
+    - but this is solvable (at least when the paladin has unbound freedom) - just need to put more
+      effort into ruling out freedom+unbound quickly since this prevents other 10000-flagged buffs
+      from being IDed.
+
+- maybe desaturate shadowmeld during boss fights
+
+- try to figure out the elvui+bliz frames issue
 
 
 TODO: some way to share settings between characters
@@ -947,6 +963,8 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- list who has/doesn't have libspec in current group in the minimap tooltip
+
 - new prefer confidence layer could cause FPs for hunter turtle if SotF -> feign death
     - could prevent this by differentiating unitFlags that don't coincide with a combat change
     - ..though could also use the feign data
