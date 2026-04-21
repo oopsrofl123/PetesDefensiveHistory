@@ -22,7 +22,6 @@ StaticPopupDialogs["PDH_CONFIRM_EXPORT_DELETE_DIALOG"] = {
     hideOnEscape=true,
     preferredIndex=3,
     OnAccept=function(self) clearAllExportData() end,
-    OnCancel=function(self) return true end,
 }
 
 
