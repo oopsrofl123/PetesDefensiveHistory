@@ -69,7 +69,6 @@ local optionsDefaults = {
 
     charSpecificSettings = true,
 
-    disableCastEvidence = true,
     inferWithoutTalentData = false,
     enableReplays = false,
 	debugVisuals = false,
@@ -389,8 +388,6 @@ local function buildDeveloperOptions(topCategory)
         'Did an ability get mis-identified? Logic traces and event replays are the way to debug the complex scenarios this addon must handle. Enabling this option will record all relevant events and metadata to export a replay that can be aligned against a WoW combat log to check for errors. To export a replay, click the addon compartment button (top right of the screen in the default Blizzard UI) and copy the string in the pop-up window. Share your exports and combat logs on our Discord at |cFF00FFFFdiscord.gg/gVCtQrvpxt|r! |cFFFF0000Enabling this option will consume a large amount of memory, possibly ~100 Mb per 30 minute dungeon. Use /reload to clear it.|r')
 
     makeSectionHeader(layout, 'Debugging')
-    makeCheckbox(category, 'disableCastEvidence', 'Disable cast evidence',
-        'Simulate a change in the upcoming 12.0.5 patch to test accuracy. Will be deleted in the near future.')
 
     makeCheckbox(category, 'inferWithoutTalentData', 'Infer without talent data',
         'Without talent data, it is difficult to know what abilities a player has and what their cooldowns are. When unchecked (the default), do not infer abilities on players without talent data unless it is an external cooldown cast by another player with talent data. By checking this box, the addon will infer all abilities on players without talent data, which can cause many strange false calls and interactions.')
@@ -507,6 +504,41 @@ local function buildTrackedSpells(topCategory)
 end
 
 
+local function restoreLegacyOptions()
+    -- Check for some arbitrary element of the older options database
+    if PetesDefensiveHistoryOptionsDb and PetesDefensiveHistoryOptionsDb.enable then
+        ns:printDebug(ns.LOGTYPE.None, ns.LOGLEVEL.Normal,
+            "Restoring legacy settings for "..ns.optionsCharKey)
+        PetesDefensiveHistoryOptionsDb.charSpecificSettings = true
+        for k, v in pairs(PetesDefensiveHistoryOptionsDb) do
+            PetesDefensiveHistoryGlobalOptionsDb.profiles[ns.optionsCharKey][k] = v
+        end
+        -- Ideally we would :SetValue() all of the settings we just restored, but I'm not sure
+        -- where the list of all settings can be obtained (and we don't maintain such a list).
+        -- Instead, just reproduce the SetValue() downstream responses since this function will
+        -- be deleted in the near future anyway.
+        ns:handleAddonActiveStateChange()
+        ns:handleReplayStateChange()
+        ns:updateTrackerUI()
+    else
+        ns:printDebug(ns.LOGTYPE.None, ns.LOGTYPE.Error,
+            "Could not find legacy settings for "..ns.optionsCharKey..". Nothing to restore!")
+    end
+end
+
+
+StaticPopupDialogs['PDH_CONFIRM_LEGACY_RESTORE_DIALOG'] = {
+    text="This will overwrite (delete) your current "..addonName.." settings with your older settings. Are you sure?",
+    button1="Delete",
+    button2="Cancel",
+    timeout=0,
+    whileDead=true,
+    hideOnEscape=true,
+    preferredIndex=3,
+    OnAccept=function(self) restoreLegacyOptions() end,
+}
+
+
 StaticPopupDialogs["PDH_CONFIRM_IMPORT_SETTINGS"] = {
     text="Are you sure you want to overwrite your settings for "..addonName.."? This will permanently delete your current layout.",
     button1="Delete",
@@ -516,7 +548,6 @@ StaticPopupDialogs["PDH_CONFIRM_IMPORT_SETTINGS"] = {
     hideOnEscape=true,
     preferredIndex=3,
     OnAccept=function(self)  end, -- XXX: do something
-    OnCancel=function(self) return true end,
 }
 
 local function allocSettingsExportPopup()
@@ -586,11 +617,16 @@ local function buildProfiles(topCategory)
         "Create a string containing your current settings that can be input to the |cFFFFFFImport settings|r button.", true, nil, nil))
 
     layout:AddInitializer(CreateSettingsButtonInitializer(
-        "Use settings", "Import settings",
+        "Use settings |cFFFF0000NOT IMPLEMENTED|r", "Import settings",
+        function() end,
+        "Paste a settings string here to quickly set up your UI. |cFFFF0000This will overwrite (delete) all of your current settings!|r", true, nil, nil))
+
+    layout:AddInitializer(CreateSettingsButtonInitializer(
+        "Restore legacy settings", "Restore pre-12.0.5 settings",
         function()
-            StaticPopup_Show('PDH_CONFIRM_EXPORT_DELETE_DIALOG')
+            StaticPopup_Show('PDH_CONFIRM_LEGACY_RESTORE_DIALOG')
         end,
-        "Paste a settings string here to quickly set up your UI. |cFF0000This will overwrite (delete) all of your current settings!|r", true, nil, nil))
+        "Did the 12.0.5 settings change delete your old settings? No problem, click this button and your old settings will be restored. |cFFFF0000Be careful! This will overwrite (delete) the current (supposedly wrong) settings!|r", true, nil, nil))
 end
 
 
