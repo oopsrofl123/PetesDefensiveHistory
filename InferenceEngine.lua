@@ -58,6 +58,7 @@ DURATION_CONFIDENT_DIFFERENCE = 0.5
 -- as a uniform on [0, GCD length]. For a slow GCD of 1.5, setting this parameter
 -- to 0.01 would have a false positive rate of 1/150 (0.6%) and for a fast GCD of 1.0 a
 -- FP rate of 1/100 (=1%).
+-- XXX: no longer used since 12.0.5: Blizzard now hides other group members' casts
 CASTTIME_CONFIDENT_DIFFERENCE = 0.150
 
 
@@ -619,7 +620,16 @@ local function getPossibleSolutions(event, cdTracker)
             logic['died'], reqs['died'] =
                 evidenceWitnessed(event, ability, "died", "target")
         end
-        if ability.requireButtonPress and not ns:GetOption('disableCastEvidence') then
+        -- 12.0.5: UNIT_SPELLCAST_SUCCEEDED now only fires for the player, so button
+        -- presses are only detectable for the player. For now, let's use that info
+        -- even though it will cause the addon to display different information to each
+        -- group member. The justification for this is to help players with externals with
+        -- identical evidence (e.g., multiple Blessings of Sacrifice or BoSac and Ironbark).
+        -- The players that can cast the abilities will get more information than the other
+        -- group members, but they are the ones that need the information the most to make
+        -- a decision. This raises the question of why not just use the unsecreted aura IDs
+        -- for each player. That may indeed become an option in the future.
+        if ability.requireButtonPress and ability.caster == ns:myGUID() then
             logic['cast'], reqs['cast'] =
                 evidenceWitnessed(event, ability, "cast", "caster")
         end
@@ -664,6 +674,8 @@ local function getPossibleSolutions(event, cdTracker)
             traceLogic(event, ability, "is a possible solution")
             -- All rules have passed, this ability is a possible match
             local x = ns:shallowcopy(ability)
+            -- 12.0.5: castTimeDiff will be approximately equal to GetTime() for group
+            -- members other than the player.
             _, x.castTimeDiff = event:timeSinceClosest("cast", ability.caster)
             -- don't match on duration unless there is an expiring event
             x.durationDiff =
@@ -742,6 +754,17 @@ end
 
 -- The best possible solutions can have different cast times if they come
 -- from different characters.
+--
+-- 12.0.5 UPDATE: cast times from group members other than the player are now hidden, so
+-- `diff` will either be 0 or INFINITY. In short - the basic idea of comparing cast times
+-- across characters no longer makes sense. 
+-- Instead, we will keep the best.castTimeDiff==0 case, which will prefer an ability
+-- castable by the player if it occurred in the same frame as the aura was applied. It is
+-- still necessary to ensure second.castTimeDiff>0 because there could be >1 possible
+-- solutions from the player. Without this check, we would arbitrarily nominate the first
+-- listed solution.
+-- This is now equivalent to: is the best solution from player, the second best from
+-- anyone else, and was the player's nearest cast in the same frame as the aura?
 local function confidenceLayerCastTime(possibleSolutions)
     best, second = getTopTwo(possibleSolutions,
         { name='dummy', castTimeDiff=ns.INFINITY },
@@ -749,9 +772,7 @@ local function confidenceLayerCastTime(possibleSolutions)
 
     -- In the special case where the best fit cast is in the same frame as the aura,
     -- elect the better fit even if the second best is closer than the normal tolerance.
-    local diff = second.castTimeDiff - best.castTimeDiff
-    if diff >= CASTTIME_CONFIDENT_DIFFERENCE or
-       (best.castTimeDiff == 0 and second.castTimeDiff > 0) then
+    if best.castTimeDiff == 0 and second.castTimeDiff > 0 then
         return { "castTime", best, true, diff }
     else
         traceConfidence('castTime', 'failure: best=%0.3f, second=%0.3f, required diff=%0.3f',
