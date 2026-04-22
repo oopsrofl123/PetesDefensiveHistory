@@ -688,6 +688,18 @@ ns.SpecTalentModifiers = {
         [388813] = {  -- fort brew class tree talent. diff cooldown for diff specs
             { { id=115203, modifies=cooldown, amount=-30 } },
         },
+        [1249625] = {
+            { { id=1249625, modifies=hasAbility, amount=true } },
+        },
+        [391370] = {
+            { { id=1249625, modifies=duration, amount=5 } },
+        },
+        [280197] = {
+            { { id=1249625, modifies=cooldown, amount=-20 } },
+        },
+        [450989] = {
+            { { id=1249625, modifies=cooldown, amount=-10 } },
+        },
     },
 
 
