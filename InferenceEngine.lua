@@ -629,7 +629,8 @@ local function getPossibleSolutions(event, cdTracker)
         -- group members, but they are the ones that need the information the most to make
         -- a decision. This raises the question of why not just use the unsecreted aura IDs
         -- for each player. That may indeed become an option in the future.
-        if ability.requireButtonPress and ability.caster == ns:myGUID() then
+        if (ability.requireButtonPress and ability.caster == ns:myGUID()) or
+           ability.requireButtonPressOther then
             logic['cast'], reqs['cast'] =
                 evidenceWitnessed(event, ability, "cast", "caster")
         end
