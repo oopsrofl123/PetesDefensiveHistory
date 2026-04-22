@@ -115,6 +115,11 @@ function ns:initOptions()
     local name, _ = UnitNameUnmodified('player')
     local _, realm = UnitFullName('player')
     ns.optionsCharKey = name .. "-" .. realm
+
+    if not PetesDefensiveHistoryOptionsDb then
+        PetesDefensiveHistoryOptionsDb = {}
+        PetesDefensiveHistoryOptionsDb.profiles = {}
+    end
     if not PetesDefensiveHistoryGlobalOptionsDb.profiles[ns.optionsCharKey] then
         PetesDefensiveHistoryGlobalOptionsDb.profiles[ns.optionsCharKey] =
             CopyTable(optionsDefaults)
