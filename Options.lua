@@ -100,7 +100,7 @@ local function useProfile()
 end
 
 
--- Called by ADDON_LOADED. Must set up profiles/options so that GetOption() can be called.
+-- Called on PLAYER_LOGIN. Must set up profiles/options so that GetOption() can be called.
 function ns:initOptions()
     if not PetesDefensiveHistoryGlobalOptionsDb then
         PetesDefensiveHistoryGlobalOptionsDb = {}
@@ -594,7 +594,6 @@ local function allocSettingsExportPopup()
     b:SetText("Close")
     b:SetScript("OnClick", function(self, button, down) f:Hide() end)
 
-    -- Don't show until the user clicks the compartment button
     f:Hide()
 
     return f
