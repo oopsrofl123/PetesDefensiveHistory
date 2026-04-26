@@ -1,33 +1,25 @@
-**NEW RELEASE: 0.9.7s**
+**NEW RELEASE: 0.9.7u**
 
 Available soon on CurseForge
 
-**Updates for 12.0.5**
-- **YOU MUST UPDATE TO THIS VERSION!** Blizzard changed the way some events are reported. If you do
-  not update to this version, all cooldown tracking will fail.
-- Blizzard has hidden one line of evidence used to identify abilities, reducing accuracy for certain
-  group comps - mostly groups with paladins. There will be a fix soon to restore most of the lost
-  accuracy.
-
-**Better settings**
-- There is a new options page: `Profiles`! As the name implies, profile support is coming soon.
-For now:
-- Settings can now be shared across your characters by unchecking `Profiles > Character-specific settings`
-- Settings can be exported as an export string to share with others. See `Profiles > Export settings`.
-- If you have an exported settings string, you can import it via `Profiles > Import settings`. Be careful!
-  Importing settings will overwrite all of your settings (either your character's if
-  `Character-specific settings` is selected or your global settings)!
-- Did this update accidentally delete your settings? Use `Profiles > Recover legacy settings` to
-  rescue your old set up. This will work for all characters that used PetesDefensiveHistory before
-  version `0.9.7s`. You can recover your legacy settings as many times as you like, they will never be
-  overwritten by the new settings system.
+**Bug fixes**
+- Fixed a bug causing talent errors during queued dungeons (e.g., LFG/timewalking).
 
 
 
-- implement "recover my old settings" button
-    - either export them as a string
-    - or just apply them
-        - problem with this is applying them is destructive. exporting a string is not
+
+day16:
+- ww: zenith FNs in first MT of the day
+
+day15a:
+- vdh: fiery brand many FNs
+
+- is arcane surge channeled? if so, does that mean it can be distinguished from mirror images because
+  MI is an instant and thus generates no UNIT_SPELLCAST?
+    - yes. event is UNIT_SPELLCAST_START -> UNIT_SPELLCAST_SUCCEEDED
+    - need to do a full pass on which spells are instant cast
+    - interestingly, this doesn't help ID the spells for the player because both generate a
+      UNIT_SPELLCAST_SUCCEEDED
 
 - next version: unbound freedom has become much more important because of the loss of button press
   evidence.
@@ -38,6 +30,10 @@ For now:
 - maybe desaturate shadowmeld during boss fights
 
 - try to figure out the elvui+bliz frames issue
+    - tumtom - used some strange (?) way to disable elvui+enable bliz frames. must have disabled
+      elvui frames in a way that ElvUI[1].db.unitframe.units.party.enable was still true, causing
+      the cooldowns to anchor to his ElvUI frames which were not visible. then their non-visibility
+      caused cooldown trackers to hide correctly.
 
 
 TODO: some way to share settings between characters
@@ -54,9 +50,6 @@ TODO: some way to share settings between characters
         - just need an export/import tab in options and to use the already existing
           code to export just the pdhoptionsdb table and read it in
 
-- features:
-    - disable glow when ability active
-    - desaturate icon when on cooldown
 
 - ADD IN isTanking, status, scaledPercentage, rawPercentage, rawThreat = UnitDetailedThreatSituation(unit, mobGUID)
 - maybe make abilities table non-keyed since the keys are never used? would make order stable
@@ -963,6 +956,22 @@ KNOWN BUGS
 
 DONE (not necessarily in order of completion)
 ===========================================================================
+- features:
+    - disable glow when ability active
+    - desaturate icon when on cooldown
+- implement "recover my old settings" button
+    - either export them as a string
+    - or just apply them
+        - problem with this is applying them is destructive. exporting a string is not
+- there must be some missing lib for minimap icon. need bugsack/buggrabber enabled to get minimap
+- windwalker: weapons of order
+- check ret DP to see if it is still not BIG-flagged
+    - confirmed: still not BIG
+- [DONE] BoP and spellwarding flags changed
+    - see new helpful dump
+
+- untethered rage is now 12s (up from 10s)
+    - login to check based on talent text
 - list who has/doesn't have libspec in current group in the minimap tooltip
 
 - new prefer confidence layer could cause FPs for hunter turtle if SotF -> feign death
