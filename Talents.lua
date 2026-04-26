@@ -247,6 +247,7 @@ function ns:getTalentRanks(specId, talentExportString)
     -- there's no point in decoding the string if we can't map the talents to spells
     local talentIdToSpellMap = buildTalentToSpellMap(specId)
     if not talentIdToSpellMap then
+        ns:playback(GetTime(), "TALENT_FAIL(buildTalentToSpellMap)", specId)
         ns:printDebug(string.format(ns.LOGTYPE.Talents, ns.LOGLEVEL.Error,
             "talent to spell ID map failed for specId=[%s]. giving up on talent inspection",
             specId)
@@ -258,6 +259,7 @@ function ns:getTalentRanks(specId, talentExportString)
     local stream = CreateAndInitFromMixin(ImportDataStreamMixin, talentExportString)
     local encodedSpecId = readMetadata(stream)
     if encodedSpecId ~= specId then
+        ns:playback(GetTime(), "TALENT_FAIL(specId)", encodedSpecId, specId)
         ns:printDebug(ns.LOGTYPE.Talents, ns.LOGLEVEL.Error,
             "talent string encoded specialization ID " .. tostring(encodedSpecId) ..
             " but expected ID=" .. specId)
