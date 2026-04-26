@@ -323,6 +323,7 @@ if __name__ == "__main__":
                 print("updating metadata")
                 update_index = record[2]
                 metadata = get_metadata(metadata_updates, update_index)
+                print(metadata)
             elif event == "CHARACTER_DATA_UPDATE":
                 print("updating character data")
                 update_index = record[2]
@@ -402,10 +403,6 @@ if __name__ == "__main__":
             print("FAIL:", logic_string(logic, event_source, False, character_abilities))
             print("CONF:", confidence_string(conf) + " " + reqs_string(reqs))
             print(decision_string(record, spells))
-            if conf[2] > 1:
-                press = conf[3][b'P']
-                if press[2] > 0:
-                    confp[(event_id, event_slot)] = press[2]
 
     for slot, upcounts in update_count_per_aura.items():
         for aid, count in sorted(upcounts.items(), key=lambda x: x[1], reverse=True): #[:10]:
