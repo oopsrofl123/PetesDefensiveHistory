@@ -432,6 +432,9 @@ local function doLibSpecUpdate(specId, playerName, talentExportString, slot)
             playerName .. '] to a slot. proceeding without spec info')
     end
 
+    -- Fire a separate playback event here since this function can be delayed from the
+    -- LIB_SPEC_RESPONSE playback event.
+    ns:playback(GetTime(), "LIB_SPEC_UPDATE", playerName, slot, specId, talentExportString)
     local char = ns:trackCharacter(slot)
     char:setSpecAndTalents(specId, talentExportString)
     ns:respondToRosterUpdate('doLibSpecUpdate('..playerName..')')
