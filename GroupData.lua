@@ -365,7 +365,13 @@ end
 -- Do not use the slot->GUID lookup table in the main event code. characters
 -- may be created before that table is brought up to date
 function ns:trackCharacter(slot)
-    local guid = UnitGUID(slot)  -- map the name to a globally unique ID
+    ns:playback(GetTime(), 'TRACK_CHARACTER', slot)
+    -- XXX: try pcall() to figure out 
+    --local guid = UnitGUID(slot)  -- map the name to a globally unique ID
+    local retOK, guid = pcall(UnitGUID, slot)  -- map the name to a globally unique ID
+    if not retOK then
+        ns:playback(GetTime(), 'TRACK_CHARACTER_FAILED', slot)
+    end
     if not guid then
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
             'trackCharacter(): FATAL: no GUID for slot=['..slot..']')
