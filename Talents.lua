@@ -109,7 +109,7 @@ local function buildTalentToSpellMap(specId)
     C_ClassTalents.ViewLoadout({})
     local configInfo = C_Traits.GetConfigInfo(configId)
     if configInfo == nil then
-        ns:printDebug(string.format(ns.LOGTYPE.Talents, ns.LOGLEVEL.Error,
+        ns:printDebug(ns.LOGTYPE.Talents, ns.LOGLEVEL.Error, string.format(
             "FAILED TO RETRIEVE TALENT TREE: C_Traits.GetConfigInfo(configId=[%d]), specId=[%d]",
             configId, specId))
         return
@@ -248,7 +248,7 @@ function ns:getTalentRanks(specId, talentExportString)
     local talentIdToSpellMap = buildTalentToSpellMap(specId)
     if not talentIdToSpellMap then
         ns:playback(GetTime(), "TALENT_FAIL(buildTalentToSpellMap)", specId)
-        ns:printDebug(string.format(ns.LOGTYPE.Talents, ns.LOGLEVEL.Error,
+        ns:printDebug(ns.LOGTYPE.Talents, ns.LOGLEVEL.Error, string.format(
             "talent to spell ID map failed for specId=[%s]. giving up on talent inspection",
             specId)
         )
