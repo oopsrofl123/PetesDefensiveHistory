@@ -365,12 +365,12 @@ end
 -- Do not use the slot->GUID lookup table in the main event code. characters
 -- may be created before that table is brought up to date
 function ns:trackCharacter(slot)
-    ns:playback(GetTime(), 'TRACK_CHARACTER', slot)
+    ns:playback(GetTime(), 'TRACK_CHARACTER', tostring(slot))
     -- XXX: try pcall() to figure out 
     --local guid = UnitGUID(slot)  -- map the name to a globally unique ID
     local retOK, guid = pcall(UnitGUID, slot)  -- map the name to a globally unique ID
     if not retOK then
-        ns:playback(GetTime(), 'TRACK_CHARACTER_FAILED', slot)
+        ns:playback(GetTime(), 'TRACK_CHARACTER_FAILED', tostring(slot))
     end
     if not guid then
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
@@ -440,7 +440,7 @@ local function doLibSpecUpdate(specId, playerName, talentExportString, slot)
 
     -- Fire a separate playback event here since this function can be delayed from the
     -- LIB_SPEC_RESPONSE playback event.
-    ns:playback(GetTime(), "LIB_SPEC_UPDATE", playerName, slot, specId, talentExportString)
+    ns:playback(GetTime(), "LIB_SPEC_UPDATE", playerName, specId, talentExportString, tostring(slot))
     local char = ns:trackCharacter(slot)
     char:setSpecAndTalents(specId, talentExportString)
     ns:respondToRosterUpdate('doLibSpecUpdate('..playerName..')')
