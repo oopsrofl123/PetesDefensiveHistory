@@ -354,9 +354,9 @@ if __name__ == "__main__":
 
                 for aura in payload.get(b'addedAuras', []):
                     aid = aura[b'auraInstanceID']
-                    if auras[aid][5]:
+                    if auras and auras[aid][5]:
                         buffs_by_player[slot].append(aid)
-                    if auras[aid][6]:
+                    if auras and auras[aid][6]:
                         debuffs_by_player[slot].append(aid)
 
                 remlist = payload.get(b'removedAuraInstanceIDs', [])
