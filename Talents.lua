@@ -252,7 +252,7 @@ function ns:getTalentRanks(specId, talentExportString)
             "talent to spell ID map failed for specId=[%s]. giving up on talent inspection",
             specId)
         )
-        return nil
+        return {}
     end
 
     -- read the stream's metadata
@@ -263,7 +263,7 @@ function ns:getTalentRanks(specId, talentExportString)
         ns:printDebug(ns.LOGTYPE.Talents, ns.LOGLEVEL.Error,
             "talent string encoded specialization ID " .. tostring(encodedSpecId) ..
             " but expected ID=" .. specId)
-        return nil
+        return {}
     end
 
     -- The talent tree must be traversed in a specific order to matching the bits
