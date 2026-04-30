@@ -705,6 +705,19 @@ ns.AbilityDb = {
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
 		},
+        {
+			name="Touch of Karma",
+			id=122470,
+            iconId=651728,
+			cooldown=90,
+			duration=10,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=false, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+		},
 	},
 
 	----------------------------------------------------------------------------------------
