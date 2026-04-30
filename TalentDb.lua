@@ -685,6 +685,9 @@ ns.SpecTalentModifiers = {
     },
     -- Windwalker monk ------------------------------------------------------------------------
     [269] = {
+        [113656] = {
+            { { id=122470, modifies=hasAbility, amount=true } },
+        },
         [388813] = {  -- fort brew class tree talent. diff cooldown for diff specs
             { { id=115203, modifies=cooldown, amount=-30 } },
         },
