@@ -533,6 +533,8 @@ local function updateStaticRow(slot)
     local dir = ns.growthDirections[ns:GetOption('growthDirection')]
     local antidir = ns.antiDirection[dir]
 
+    tracker:EnableMouse(not ns:GetOption('clickThrough'))
+
     -- Add a new frame for each tracked cooldown
     for _, ability in pairs(abilities) do
         if not row.items[ability.name] then
@@ -544,6 +546,7 @@ local function updateStaticRow(slot)
         end
 
         local item = row.items[ability.name]
+        item:EnableMouse(not ns:GetOption('clickThrough'))
         
         -- Always update static ability data. spec could have changed
         item.spellId = ability.id
@@ -633,6 +636,8 @@ local function updateHistoryTray(slot)
     local dir = ns.growthDirections[ns:GetOption('growthDirection')]
     local antidir = ns.antiDirection[dir]
 
+    tracker:EnableMouse(not ns:GetOption('clickThrough'))
+
     local maxHistory = ns:GetOption('maxHistoryTrayItems')
     local wrap = ns:GetOption('wrapIcons')
     for i=1, math.max(maxHistory, #row.items) do
@@ -645,6 +650,7 @@ local function updateHistoryTray(slot)
                 row.items[i] = allocHistoryItem(tracker.historyTray, true)
                 item = row.items[i]
             end
+            item:EnableMouse(not ns:GetOption('clickThrough'))
             sizeHistoryItem(item)
             handleElvUI(item)
             -- item at index 1 is the oldest
@@ -728,6 +734,8 @@ function ns:updateTrackerUIBySlot(slot)
     local textSize = ns:GetOption('textSize')
     local dir = ns.growthDirections[ns:GetOption('growthDirection')]
 
+    tracker:EnableMouse(not ns:GetOption('clickThrough'))
+
     -- Position UI next to frames
     local frame = ns:slotToFrame(slot)
     if frame then
@@ -737,6 +745,7 @@ function ns:updateTrackerUIBySlot(slot)
             frame, ns.anchorPoints[ns:GetOption('anchorTo')],
             xspacing, yspacing)
     end
+    -- Everything in the tracker heirarchy must be clickthrough
 
     tracker.bg:SetAllPoints(tracker)
     tracker.bg:SetColorTexture(0,0,0,0.4)

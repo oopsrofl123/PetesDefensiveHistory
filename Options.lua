@@ -365,6 +365,9 @@ local function buildMainOptions()
         category, "hideWelcomeMessage", "Hide the welcome message",
         "Don't show the welcome message for first-time users at login.")
 
+    makeCheckbox(category, "clickThrough", "Click through icons",
+        "Do not intercept mouse clicks if they occur over icons. For example, enabling this option allows changing the camera angle when right clicking over an icon and targeting mobs under the icons by left clicking. |cFFFF0000Enabling this option will disable tooltips!|r")
+
 
     -- Settings for text to speech --------------------------------------------------
     makeSectionHeader(layout, 'Text to speech')
