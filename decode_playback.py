@@ -249,6 +249,7 @@ all_tracked_abilities = [
     "Dragonrage",
     "Obsidian Scales",
     "Time Dilation",
+    "Bestial Wrath",
     "Survival of the Fittest",
     "Trueshot",
     "Aspect of the Turtle",
@@ -262,6 +263,7 @@ all_tracked_abilities = [
     "Alter Time",
     "Combustion",
     "Greater Invisibility",
+    "Touch of Karma",
     "Fortifying Brew",
     "Life Cocoon",
     "Invoke Niuzao, the Black Ox",
@@ -299,7 +301,8 @@ all_tracked_abilities = [
     "Avatar",
     "Avatar of the Storm",
     "Enraged Regeneration",
-    "Shield Wall"
+    "Shield Wall",
+    "Spell Reflect"
 ]
 
 
