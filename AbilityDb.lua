@@ -159,7 +159,7 @@ ns.AbilityDb = {
         -- The apex talent for vengeance makes it impossible to know whether a proc was used
         -- to get a meta buff or if the actual cooldown as used.
 		{
-			name="Metamorphosis",
+			name="Metamorphosis (Vengeance)",
             alias='Meta',
             offensive=true,
 			id=187827,
@@ -277,7 +277,7 @@ ns.AbilityDb = {
 		},
         -- Feral berserk
 		{
-			name="Berserk",
+			name="Berserk (Feral)",
             id=106951,
             offensive=true,
             iconId=236149,
@@ -307,7 +307,7 @@ ns.AbilityDb = {
 		},
         -- Guardian berserk
 		{
-			name="Berserk",
+			name="Berserk (Guardian)",
             offensive=true,
             id=50334,
             iconId=236149,
@@ -416,6 +416,20 @@ ns.AbilityDb = {
 	
 	----------------------------------------------------------------------------------------
     ["HUNTER"] = {
+		{
+			name="Bestial Wrath",
+            alias='B.Wrath',
+			id=19574,
+            iconId=132127,
+			cooldown=90,
+			duration=15,
+			duration_variable=ns.DURATION_FIXED,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+		},
 		{
 			name="Survival of the Fittest",
             alias='SotF',
@@ -1170,7 +1184,7 @@ ns.AbilityDb = {
 		{  -- resto ascendance, enhance ascendance is 114051
            -- problem is both have the same deeply rooted elements spell ID and we want the
            -- appliesOtherAura directive to work
-			name="Ascendance",
+			name="Ascendance (Restoration)",
             alias='Ascend',
             offensive=true,
 			id=114052,
@@ -1185,7 +1199,7 @@ ns.AbilityDb = {
             requireButtonPress=true,
 		},
         {   -- enhance ascendance
-			name="Ascendance",
+			name="Ascendance (Enhancement)",
             alias='Ascend',
             offensive=true,
 			id=114051,
@@ -1250,7 +1264,7 @@ ns.AbilityDb = {
             requireButtonPress=true,
         },
         {   -- ele ascendance
-			name="Ascendance",
+			name="Ascendance (Elemental)",
             alias='Ascend',
             offensive=true,
 			id=114050,
@@ -1395,6 +1409,21 @@ ns.AbilityDb = {
             IMPORTANT=true, BIG=true, EXTERNAL=false, RAID=false, RAIDINCOMBAT=true,
 			targets=ns.TARGET_SELF,
             requireButtonPress=true,
+        },
+        {
+			name="Spell Reflect",
+            alias='S.Reflect',
+			id=23920,
+            iconId=132361,
+			cooldown=25,    -- prot gets an extra -5s
+			duration=5,
+			duration_variable=ns.DURATION_LTE,
+			charges=1,
+			cdr=false,
+            IMPORTANT=true, BIG=false, EXTERNAL=false, RAID=false, RAIDINCOMBAT=false,
+			targets=ns.TARGET_SELF,
+            requireButtonPress=true,
+            requireBuff=true,  -- the damage reduction portion is a separate buff
         },
         -- XXX: TODO: recklessness is listed as important but generates no UNIT_AURA event?
 	},
