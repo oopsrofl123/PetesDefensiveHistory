@@ -665,6 +665,12 @@ local function getPossibleSolutions(event, cdTracker)
         local reqsMet = true
         for _, req in pairs(reqs) do reqsMet = reqsMet and req.pass end
 
+        -- Stronger evidence than simply meeting the requirements: were all reqs met at
+        -- the same instant? This extra information is only used to choose between several
+        -- otherwise permitted solutions.
+        local reqsMetSameFrame = true
+        for _, req in pairs(reqs) do reqsMet = reqsMet and req.pass and req.diff == 0 end
+
         -- The numeric ability ID must be recorded. Don't try to key by a string
         -- that incorporates caster ID.
         table.insert(logicLayersByAbility,
@@ -682,6 +688,7 @@ local function getPossibleSolutions(event, cdTracker)
             x.durationDiff =
                 event:isExpiring() and math.abs(event:getDuration() - ability.duration) or 0
             x.reqsMet = reqsMet
+            x.reqsMetSameFrame = reqsMetSameFrame
             x.reqs = reqs
             table.insert(possibleSolutions, x)
         end
@@ -876,12 +883,13 @@ end
 
 -- Not uncommon: a specific set of solutions is possible, and one among them has evidence that
 -- is rare enough that it should be accepted if the requirements have been met.
-local function confidenceLayerPrefer(layerName, preferredAbility, otherAbilities)
+local function confidenceLayerPrefer(layerName, preferredAbility, otherAbilities, requireSameFrame)
     local numRequired = 1 + #otherAbilities
     local otherHash = {}
     for _, abilityName in pairs(otherAbilities) do
         otherHash[abilityName] = true
     end
+    local fieldName = requireSameFrame and 'reqsMetSameFrame' or 'reqsMet'
     return function(possibleSolutions)
         local numSolutions = #possibleSolutions
         if numSolutions == numRequired then
@@ -900,7 +908,7 @@ local function confidenceLayerPrefer(layerName, preferredAbility, otherAbilities
                 end
             end
             if pref and found == numSolutions then
-                return { layerName, pref.reqsMet and pref, true, pref.reqsMet }
+                return { layerName, pref[fieldName] and pref, true, pref[fieldName] }
             end
             return { layerName, false, false, found }
         end
@@ -910,18 +918,26 @@ end
 
 
 local confidenceLayerBubble =
-    confidenceLayerPrefer('bubble', 'Divine Shield', { 'Ardent Defender' })
+    confidenceLayerPrefer('bubble', 'Divine Shield', { 'Ardent Defender' }, false)
 
 local confidenceLayerTurtle =
-    confidenceLayerPrefer('turtle', 'Aspect of the Turtle', { 'Survival of the Fittest' })
+    confidenceLayerPrefer('turtle', 'Aspect of the Turtle', { 'Survival of the Fittest' }, false)
 
 -- Handle the Dark Ranger talent that attaches Exhilaration to SoTF
 local confidenceLayerTurtle2 =
-    confidenceLayerPrefer('turtle2', 'Aspect of the Turtle', { 'Survival of the Fittest', 'Exhilaration' })
+    confidenceLayerPrefer('turtle2', 'Aspect of the Turtle', { 'Survival of the Fittest', 'Exhilaration' }, false)
 
 local confidenceLayerDispersion =
-    confidenceLayerPrefer('dispersion', 'Dispersion', { 'Desperate Prayer' })
+    confidenceLayerPrefer('dispersion', 'Dispersion', { 'Desperate Prayer' }, false)
 
+-- Wake of Ashes can causes a concurrent shield through the non-choice node talent
+-- Sacrosanct Crusade (Templar hero tree). So only apply this preference if Wake is
+-- already ruled out.
+local confidenceLayerDivineProtection =
+    confidenceLayerPrefer('divineProtection', 'Divine Protection', { 'Blessing of Freedom' }, true)
+
+local confidenceLayerWakeOfAshes =
+    confidenceLayerPrefer('wakeOfAshes', 'Wake of Ashes', { 'Blessing of Freedom' }, true)
 
 ns.confidenceLayerAliases = {
     oneSolution='1',
@@ -933,6 +949,8 @@ ns.confidenceLayerAliases = {
     turtle='T',
     turtle2='t',
     dispersion='d',
+    divineProtection='v',
+    wakeOfAshes='w',
 }
 
 -- Given a list of possible abilities that could have produced event, determine:
@@ -966,6 +984,8 @@ local function getConfidentMatch(possibleSolutions, event)
         confidenceLayerTurtle(possibleSolutions),
         confidenceLayerTurtle2(possibleSolutions),
         confidenceLayerDispersion(possibleSolutions),
+        confidenceLayerDivineProtection(possibleSolutions),
+        confidenceLayerWakeOfAshes(possibleSolutions),
     }
 
     -- XXX: TODO: first match wins. maybe better strategy in the future
