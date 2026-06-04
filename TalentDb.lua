@@ -314,6 +314,12 @@ ns.ClassTalentModifiers = {
             { { id=107574, modifies=cdr, amount=true },
               { id=871, modifies=cdr, amount=true } },
         },
+        [23920] = {
+            { { id=23920, modifies=hasAbility, amount=true } },
+        },
+        [391271] = {
+            { { id=23920, modifies=cooldown, amount=-10, mult=true } },
+        },
     },
 }
 
@@ -570,6 +576,28 @@ ns.SpecTalentModifiers = {
 
     -- Beast mastery hunter -----------------------------------------------------------------
     [253] = {
+        [19574] = {  -- bestial wrath
+            { { id=19574, modifies=hasAbility, amount=true }},
+        },
+        [231548] = {
+            { { id=19574, modifies=cooldown, amount=-60 }},
+        },
+        [407412] = {   -- blood frenzy
+            { { id=19574, modifies=requireBuff, amount=true }},
+        },
+        [472741] = {   -- hero talent capstone: stampede! gives howl of the pack leader
+            { { id=19574, modifies=requireBuff, amount=true }},
+        },
+        [1264290] = {  -- hero talent: gives wailing arrow and deathblow
+            { { id=19574, modifies=requireBuff, amount=true }},
+        },
+        [466990] = {   -- hero talent: withering fire and deathblow
+            { { id=19574, modifies=requireBuff, amount=true }},
+        },
+        -- XXX: MANY talents add buffs to bestial wrath. no need to figure these out now
+        -- since: (a) we don't actually count how many extra buffs there are, its just a
+        -- binary state and (b) all other tracked abilities for BM hunter have different
+        -- flag sets, so they're easy to distinguish.
     },
     -- Marks hunter -------------------------------------------------------------------------
     [254] = {
@@ -1063,6 +1091,9 @@ ns.SpecTalentModifiers = {
     },
     -- Prot warrior ------------------------------------------------------------------------
     [73] = {
+        [190456] = {  -- ignore pain, root talent for all prot wars
+            { { id=23920, modifies=cooldown, amount=-5 } },  -- prot gets -5s cd on spell reflect
+        },
         [107574] = {   -- avatar
             { { id=107574, modifies=hasAbility, amount=true } },
         },
