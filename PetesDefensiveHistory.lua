@@ -150,6 +150,21 @@ local function findFrameForSlot(slot, slotRoot)
         else
             print("ERROR: ElvUI detected but party frames not found")
         end
+    elseif ERFPartyHeader and ERFPartyHeader:IsVisible() then
+        if slotRoot ~= "party" then
+            print("ERROR: raid frames are not supported for EllesmereUI...")
+            return
+        end
+        if ERFPartySelfButton and ERFPartySelfButton:GetAttribute("unit") == slot then
+            return ERFPartySelfButton
+        end
+        for i=1, maxN do
+            framesChecked = framesChecked + 1
+            local f = _G["ERFPartyHeaderUnitButton" .. i]
+            if f and f:GetAttribute("unit") == slot then
+                return f
+            end
+        end
     else
         -- Blizzard frames
         frameRoot = slotRoot == "party" and 'CompactPartyFrameMember' or 'CompactRaidFrame'
