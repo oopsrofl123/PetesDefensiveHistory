@@ -362,7 +362,9 @@ local function fasterGetFilterFlagsForAuraInstanceId(slot, auraInstanceId)
         return not C_UnitAuras.IsAuraFilteredOutByInstanceID(slot, auraInstanceId, filter)
     end
     return
-        getFlag("HELPFUL|IMPORTANT"),
+        -- 12.0.7: IMPORTANT flag removed
+        --getFlag("HELPFUL|IMPORTANT"),
+        false,
         getFlag("HELPFUL|BIG_DEFENSIVE"),
         getFlag("HELPFUL|EXTERNAL_DEFENSIVE"),
         getFlag("HELPFUL|RAID"),
@@ -826,7 +828,8 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
             aura.HELPNAMEPLATE, aura.NAMEPLATE, aura.HARMCC, aura.CC }
         table.insert(sanitizedAurasAdded, { auraInstanceID=v.auraInstanceID,
             icon=issecretvalue(v.icon) and 134400 or v.icon })
-        if aura.HELPFUL and (aura.IMPORTANT or aura.BIG or aura.EXTERNAL) then
+        --if aura.HELPFUL and (aura.IMPORTANT or aura.BIG or aura.EXTERNAL) then
+        if aura.HELPFUL and (aura.BIG or aura.EXTERNAL) then
             -- Only infer external auras on players without talent data. Their abilities are
             -- unknown and the inferences will cause many false positives.
             -- XXX: TODO: this causes a FALSE NEGATIVE when a player with talent data casts
@@ -845,7 +848,7 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 -- a new ability use but rather a weird way of updating the aura duration.
                 -- there is no other evidence to check to bolster confidence that this is
                 -- truly scales because this is not a distinct cast.
-                if aura.IMPORTANT == ab.IMPORTANT and aura.BIG == ab.BIG and
+                if aura.BIG == ab.BIG and
                    aura.EXTERNAL == ab.EXTERNAL and aura.RAIDINCOMBAT == ab.RAIDINCOMBAT then
                     obsidianScalesHack = true
                     -- the new aura is indeed a distinct aura by ID, but it is a continuation of
@@ -875,8 +878,9 @@ auraHandler:SetScript("OnEvent", function(self, event, unitTarget, updateInfo)
                 ns:trackAura("AURA(add)", aura, debuffAddedThisCall)
             end
         else
-            -- Skip the Blizzard unsecreted auras
-            if issecretvalue(v.spellId) or unitTarget == 'player' then
+            -- Skip the Blizzard unsecreted auras unless it's forbearance
+            if issecretvalue(v.spellId) or (not issecretvalue(v.spellId) and v.spellId == 25771) or
+               unitTarget == 'player' then
                 -- XXX: very carefully dip a toe into non-flagged auras
                 -- still set trackAuraEvidence below or else evidence could be lost
                 if debuffRemovedThisCall and aura.HELPFUL and

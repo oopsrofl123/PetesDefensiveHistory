@@ -32,7 +32,7 @@ end
 -- The unique key in this database is spell ID. It is structured by class, not by spec.
 -- The class names are the locale-indepedent names that are used to key many internal
 -- WoW tables.
-ns.AbilityDb = {
+local oldAbilityDb = {
 	----------------------------------------------------------------------------------------
     ["NightElf"] = {
 		{
@@ -912,7 +912,7 @@ ns.AbilityDb = {
 			id=31850,
             iconId=135870,
 			cooldown=90,
-			duration=8,
+			duration=12,
 			duration_variable=ns.DURATION_FIXED,
 			charges=1,
 			cdr=false,
@@ -1428,3 +1428,19 @@ ns.AbilityDb = {
         -- XXX: TODO: recklessness is listed as important but generates no UNIT_AURA event?
 	},
 }
+
+
+-- Patch 12.0.7: Blizzard removed the IMPORTANT flag. Rather than delete all of
+-- these abilities, just prune the database to remove abilities that have no flag
+-- other than IMPORTANT (and also not considering RAID, which was never a flag that
+-- would work for inference of OTHER player's abilities).
+ns.AbilityDb = {}
+for category, abilities in pairs(oldAbilityDb) do
+    ns.AbilityDb[category] = {}
+    for _, ability in pairs(abilities) do
+        -- Remove 10000-flagged and 10010-flagged abilities. 
+        if not (ability.IMPORTANT and not ability.BIG and not ability.EXTERNAL and not ability.RADINCOMBAT) then
+            table.insert(ns.AbilityDb[category], ability)
+        end
+    end
+end

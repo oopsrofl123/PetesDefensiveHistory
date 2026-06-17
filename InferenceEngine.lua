@@ -257,7 +257,8 @@ local function logicLayerAuraFlags(event, ability)
     -- this.
     local requireRaidFlag = ability.caster == ns:myGUID()
 
-    if aura.IMPORTANT ~= ability.IMPORTANT or
+    -- 12.0.7: IMPORTANT removed
+    if (false and aura.IMPORTANT ~= ability.IMPORTANT) or
        aura.BIG ~= ability.BIG or
        aura.EXTERNAL ~= ability.EXTERNAL or
         -- XXX: TODO: can remove this false shortcircuit to improve accuracy for ones own
@@ -918,7 +919,7 @@ end
 
 
 local confidenceLayerBubble =
-    confidenceLayerPrefer('bubble', 'Divine Shield', { 'Ardent Defender' }, false)
+    confidenceLayerPrefer('bubble', 'Divine Shield', { 'Ardent Defender', 'Guardian of Ancient Kings', 'Gift of the Golden Valkyr' }, true)
 
 local confidenceLayerTurtle =
     confidenceLayerPrefer('turtle', 'Aspect of the Turtle', { 'Survival of the Fittest' }, false)
