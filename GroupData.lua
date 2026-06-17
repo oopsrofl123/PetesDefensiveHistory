@@ -470,7 +470,6 @@ local function handleLibSpecCallback(specId, role, position, playerName, talentE
     --
     -- This ONLY happens on initial login/reload
     if not ns.addonInitialized then
-print('deferring libspec callback, received before addon initialized')
         C_Timer.After(0.5, function()
             handleLibSpecCallback(specId, role, position, playerName, talentExportString)
         end)
