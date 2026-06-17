@@ -1162,8 +1162,17 @@ local function initAddon()
     -- on the next frame after login, which I believe means the first rendered frame
     -- after the loading screen. After getting past the first login, Grid2's frames
     -- don't seem to cause an issue.
+    --
+    -- 6/6/2026: as of yesterday, the timing of LibSpec callbacks on login changed
+    -- and the player's talents are no longer acquired. They are acquired when grouping
+    -- with other players (though somehow not when joining a follower dungeon?). Anyway,
+    -- just fire a manual group request after the GRID2 callback in the frame after the
+    -- addon is fully initialized.
+    -- XXX: turns out this is because another addon contained a more up-to-date LibSpec,
+    -- which removed the ability to manually request group data.
     C_Timer.After(0, function()
         ns:respondToRosterUpdate('GRID2_SPECIAL_CALLBACK')
+        --ns:sendLibSpecRequest()
     end)
 
     ns.addonInitialized = true
@@ -1269,7 +1278,7 @@ function ns:enableAddon()
     --poller:Invoke()
 
     ns:respondToRosterUpdate('enableAddon')
-    ns:sendLibSpecRequest()
+    --ns:sendLibSpecRequest()
     ns:printMemUsage("enableAddon: after constructing UI")
     if ns:GetOption('runGC') then
         collectgarbage('collect')

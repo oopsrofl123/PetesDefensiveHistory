@@ -349,8 +349,7 @@ function ns:Character(slot)
     else
         if not slot then
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error, "Character(nil) called")
-        end
-        if not UnitExists(slot) then
+        elseif not UnitExists(slot) then
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal, string.format(
                 "Character(%s): tried to create new character with UnitExists(%s)=%s!",
                 slot, slot, UnitExists(slot)))
@@ -371,6 +370,7 @@ function ns:trackCharacter(slot)
     local retOK, guid = pcall(UnitGUID, slot)  -- map the name to a globally unique ID
     if not retOK then
         ns:playback(GetTime(), 'TRACK_CHARACTER_FAILED', tostring(slot))
+        return
     end
     if not guid then
         ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Error,
@@ -425,9 +425,9 @@ end
 
 local LibSpecialization = LibStub("LibSpecialization")
 
-function ns:sendLibSpecRequest()
-    LibSpecialization.RequestGroupSpecialization()
-end
+--function ns:sendLibSpecRequest()
+    --LibSpecialization.RequestGroupSpecialization()
+--end
 
 
 local function doLibSpecUpdate(specId, playerName, talentExportString, slot)
@@ -463,12 +463,18 @@ function pdhPerfectEvidence(slot)
 end
 
 
-local internalGroupSpecs = {}    -- internal use by LibSpecialization
-LibSpecialization.RegisterGroup(internalGroupSpecs, 
-    function(specId, role, position, playerName, talentExportString)
-        -- LibSpec fires for the player on ADDON_LOAD and PLAYER_LOGIN. Ignore the ADDON_LOAD message.
-        if not ns.addonInitialized then return end
-
+local function handleLibSpecCallback(specId, role, position, playerName, talentExportString)
+    -- LibSpec fires for the player on ADDON_LOAD and PLAYER_LOGIN. Since the
+    -- LibSpec dev removed the API to manually query later, we have to keep re-calling
+    -- this function until the UI is initially loaded.
+    --
+    -- This ONLY happens on initial login/reload
+    if not ns.addonInitialized then
+print('deferring libspec callback, received before addon initialized')
+        C_Timer.After(0.5, function()
+            handleLibSpecCallback(specId, role, position, playerName, talentExportString)
+        end)
+    else
         if not ns:addonIsActive() then
             ns:printDebug(ns.LOGTYPE.Data, ns.LOGLEVEL.Normal,
                 "Ignoring LibSpecialization callback, addon is disabled")
@@ -490,5 +496,9 @@ LibSpecialization.RegisterGroup(internalGroupSpecs,
         else
             doLibSpecUpdate(specId, playerName, talentExportString, slot)
         end
-    end)
+    end
+end
 
+
+local internalGroupSpecs = {}    -- internal use by LibSpecialization
+LibSpecialization.RegisterGroup(internalGroupSpecs, handleLibSpecCallback)
