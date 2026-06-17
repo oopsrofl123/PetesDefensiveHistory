@@ -884,6 +884,8 @@ end
 
 -- Not uncommon: a specific set of solutions is possible, and one among them has evidence that
 -- is rare enough that it should be accepted if the requirements have been met.
+-- This version requires the exact set of otherAbilities to all be present in the possible
+-- solutions. this is almost certainly never what we want.
 local function confidenceLayerPrefer(layerName, preferredAbility, otherAbilities, requireSameFrame)
     local numRequired = 1 + #otherAbilities
     local otherHash = {}
@@ -918,27 +920,61 @@ local function confidenceLayerPrefer(layerName, preferredAbility, otherAbilities
 end
 
 
+-- Not uncommon: a specific set of solutions is possible, and one among them has evidence that
+-- is rare enough that it should be accepted if the requirements have been met.
+-- Unlike above: do not require that the solution set be exactly {preferred, others}, allow for
+-- the case where others is a subset of otherAbilities in case, e.g., they're already excluded
+-- because they're known to be on cooldown.
+local function confidenceLayerPrefer2(layerName, preferredAbility, otherAbilities, requireSameFrame)
+    local maxPossible = 1 + #otherAbilities
+    local otherHash = {}
+    for _, abilityName in pairs(otherAbilities) do
+        otherHash[abilityName] = true
+    end
+    local fieldName = requireSameFrame and 'reqsMetSameFrame' or 'reqsMet'
+    return function(possibleSolutions)
+        if #possibleSolutions <= maxPossible then
+            local pref
+            local found = 1
+            for _, ability in pairs(possibleSolutions) do
+                if ability.name == preferredAbility then
+                    pref = ability
+                else
+                    if not otherHash[ability.name] then
+                        return { layerName, false, false, -1 }
+                    end
+                end
+            end
+            if pref then
+                return { layerName, pref[fieldName] and pref, true, pref[fieldName] }
+            end
+        end
+        return { layerName, false, false, -2 }
+    end
+end
+
+
 local confidenceLayerBubble =
-    confidenceLayerPrefer('bubble', 'Divine Shield', { 'Ardent Defender', 'Guardian of Ancient Kings', 'Gift of the Golden Valkyr' }, true)
+    confidenceLayerPrefer2('bubble', 'Divine Shield', { 'Ardent Defender', 'Guardian of Ancient Kings', 'Gift of the Golden Valkyr' }, true)
 
 local confidenceLayerTurtle =
-    confidenceLayerPrefer('turtle', 'Aspect of the Turtle', { 'Survival of the Fittest' }, false)
+    confidenceLayerPrefer2('turtle', 'Aspect of the Turtle', { 'Survival of the Fittest' }, false)
 
 -- Handle the Dark Ranger talent that attaches Exhilaration to SoTF
 local confidenceLayerTurtle2 =
-    confidenceLayerPrefer('turtle2', 'Aspect of the Turtle', { 'Survival of the Fittest', 'Exhilaration' }, false)
+    confidenceLayerPrefer2('turtle2', 'Aspect of the Turtle', { 'Survival of the Fittest', 'Exhilaration' }, false)
 
 local confidenceLayerDispersion =
-    confidenceLayerPrefer('dispersion', 'Dispersion', { 'Desperate Prayer' }, false)
+    confidenceLayerPrefer2('dispersion', 'Dispersion', { 'Desperate Prayer' }, false)
 
 -- Wake of Ashes can causes a concurrent shield through the non-choice node talent
 -- Sacrosanct Crusade (Templar hero tree). So only apply this preference if Wake is
 -- already ruled out.
 local confidenceLayerDivineProtection =
-    confidenceLayerPrefer('divineProtection', 'Divine Protection', { 'Blessing of Freedom' }, true)
+    confidenceLayerPrefer2('divineProtection', 'Divine Protection', { 'Blessing of Freedom' }, true)
 
 local confidenceLayerWakeOfAshes =
-    confidenceLayerPrefer('wakeOfAshes', 'Wake of Ashes', { 'Blessing of Freedom' }, true)
+    confidenceLayerPrefer2('wakeOfAshes', 'Wake of Ashes', { 'Blessing of Freedom' }, true)
 
 ns.confidenceLayerAliases = {
     oneSolution='1',
